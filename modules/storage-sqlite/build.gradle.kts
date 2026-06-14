@@ -1,0 +1,16 @@
+dependencies {
+    implementation(project(":modules:core"))
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.kotlin.datetime)
+    implementation(libs.sqlite.jdbc)
+    implementation(libs.flyway.core)
+    implementation(libs.kotlin.logging)
+    runtimeOnly(libs.logback)
+    testImplementation(libs.kotest.runner)
+    testImplementation(libs.kotest.assertions)
+}
