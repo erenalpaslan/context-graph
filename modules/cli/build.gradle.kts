@@ -1,0 +1,27 @@
+plugins {
+    application
+}
+
+application {
+    mainClass.set("io.contextgraph.cli.MainKt")
+}
+
+dependencies {
+    implementation(project(":modules:core"))
+    implementation(project(":modules:ingest"))
+    implementation(project(":modules:extractors"))
+    implementation(project(":modules:graph"))
+    implementation(project(":modules:storage-sqlite"))
+    implementation(project(":modules:query"))
+    implementation(project(":modules:mcp-server"))
+    implementation(project(":modules:report"))
+    implementation(project(":modules:visualization"))
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.clikt)
+    implementation(libs.kotlin.logging)
+    runtimeOnly(libs.logback)
+    testImplementation(libs.kotest.runner)
+    testImplementation(libs.kotest.assertions)
+}
