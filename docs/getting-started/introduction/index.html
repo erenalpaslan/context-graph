@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Introduction — ContextGraph</title>
+  <link rel="stylesheet" href="../../shared/style.css" />
+</head>
+<body>
+<article>
+  <h1>Introduction</h1>
+
+  <h2>Overview</h2>
+  <p>ContextGraph is a local-first knowledge graph engine that turns your project's files — source code, Markdown documentation, PDFs, SQL schemas, YAML/JSON configs — into a connected, queryable graph stored in SQLite.</p>
+  <p>Once indexed, you can search the graph from the CLI, explore relationships between concepts, and expose the entire knowledge base to AI agents through a Model Context Protocol (MCP) server.</p>
+
+  <h2>Why it exists</h2>
+  <p>Large codebases and documentation collections are hard to navigate — for humans and AI agents alike. Reading every file to answer "what does this module do?" or "what depends on this function?" is slow and expensive. ContextGraph solves this by building a persistent, structured graph of your project's knowledge so that questions can be answered in milliseconds instead of minutes.</p>
+  <p>AI agents using ContextGraph can answer questions with far fewer token-consuming file reads, because they can navigate the graph directly.</p>
+
+  <h2>What's in the graph</h2>
+  <p>Every indexed file produces <strong>nodes</strong> and <strong>edges</strong>:</p>
+  <ul>
+    <li><strong>Artifact nodes</strong> — the file itself (<code>CodeFile</code>, <code>MarkdownFile</code>, <code>PDF</code>, <code>DatabaseSchema</code>, <code>ConfigFile</code>…)</li>
+    <li><strong>Entity nodes</strong> — symbols extracted from the file (<code>Class</code>, <code>Function</code>, <code>Method</code>, <code>DatabaseTable</code>, <code>Concept</code>, <code>Claim</code>…)</li>
+    <li><strong>Edges</strong> — relationships between nodes (<code>DEFINES</code>, <code>CALLS</code>, <code>DEPENDS_ON</code>, <code>REFERENCES</code>, <code>CONTAINS</code>…)</li>
+  </ul>
+  <p>Every node carries a <strong>confidence score</strong> and full <strong>provenance</strong> — the exact file path and line numbers where it was extracted from.</p>
+
+  <h2>Extractors</h2>
+  <table>
+    <thead><tr><th>Extractor</th><th>File types</th><th>What it extracts</th></tr></thead>
+    <tbody>
+      <tr><td><code>CodeExtractor</code></td><td>.kt, .java, .py, .js, .ts…</td><td>Classes, functions, methods, imports</td></tr>
+      <tr><td><code>MarkdownExtractor</code></td><td>.md</td><td>Headings, sections, links</td></tr>
+      <tr><td><code>SqlExtractor</code></td><td>.sql</td><td>Tables, columns, foreign keys</td></tr>
+      <tr><td><code>PdfExtractor</code></td><td>.pdf</td><td>Sections, text content</td></tr>
+      <tr><td><code>ConfigExtractor</code></td><td>.yaml, .yml, .json, .toml</td><td>Keys, values, structure</td></tr>
+      <tr><td><code>SemanticExtractor</code></td><td>any (via LiteLLM)</td><td>Concepts, claims, decisions, relationships</td></tr>
+    </tbody>
+  </table>
+
+  <h2>100% local</h2>
+  <p>ContextGraph runs entirely on your machine. The graph is stored in a single SQLite file at <code>.contextgraph/graph.db</code> in your project directory. No data is sent to any cloud service unless you explicitly enable the optional semantic extractor and point it at your own LiteLLM endpoint.</p>
+
+  <div class="callout">
+    <div class="callout-title">Note</div>
+    Semantic extraction via LiteLLM is disabled by default. All other extractors work fully offline.
+  </div>
+</article>
+<script>const PAGE = 'introduction'; const BASE = '../../';</script>
+<script src="../../shared/docs.js"></script>
+</body>
+</html>

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContextGraph — Knowledge graph engine for code &amp; docs</title>
+  <meta name="description" content="Index code, docs, PDFs, and schemas into a queryable knowledge graph. Query via CLI or expose to AI agents through an MCP server." />
+  <link rel="stylesheet" href="shared/style.css" />
+  <style>
+    /* ── Landing-only overrides ── */
+    body { overflow-x: hidden; }
+
+    /* NAV */
+    .lp-nav-link { color: var(--muted) !important; font-size: 0.875rem; transition: color .15s; }
+    .lp-nav-link:hover { color: var(--text) !important; text-decoration: none; }
+
+    /* HERO */
+    .hero {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 7rem 1.5rem 5rem;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124,106,255,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(124,106,255,0.1);
+      border: 1px solid rgba(124,106,255,0.25);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #a78bfa;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .hero-badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #a78bfa;
+      animation: blink 2.4s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 3.8rem);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+      max-width: 720px;
+      margin-bottom: 1.25rem;
+      background: linear-gradient(160deg, #ffffff 30%, #c4b5fd 70%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 500px;
+      line-height: 1.7;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 0.875rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 4rem;
+    }
+
+    /* DIAGRAM */
+    .diagram-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 660px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 2.5rem 2rem;
+      overflow: hidden;
+    }
+
+    .diagram-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124,106,255,0.5), transparent);
+    }
+
+    .diagram-wrap svg { display: block; width: 100%; }
+
+    /* STATS */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat {
+      flex: 1;
+      max-width: 220px;
+      padding: 2rem 1rem;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-val {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #fff, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* FEATURES */
+    .features {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+
+    .features-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .section-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+    }
+
+    .features-header h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.75rem;
+    }
+
+    .features-header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      max-width: 460px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .feature-card {
+      background: var(--bg);
+      padding: 2rem;
+      transition: background .2s;
+    }
+
+    .feature-card:hover { background: var(--surface); }
+
+    .feature-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: rgba(124,106,255,0.1);
+      border: 1px solid rgba(124,106,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .feature-title {
+      font-weight: 700;
+      font-size: 0.975rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .feature-desc {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* MCP STRIP */
+    .mcp-strip {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 3.5rem 1.5rem;
+      text-align: center;
+    }
+
+    .mcp-inner { max-width: 760px; margin: 0 auto; }
+
+    .mcp-inner h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .mcp-inner > p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+      line-height: 1.7;
+    }
+
+    .tools-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    .tool-tag {
+      font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      font-size: 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      color: #a78bfa;
+      transition: border-color .15s;
+    }
+
+    .tool-tag:hover { border-color: var(--accent); }
+
+    /* QUICKSTART */
+    .quickstart {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+
+    .quickstart-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .quickstart-header h2 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.4rem;
+    }
+
+    .quickstart-header p { color: var(--muted); font-size: 0.9rem; }
+
+    .qs-block { margin-bottom: 0.75rem; }
+
+    .qs-block pre {
+      margin: 0;
+      border-radius: 0 0 10px 10px;
+      border-top: none;
+    }
+
+    .pre-header { border-radius: 10px 10px 0 0; }
+
+    /* FOOTER */
+    .lp-footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .footer-links a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .footer-links a:hover { color: var(--text); }
+
+    .footer-copy { font-size: 0.8rem; color: #484f58; }
+
+    @media (max-width: 640px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .stats { flex-wrap: wrap; }
+      .stat { border-right: none; border-bottom: 1px solid var(--border); max-width: 100%; width: 50%; }
+      .lp-footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="site-nav">
+  <a class="nav-logo" href="index.html">
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="4" fill="#7c6aff"/>
+      <circle cx="6" cy="7" r="2.5" fill="#a78bfa"/>
+      <circle cx="22" cy="7" r="2.5" fill="#a78bfa"/>
+      <circle cx="6" cy="21" r="2.5" fill="#a78bfa"/>
+      <circle cx="22" cy="21" r="2.5" fill="#a78bfa"/>
+      <line x1="10" y1="12" x2="7.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+      <line x1="18" y1="12" x2="20.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+      <line x1="10" y1="16" x2="7.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+      <line x1="18" y1="16" x2="20.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+    </svg>
+    ContextGraph
+  </a>
+  <ul class="nav-right">
+    <li><a class="lp-nav-link" href="getting-started/introduction/index.html">Docs</a></li>
+    <li><a class="lp-nav-link" href="reference/mcp-server/index.html">Reference</a></li>
+    <li>
+      <a class="nav-gh" href="https://github.com/erenalpaslan/context-graph" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    Kotlin · SQLite · MCP · LiteLLM
+  </div>
+  <h1>Understand any project<br/>as a knowledge graph.</h1>
+  <p class="hero-sub">
+    A local-first engine that indexes code, docs, PDFs, and schemas into a queryable graph — then exposes structured context to AI agents through an MCP server.
+  </p>
+  <div class="hero-ctas">
+    <a class="btn-primary" href="getting-started/introduction/index.html">
+      Get started →
+    </a>
+    <a class="btn-ghost" href="https://github.com/erenalpaslan/context-graph" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style="margin-right:2px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+
+  <!-- Graph diagram -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 580 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- glow under center node -->
+      <ellipse cx="290" cy="110" rx="40" ry="30" fill="#7c6aff" fill-opacity="0.08"/>
+
+      <!-- edges -->
+      <line x1="290" y1="110" x2="80"  y2="44"  stroke="#7c6aff" stroke-width="1.2" stroke-opacity="0.35"/>
+      <line x1="290" y1="110" x2="500" y2="44"  stroke="#7c6aff" stroke-width="1.2" stroke-opacity="0.35"/>
+      <line x1="290" y1="110" x2="60"  y2="176" stroke="#7c6aff" stroke-width="1.2" stroke-opacity="0.35"/>
+      <line x1="290" y1="110" x2="520" y2="176" stroke="#7c6aff" stroke-width="1.2" stroke-opacity="0.35"/>
+      <line x1="290" y1="110" x2="185" y2="190" stroke="#7c6aff" stroke-width="1.2" stroke-opacity="0.25"/>
+      <line x1="290" y1="110" x2="415" y2="40"  stroke="#7c6aff" stroke-width="1.2" stroke-opacity="0.25"/>
+      <line x1="80"  y1="44"  x2="185" y2="190" stroke="#30363d" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="500" y1="44"  x2="520" y2="176" stroke="#30363d" stroke-width="1" stroke-dasharray="4 3"/>
+
+      <!-- edge labels -->
+      <text x="178" y="82"  font-size="8.5" fill="#484f58" font-family="ui-monospace,monospace" letter-spacing=".03em">DEFINES</text>
+      <text x="366" y="88"  font-size="8.5" fill="#484f58" font-family="ui-monospace,monospace" letter-spacing=".03em">EXPOSES</text>
+      <text x="102" y="152" font-size="8.5" fill="#484f58" font-family="ui-monospace,monospace" letter-spacing=".03em">CONTAINS</text>
+
+      <!-- center node -->
+      <circle cx="290" cy="110" r="30" fill="#1a1f2e" stroke="#7c6aff" stroke-width="1.75"/>
+      <text x="290" y="106" text-anchor="middle" font-size="9" fill="#7c6aff" font-family="system-ui" font-weight="700" letter-spacing=".04em">GRAPH</text>
+      <text x="290" y="120" text-anchor="middle" font-size="8" fill="#6c7086" font-family="ui-monospace,monospace">SQLite</text>
+
+      <!-- satellite nodes -->
+      <!-- Kotlin -->
+      <circle cx="80" cy="44" r="24" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+      <text x="80" y="39" text-anchor="middle" font-size="12">📄</text>
+      <text x="80" y="55" text-anchor="middle" font-size="8.5" fill="#8b949e" font-family="system-ui" font-weight="500">Kotlin</text>
+
+      <!-- SQL -->
+      <circle cx="500" cy="44" r="24" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+      <text x="500" y="39" text-anchor="middle" font-size="12">🗄️</text>
+      <text x="500" y="55" text-anchor="middle" font-size="8.5" fill="#8b949e" font-family="system-ui" font-weight="500">SQL</text>
+
+      <!-- Markdown -->
+      <circle cx="60" cy="176" r="24" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+      <text x="60" y="171" text-anchor="middle" font-size="12">📝</text>
+      <text x="60" y="187" text-anchor="middle" font-size="8.5" fill="#8b949e" font-family="system-ui" font-weight="500">Docs</text>
+
+      <!-- PDF -->
+      <circle cx="520" cy="176" r="24" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+      <text x="520" y="171" text-anchor="middle" font-size="12">📕</text>
+      <text x="520" y="187" text-anchor="middle" font-size="8.5" fill="#8b949e" font-family="system-ui" font-weight="500">PDF</text>
+
+      <!-- Config -->
+      <circle cx="185" cy="192" r="24" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+      <text x="185" y="187" text-anchor="middle" font-size="12">⚙️</text>
+      <text x="185" y="203" text-anchor="middle" font-size="8.5" fill="#8b949e" font-family="system-ui" font-weight="500">Config</text>
+
+      <!-- MCP -->
+      <circle cx="415" cy="40" r="24" fill="#161b22" stroke="#7c6aff" stroke-width="1.5" stroke-opacity=".6"/>
+      <text x="415" y="35" text-anchor="middle" font-size="12">🔌</text>
+      <text x="415" y="51" text-anchor="middle" font-size="8.5" fill="#a78bfa" font-family="system-ui" font-weight="500">MCP</text>
+    </svg>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-val">10</div>
+    <div class="stat-label">MCP tools</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">6</div>
+    <div class="stat-label">file types</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">FTS5</div>
+    <div class="stat-label">full-text search</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">0</div>
+    <div class="stat-label">cloud required</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="features-header">
+    <div class="section-eyebrow">Capabilities</div>
+    <h2>Everything in one graph.</h2>
+    <p>ContextGraph extracts structure and semantics from every file type and stitches them into a single connected store.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">📁</div>
+      <div class="feature-title">Multi-format ingestion</div>
+      <p class="feature-desc">Index Kotlin, Java, Python, JS, Markdown, SQL, PDFs, and YAML in one pass. Incremental re-indexing skips unchanged files via checksums.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔌</div>
+      <div class="feature-title">MCP server</div>
+      <p class="feature-desc">Expose 10 graph tools to Claude, Cursor, and any MCP-compatible agent. Agents search, traverse, and build context without reading every file.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <div class="feature-title">Semantic extraction</div>
+      <p class="feature-desc">Route files through any LiteLLM-compatible model to extract concepts, decisions, and relationships that static analysis can't see.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">100% local</div>
+      <p class="feature-desc">The graph lives in <code>.contextgraph/graph.db</code>. No cloud, no accounts. Data never leaves your machine unless you say so.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔗</div>
+      <div class="feature-title">Graph traversal</div>
+      <p class="feature-desc">BFS expansion, shortest-path queries, and reverse dependency analysis — powered by JGraphT on top of SQLite FTS5.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📍</div>
+      <div class="feature-title">Full provenance</div>
+      <p class="feature-desc">Every node traces back to its source file and line number. Ask "where did this concept come from?" and get an exact answer.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MCP STRIP -->
+<div class="mcp-strip">
+  <div class="mcp-inner">
+    <div class="section-eyebrow" style="margin-bottom:.6rem">MCP Server</div>
+    <h2>Give AI agents structured project context.</h2>
+    <p>Run <code>serve-mcp</code> to expose the knowledge graph to any MCP-compatible agent — Claude, Cursor, Copilot. Agents navigate relationships and build context bundles without reading every file.</p>
+    <div class="tools-row">
+      <span class="tool-tag">index_project</span>
+      <span class="tool-tag">search_nodes</span>
+      <span class="tool-tag">get_node</span>
+      <span class="tool-tag">expand_node</span>
+      <span class="tool-tag">find_path</span>
+      <span class="tool-tag">get_evidence</span>
+      <span class="tool-tag">impact_analysis</span>
+      <span class="tool-tag">related_files</span>
+      <span class="tool-tag">build_context</span>
+      <span class="tool-tag">generate_report</span>
+    </div>
+  </div>
+</div>
+
+<!-- QUICKSTART -->
+<section class="quickstart">
+  <div class="quickstart-header">
+    <div class="section-eyebrow">Quick Start</div>
+    <h2>Up and running in minutes.</h2>
+    <p>Requires Java 17+.</p>
+  </div>
+
+  <div class="qs-block">
+    <div class="pre-header">
+      <div class="pre-dot pre-dot-r"></div>
+      <div class="pre-dot pre-dot-y"></div>
+      <div class="pre-dot pre-dot-g"></div>
+      <span class="pre-label">terminal</span>
+    </div>
+    <pre><code><span class="t-comment"># Clone and build</span>
+git clone https://github.com/erenalpaslan/context-graph
+cd context-graph && ./gradlew build
+
+<span class="t-comment"># Init + index your project</span>
+./gradlew :modules:cli:run --args=<span class="t-str">"init"</span>
+./gradlew :modules:cli:run --args=<span class="t-str">"index /path/to/your/project"</span>
+
+<span class="t-comment"># Search</span>
+./gradlew :modules:cli:run --args=<span class="t-str">'search "authentication"'</span>
+
+<span class="t-comment"># Start MCP server for AI agents</span>
+./gradlew :modules:cli:run --args=<span class="t-str">"serve-mcp"</span></code></pre>
+  </div>
+
+  <div style="text-align:center;margin-top:2rem">
+    <a class="btn-primary" href="getting-started/quickstart/index.html">Full quick start guide →</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="border-top:1px solid var(--border);padding:2rem 1.5rem">
+  <div class="lp-footer">
+    <a class="footer-logo" href="index.html">
+      <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="4" fill="#7c6aff"/>
+        <circle cx="6" cy="7" r="2.5" fill="#a78bfa"/>
+        <circle cx="22" cy="7" r="2.5" fill="#a78bfa"/>
+        <circle cx="6" cy="21" r="2.5" fill="#a78bfa"/>
+        <circle cx="22" cy="21" r="2.5" fill="#a78bfa"/>
+        <line x1="10" y1="12" x2="7.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+        <line x1="18" y1="12" x2="20.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+        <line x1="10" y1="16" x2="7.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+        <line x1="18" y1="16" x2="20.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+      </svg>
+      ContextGraph
+    </a>
+    <ul class="footer-links">
+      <li><a href="getting-started/introduction/index.html">Docs</a></li>
+      <li><a href="reference/mcp-server/index.html">Reference</a></li>
+      <li><a href="https://github.com/erenalpaslan/context-graph" target="_blank">GitHub</a></li>
+      <li><a href="https://github.com/erenalpaslan/context-graph/blob/main/LICENSE" target="_blank">MIT License</a></li>
+    </ul>
+    <span class="footer-copy">© 2025 ContextGraph</span>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick Start — ContextGraph</title>
+  <link rel="stylesheet" href="../../shared/style.css" />
+</head>
+<body>
+<article>
+  <h1>Quick Start</h1>
+  <p>Get ContextGraph running and your first project indexed in under five minutes.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>Java 17 or higher</li>
+    <li>Git</li>
+  </ul>
+
+  <h2>1. Clone and build</h2>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>git clone https://github.com/erenalpaslan/context-graph
+cd context-graph
+./gradlew build</code></pre>
+
+  <h2>2. Initialize your project</h2>
+  <p>Run <code>init</code> inside the project you want to index. This creates the <code>.contextgraph/</code> directory and a default config file.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>cd /path/to/your/project
+/path/to/context-graph/gradlew \
+  -p /path/to/context-graph \
+  :modules:cli:run --args="init"</code></pre>
+
+  <div class="callout">
+    <div class="callout-title">Tip</div>
+    For convenience, create an alias: <code>alias contextgraph="./gradlew :modules:cli:run --args="</code>
+  </div>
+
+  <h2>3. Index your project</h2>
+  <p>Point the indexer at your project directory. It will discover all supported files, extract nodes and edges, and write them to <code>.contextgraph/graph.db</code>.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="index /path/to/your/project"
+
+# Output:
+# Indexing /path/to/your/project...
+# Done: 142 artifacts, 891 nodes, 1204 edges
+#   Skipped (unchanged): 0</code></pre>
+
+  <h2>4. Search the graph</h2>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args='search "authentication"'
+
+# 8 results for 'authentication':
+#   [Class]    AuthController  id=io.example.AuthController  confidence=1.0
+#   [Function] authenticate    id=io.example.AuthController.authenticate  confidence=1.0
+#   [Concept]  JWT Strategy    id=concept:jwt-strategy  confidence=0.85
+#   ...</code></pre>
+
+  <h2>5. Generate a report</h2>
+  <p>Generates <code>GRAPH_REPORT.md</code> (Markdown summary) and <code>graph.html</code> (interactive D3.js visualization) in the current directory.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="report"</code></pre>
+
+  <h2>6. Connect to an AI agent</h2>
+  <p>Start the MCP server so agents like Claude Desktop can query the graph directly.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="serve-mcp"</code></pre>
+
+  <p>Add ContextGraph to your Claude Desktop config:</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">claude_desktop_config.json</span></div>
+  <pre><code>{
+  <span class="t-key">"mcpServers"</span>: {
+    <span class="t-key">"contextgraph"</span>: {
+      <span class="t-key">"command"</span>: <span class="t-str">"/path/to/context-graph/gradlew"</span>,
+      <span class="t-key">"args"</span>: [<span class="t-str">"-p"</span>, <span class="t-str">"/path/to/context-graph"</span>, <span class="t-str">":modules:cli:run"</span>, <span class="t-str">"--args=serve-mcp"</span>]
+    }
+  }
+}</code></pre>
+</article>
+<script>const PAGE = 'quickstart'; const BASE = '../../';</script>
+<script src="../../shared/docs.js"></script>
+</body>
+</html>

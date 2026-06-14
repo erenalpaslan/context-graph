@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How It Works — ContextGraph</title>
+  <link rel="stylesheet" href="../../shared/style.css" />
+  <style>
+    .pipeline-steps {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin: 1.25rem 0;
+      background: var(--surface);
+    }
+    .pipeline-step {
+      flex: 1;
+      min-width: 110px;
+      padding: 1.25rem 0.75rem;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .pipeline-step:last-child { border-right: none; }
+    .ps-icon { font-size: 1.4rem; margin-bottom: 0.4rem; }
+    .ps-name { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); margin-bottom: 0.25rem; }
+    .ps-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
+    .ps-arrow {
+      position: absolute;
+      right: -9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+      font-size: 0.9rem;
+      z-index: 1;
+    }
+    .pipeline-step:last-child .ps-arrow { display: none; }
+  </style>
+</head>
+<body>
+<article>
+  <h1>How It Works</h1>
+  <p>ContextGraph is a pipeline: it discovers files, routes them to extractors, resolves entities, builds a graph, and writes everything to SQLite. Here's each stage in detail.</p>
+
+  <div class="pipeline-steps">
+    <div class="pipeline-step">
+      <div class="ps-icon">📁</div>
+      <div class="ps-name">Discover</div>
+      <div class="ps-desc">Walk directory with glob patterns</div>
+      <span class="ps-arrow">›</span>
+    </div>
+    <div class="pipeline-step">
+      <div class="ps-icon">🔍</div>
+      <div class="ps-name">Detect</div>
+      <div class="ps-desc">Route each file to extractors</div>
+      <span class="ps-arrow">›</span>
+    </div>
+    <div class="pipeline-step">
+      <div class="ps-icon">⚙️</div>
+      <div class="ps-name">Extract</div>
+      <div class="ps-desc">Parallel coroutines per file</div>
+      <span class="ps-arrow">›</span>
+    </div>
+    <div class="pipeline-step">
+      <div class="ps-icon">🔗</div>
+      <div class="ps-name">Resolve</div>
+      <div class="ps-desc">Deduplicate entities</div>
+      <span class="ps-arrow">›</span>
+    </div>
+    <div class="pipeline-step">
+      <div class="ps-icon">💾</div>
+      <div class="ps-name">Store</div>
+      <div class="ps-desc">SQLite + FTS5</div>
+    </div>
+  </div>
+
+  <h2>1. File discovery</h2>
+  <p><code>FileDiscovery</code> walks the project directory using the include/exclude glob patterns from your config. Each matching file becomes an <code>Artifact</code> with a path, type, size, and SHA-256 checksum.</p>
+  <p>On re-indexing, <code>ChecksumTracker</code> compares the current checksum against what's stored. If unchanged, the file is skipped — this makes incremental indexing fast even on large projects.</p>
+
+  <h2>2. Artifact type detection</h2>
+  <p><code>ArtifactTypeDetector</code> maps file extensions to <code>NodeType</code>. A <code>.kt</code> file becomes <code>CodeFile</code>, a <code>.sql</code> file becomes <code>DatabaseSchema</code>, a <code>.pdf</code> becomes <code>PDF</code>, and so on. The type determines which extractors run.</p>
+
+  <h2>3. Extraction</h2>
+  <p><code>IngestPipeline</code> runs extraction with Kotlin coroutines. Each file is processed concurrently on <code>Dispatchers.IO</code> — multiple extractors can run in parallel across many files. Results flow through a <code>Channel</code> to a single consumer that writes to SQLite, avoiding lock contention.</p>
+
+  <p>Each extractor implements <code>ResourceExtractor</code>:</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">ResourceExtractor.kt</span></div>
+  <pre><code><span class="t-kw">interface</span> ResourceExtractor {
+    <span class="t-kw">val</span> id: String
+    <span class="t-kw">val</span> supportedTypes: Set&lt;NodeType&gt;
+    <span class="t-kw">suspend fun</span> extract(artifact: Artifact, context: ExtractionContext): ExtractionResult
+}</code></pre>
+
+  <p>An <code>ExtractionResult</code> contains a list of <code>GraphNode</code>s, a list of <code>GraphEdge</code>s, and back-references to the source <code>Artifact</code>.</p>
+
+  <h2>4. Entity resolution</h2>
+  <p><code>EntityResolver</code> deduplicates nodes across files. If a <code>Class</code> named <code>UserService</code> appears as both a definition in a <code>.kt</code> file and a reference in a Markdown doc, they resolve to the same node with provenance from both sources.</p>
+
+  <h2>5. Storage</h2>
+  <p>All data is written to SQLite via <code>SqliteStorageAdapter</code> using Jetbrains Exposed as the DSL. The database schema is managed by Flyway migrations. Three key tables:</p>
+  <ul>
+    <li><strong>artifacts</strong> — one row per indexed file</li>
+    <li><strong>nodes</strong> — entities extracted from files, with FTS5 index on <code>label</code> for full-text search</li>
+    <li><strong>edges</strong> — typed, weighted relationships between nodes</li>
+    <li><strong>provenance</strong> — file + line numbers tracing each node back to its source</li>
+  </ul>
+
+  <h2>Query layer</h2>
+  <p>The <code>QueryEngine</code> sits on top of <code>StorageAdapter</code> and provides higher-level operations: BFS neighborhood expansion (via JGraphT), shortest-path finding, reverse-dependency (impact) analysis, and context bundle assembly for AI agents.</p>
+
+  <div class="callout">
+    <div class="callout-title">Adding a new extractor</div>
+    Implement <code>ResourceExtractor</code>, add it to the <code>ExtractorRegistry</code> in <code>Main.kt</code> and <code>McpServer.kt</code>. No other changes needed.
+  </div>
+</article>
+<script>const PAGE = 'how-it-works'; const BASE = '../../';</script>
+<script src="../../shared/docs.js"></script>
+</body>
+</html>

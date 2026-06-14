@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLI — ContextGraph</title>
+  <link rel="stylesheet" href="../../shared/style.css" />
+</head>
+<body>
+<article>
+  <h1>CLI Reference</h1>
+  <p>All commands are run via Gradle:</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="&lt;command&gt; [options]"</code></pre>
+
+  <div class="callout">
+    <div class="callout-title">Working directory</div>
+    All commands read <code>.contextgraph/config.json</code> and write to <code>.contextgraph/graph.db</code> relative to the current working directory, not the project being indexed.
+  </div>
+
+  <h2>init</h2>
+  <p>Initialize <code>.contextgraph/</code> in the current directory with a default <code>config.json</code>.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="init"</code></pre>
+
+  <h2>index</h2>
+  <p>Index a directory into the knowledge graph. Skips files unchanged since the last run.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="index [path]"
+
+<span class="t-comment"># path defaults to "." (current directory)</span>
+./gradlew :modules:cli:run --args="index /path/to/project"</code></pre>
+
+  <h2>search</h2>
+  <p>Full-text search across all graph nodes.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args='search &lt;query&gt; [--limit N] [--min-confidence 0.5]'
+
+./gradlew :modules:cli:run --args='search "authentication" --limit 10 --min-confidence 0.7'</code></pre>
+  <table>
+    <thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>--limit</code></td><td>20</td><td>Maximum number of results</td></tr>
+      <tr><td><code>--min-confidence</code></td><td>0.5</td><td>Minimum node confidence score</td></tr>
+    </tbody>
+  </table>
+
+  <h2>node</h2>
+  <p>Show a node's details and provenance by ID.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="node &lt;nodeId&gt;"
+
+./gradlew :modules:cli:run --args="node io.example.AuthController"</code></pre>
+
+  <h2>expand</h2>
+  <p>BFS neighborhood expansion from a node — returns all reachable nodes within the given depth.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="expand &lt;nodeId&gt; [--depth 2]"</code></pre>
+
+  <h2>path</h2>
+  <p>Find the shortest path between two nodes.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="path &lt;fromId&gt; &lt;toId&gt;"</code></pre>
+
+  <h2>report</h2>
+  <p>Generate <code>GRAPH_REPORT.md</code> and <code>graph.html</code> in the output directory.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="report [--output .]"</code></pre>
+
+  <h2>export</h2>
+  <p>Export the full graph as a JSON snapshot.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="export [graph.json]"</code></pre>
+
+  <h2>serve-mcp</h2>
+  <p>Start the MCP server over stdio. See <a href="../mcp-server/">MCP Server</a> for full documentation.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="serve-mcp"</code></pre>
+
+  <h2>config set</h2>
+  <p>Update a configuration value in <code>.contextgraph/config.json</code>.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="config set &lt;key&gt; &lt;value&gt;"</code></pre>
+  <table>
+    <thead><tr><th>Key</th><th>Example value</th></tr></thead>
+    <tbody>
+      <tr><td><code>litellm.enabled</code></td><td><code>true</code></td></tr>
+      <tr><td><code>litellm.base-url</code></td><td><code>http://localhost:4000</code></td></tr>
+      <tr><td><code>litellm.model</code></td><td><code>claude-opus-4-7</code></td></tr>
+      <tr><td><code>litellm.rate-limit</code></td><td><code>10</code></td></tr>
+      <tr><td><code>max-file-size-mb</code></td><td><code>25</code></td></tr>
+    </tbody>
+  </table>
+</article>
+<script>const PAGE = 'cli'; const BASE = '../../';</script>
+<script src="../../shared/docs.js"></script>
+</body>
+</html>

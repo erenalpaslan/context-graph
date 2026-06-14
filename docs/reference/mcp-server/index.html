@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Server — ContextGraph</title>
+  <link rel="stylesheet" href="../../shared/style.css" />
+</head>
+<body>
+<article>
+  <h1>MCP Server</h1>
+  <p>ContextGraph exposes its knowledge graph to AI agents over the <a href="https://modelcontextprotocol.io" target="_blank">Model Context Protocol</a> (MCP) via stdio. Start the server with:</p>
+
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="serve-mcp"</code></pre>
+
+  <h2>Claude Desktop</h2>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">claude_desktop_config.json</span></div>
+  <pre><code>{
+  <span class="t-key">"mcpServers"</span>: {
+    <span class="t-key">"contextgraph"</span>: {
+      <span class="t-key">"command"</span>: <span class="t-str">"/absolute/path/to/context-graph/gradlew"</span>,
+      <span class="t-key">"args"</span>: [
+        <span class="t-str">"-p"</span>, <span class="t-str">"/absolute/path/to/context-graph"</span>,
+        <span class="t-str">":modules:cli:run"</span>,
+        <span class="t-str">"--args=serve-mcp"</span>
+      ]
+    }
+  }
+}</code></pre>
+
+  <h2>Tools</h2>
+  <p>The server registers 10 tools that agents can call to query the knowledge graph.</p>
+
+  <h3>contextgraph.index_project</h3>
+  <p>Index a project directory into the graph.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>path</code></td><td>string</td><td>yes</td><td>Absolute path to the project directory</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.search_nodes</h3>
+  <p>Full-text search across all nodes, with optional type filtering.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>query</code></td><td>string</td><td>yes</td><td>Search query</td></tr>
+      <tr><td><code>types</code></td><td>string</td><td>no</td><td>Comma-separated node types e.g. <code>Class,Function</code></td></tr>
+      <tr><td><code>minConfidence</code></td><td>number</td><td>no</td><td>Minimum confidence 0–1 (default: 0.5)</td></tr>
+      <tr><td><code>limit</code></td><td>number</td><td>no</td><td>Max results (default: 20)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.get_node</h3>
+  <p>Fetch a single node by ID, including its properties and provenance (source file + line numbers).</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Required</th></tr></thead>
+    <tbody>
+      <tr><td><code>nodeId</code></td><td>string</td><td>yes</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.expand_node</h3>
+  <p>BFS neighborhood expansion — returns all nodes reachable within <code>depth</code> hops.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>nodeId</code></td><td>string</td><td>—</td></tr>
+      <tr><td><code>depth</code></td><td>number</td><td>2</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.find_path</h3>
+  <p>Find the shortest explanation path between two nodes using Dijkstra's algorithm.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th></tr></thead>
+    <tbody>
+      <tr><td><code>fromId</code></td><td>string</td></tr>
+      <tr><td><code>toId</code></td><td>string</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.get_evidence</h3>
+  <p>Return the full provenance chain for a node — every file and line number that contributed to it.</p>
+
+  <h3>contextgraph.impact_analysis</h3>
+  <p>Reverse dependency analysis: what nodes depend on this one? Useful before making changes to understand blast radius.</p>
+
+  <h3>contextgraph.related_files</h3>
+  <p>Return all source file paths associated with a node via provenance records.</p>
+
+  <h3>contextgraph.build_context</h3>
+  <p>The most powerful tool for agents. Given a task description, it searches the graph, expands neighborhoods, and returns a ranked set of nodes and edges most relevant to the task.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>task</code></td><td>string</td><td>—</td></tr>
+      <tr><td><code>depth</code></td><td>number</td><td>2</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.generate_report</h3>
+  <p>Generate <code>GRAPH_REPORT.md</code> and <code>graph.html</code> in the specified output directory.</p>
+
+  <h2>Resources</h2>
+  <p>The server also exposes read-only MCP resources:</p>
+  <table>
+    <thead><tr><th>URI</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>contextgraph://project</code></td><td>Artifact, node, and edge counts</td></tr>
+      <tr><td><code>contextgraph://graph/nodes</code></td><td>All nodes (up to 500, confidence ≥ 0.5)</td></tr>
+      <tr><td><code>contextgraph://graph/edges</code></td><td>All edges (up to 500, confidence ≥ 0.5)</td></tr>
+      <tr><td><code>contextgraph://artifacts</code></td><td>All indexed source files</td></tr>
+      <tr><td><code>contextgraph://reports/summary</code></td><td>Live Markdown report</td></tr>
+      <tr><td><code>contextgraph://clusters</code></td><td>Connected component summary</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Prompts</h2>
+  <table>
+    <thead><tr><th>Prompt</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>explain_codebase</code></td><td>Guide the agent to explain the overall architecture</td></tr>
+      <tr><td><code>find_context_for_task</code></td><td>Find relevant graph context for a given task</td></tr>
+      <tr><td><code>analyze_change_impact</code></td><td>Analyze the impact of changing a specific node</td></tr>
+      <tr><td><code>summarize_research</code></td><td>Summarize a research document collection</td></tr>
+    </tbody>
+  </table>
+</article>
+<script>const PAGE = 'mcp-server'; const BASE = '../../';</script>
+<script src="../../shared/docs.js"></script>
+</body>
+</html>

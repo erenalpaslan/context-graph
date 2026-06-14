@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuration — ContextGraph</title>
+  <link rel="stylesheet" href="../../shared/style.css" />
+</head>
+<body>
+<article>
+  <h1>Configuration</h1>
+  <p>ContextGraph reads its configuration from <code>.contextgraph/config.json</code> in your project directory. Run <code>init</code> to create a default file, or edit it manually.</p>
+
+  <h2>Full config reference</h2>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">.contextgraph/config.json</span></div>
+  <pre><code>{
+  <span class="t-key">"litellm"</span>: {
+    <span class="t-key">"enabled"</span>: <span class="t-kw">false</span>,
+    <span class="t-key">"baseUrl"</span>: <span class="t-str">"http://localhost:4000"</span>,
+    <span class="t-key">"model"</span>: <span class="t-str">"gpt-4o"</span>,
+    <span class="t-key">"rateLimitPerMinute"</span>: <span class="t-num">10</span>,
+    <span class="t-key">"timeoutSeconds"</span>: <span class="t-num">30</span>
+  },
+  <span class="t-key">"includePatterns"</span>: [<span class="t-str">"**/*"</span>],
+  <span class="t-key">"excludePatterns"</span>: [
+    <span class="t-str">"**/.git/**"</span>,
+    <span class="t-str">"**/node_modules/**"</span>,
+    <span class="t-str">"**/build/**"</span>,
+    <span class="t-str">"**/.gradle/**"</span>,
+    <span class="t-str">"**/.contextgraph/**"</span>,
+    <span class="t-str">"**/target/**"</span>,
+    <span class="t-str">"**/__pycache__/**"</span>
+  ],
+  <span class="t-key">"maxFileSizeBytes"</span>: <span class="t-num">10485760</span>
+}</code></pre>
+
+  <h2>Options</h2>
+  <table>
+    <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>litellm.enabled</code></td><td><code>false</code></td><td>Enable LLM-powered semantic extraction</td></tr>
+      <tr><td><code>litellm.baseUrl</code></td><td><code>http://localhost:4000</code></td><td>LiteLLM proxy endpoint</td></tr>
+      <tr><td><code>litellm.model</code></td><td><code>gpt-4o</code></td><td>Model name (any LiteLLM-compatible)</td></tr>
+      <tr><td><code>litellm.rateLimitPerMinute</code></td><td><code>10</code></td><td>Max LLM calls per minute</td></tr>
+      <tr><td><code>litellm.timeoutSeconds</code></td><td><code>30</code></td><td>Per-call timeout in seconds</td></tr>
+      <tr><td><code>includePatterns</code></td><td><code>["**/*"]</code></td><td>Glob patterns for files to include</td></tr>
+      <tr><td><code>excludePatterns</code></td><td>build dirs, .git…</td><td>Glob patterns for files to skip</td></tr>
+      <tr><td><code>maxFileSizeBytes</code></td><td><code>10485760</code> (10 MB)</td><td>Files larger than this are skipped</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Setting values via CLI</h2>
+  <p>You can update config values without editing JSON directly:</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code><span class="t-comment"># Enable semantic extraction</span>
+./gradlew :modules:cli:run --args="config set litellm.enabled true"
+
+<span class="t-comment"># Point at a different model</span>
+./gradlew :modules:cli:run --args="config set litellm.model claude-opus-4-7"
+
+<span class="t-comment"># Change the LiteLLM endpoint</span>
+./gradlew :modules:cli:run --args="config set litellm.base-url http://localhost:4000"
+
+<span class="t-comment"># Increase max file size to 25 MB</span>
+./gradlew :modules:cli:run --args="config set max-file-size-mb 25"</code></pre>
+
+  <h2>Enabling semantic extraction</h2>
+  <p>Semantic extraction sends file contents to an LLM to extract high-level concepts, decisions, and relationships. To use it:</p>
+  <ol>
+    <li>Start a LiteLLM proxy in front of your preferred model:</li>
+  </ol>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>pip install litellm
+litellm --model claude-opus-4-7</code></pre>
+
+  <ol start="2">
+    <li>Enable it in your config:</li>
+  </ol>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
+  <pre><code>./gradlew :modules:cli:run --args="config set litellm.enabled true"
+./gradlew :modules:cli:run --args="config set litellm.model claude-opus-4-7"</code></pre>
+
+  <div class="callout">
+    <div class="callout-title">Note</div>
+    Semantic extraction is rate-limited to <code>rateLimitPerMinute</code> calls. Set this low enough that you don't exceed your LLM provider's limits. The default of 10 calls/minute is conservative.
+  </div>
+
+  <h2>Filtering files</h2>
+  <p>Use glob patterns to control which files get indexed. Patterns are matched against the full file path.</p>
+  <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">.contextgraph/config.json — Kotlin-only example</span></div>
+  <pre><code>{
+  <span class="t-key">"includePatterns"</span>: [<span class="t-str">"**/*.kt"</span>, <span class="t-str">"**/*.md"</span>, <span class="t-str">"**/*.sql"</span>],
+  <span class="t-key">"excludePatterns"</span>: [<span class="t-str">"**/build/**"</span>, <span class="t-str">"**/.gradle/**"</span>]
+}</code></pre>
+</article>
+<script>const PAGE = 'configuration'; const BASE = '../../';</script>
+<script src="../../shared/docs.js"></script>
+</body>
+</html>
