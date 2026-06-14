@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ContextGraph — Knowledge Graph</title>
+<script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.9/dist/dist/vis-network.min.css">
+<style>
+  body { margin: 0; font-family: sans-serif; background: #1a1a2e; color: #eee; }
+  #controls { padding: 10px 20px; background: #16213e; display: flex; gap: 16px; align-items: center; }
+  #controls label { font-size: 13px; }
+  #search { padding: 6px 10px; border-radius: 4px; border: 1px solid #444; background: #0f3460; color: #eee; }
+  #confidence-val { font-weight: bold; }
+  #graph { height: calc(100vh - 110px); }
+  #info { position: fixed; bottom: 0; left: 0; right: 0; background: #16213e; padding: 10px 20px; font-size: 12px; max-height: 110px; overflow-y: auto; border-top: 1px solid #444; }
+</style>
+</head>
+<body>
+<div id="controls">
+  <span>ContextGraph</span>
+  <input id="search" type="text" placeholder="Search nodes..." oninput="filterNodes(this.value)">
+  <label>Min confidence: <input type="range" id="confidence" min="0" max="1" step="0.05" value="0.5" oninput="document.getElementById('confidence-val').textContent=this.value; filterByConfidence(parseFloat(this.value))"> <span id="confidence-val">0.5</span></label>
+</div>
+<div id="graph"></div>
+<div id="info">Click a node to see details</div>
+
+<script>
+const allNodes = [
+{"id":"dep:org.junit.jupiter_junit-jupiter_5.10.0","label":"org.junit.jupiter:junit-jupiter:5.10.0","type":"Module","confidence":0.95,"color":"#9C27B0"},
+{"id":"dep:org.mockito_mockito-core_5.7.0","label":"org.mockito:mockito-core:5.7.0","type":"Module","confidence":0.95,"color":"#9C27B0"},
+{"id":"package:com.example","label":"com.example","type":"Package","confidence":0.98,"color":"#9C27B0"},
+{"id":"class:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt:AuthController","label":"AuthController","type":"Class","confidence":0.98,"color":"#2196F3"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt:login","label":"login","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt:register","label":"register","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:org.junit.jupiter.api.Test","label":"org.junit.jupiter.api.Test","type":"Module","confidence":0.98,"color":"#9C27B0"},
+{"id":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:org.junit.jupiter.api.Assertions.assertNull","label":"org.junit.jupiter.api.Assertions.assertNull","type":"Module","confidence":0.98,"color":"#9C27B0"},
+{"id":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:org.mockito.Mockito.mock","label":"org.mockito.Mockito.mock","type":"Module","confidence":0.98,"color":"#9C27B0"},
+{"id":"class:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:UserServiceTest","label":"UserServiceTest","type":"Class","confidence":0.98,"color":"#2196F3"},
+{"id":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:com.example.model.User","label":"com.example.model.User","type":"Module","confidence":0.98,"color":"#9C27B0"},
+{"id":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:com.example.repository.UserRepository","label":"com.example.repository.UserRepository","type":"Module","confidence":0.98,"color":"#9C27B0"},
+{"id":"class:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:UserService","label":"UserService","type":"Class","confidence":0.98,"color":"#2196F3"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:findById","label":"findById","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:create","label":"create","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:delete","label":"delete","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:authenticate","label":"authenticate","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:hash","label":"hash","type":"Function","confidence":0.98,"color":"#4CAF50"},
+{"id":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","label":"users","type":"DatabaseTable","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:id","label":"id","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:name","label":"name","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:email","label":"email","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:password_hash","label":"password_hash","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:created_at","label":"created_at","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions","label":"sessions","type":"DatabaseTable","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:id","label":"id","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:user_id","label":"user_id","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:created_at","label":"created_at","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:expires_at","label":"expires_at","type":"Column","confidence":0.99,"color":"#FF9800"},
+{"id":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt","label":"AuthController.kt","type":"CodeFile","confidence":1.0,"color":"#9E9E9E"},
+{"id":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/build.gradle.kts","label":"build.gradle.kts","type":"PackageFile","confidence":1.0,"color":"#009688"},
+{"id":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt","label":"UserServiceTest.kt","type":"TestFile","confidence":1.0,"color":"#9E9E9E"},
+{"id":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","label":"UserService.kt","type":"CodeFile","confidence":1.0,"color":"#9E9E9E"},
+{"id":"schema:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql","label":"schema.sql","type":"DatabaseSchema","confidence":1.0,"color":"#9E9E9E"},
+{"id":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/.contextgraph/graph.db","label":"graph.db","type":"Document","confidence":1.0,"color":"#607D8B"}
+];
+const allEdges = [
+{"from":"package:com.example","to":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt","to":"class:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt:AuthController","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt:login","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/AuthController.kt:register","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/build.gradle.kts","to":"dep:org.junit.jupiter_junit-jupiter_5.10.0","label":"depends_on","confidence":0.95},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/build.gradle.kts","to":"dep:org.mockito_mockito-core_5.7.0","label":"depends_on","confidence":0.95},
+{"from":"package:com.example","to":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt","to":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:org.junit.jupiter.api.Test","label":"imports","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt","to":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:org.junit.jupiter.api.Assertions.assertNull","label":"imports","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt","to":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:org.mockito.Mockito.mock","label":"imports","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt","to":"class:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/test/kotlin/com/example/UserServiceTest.kt:UserServiceTest","label":"contains","confidence":0.98},
+{"from":"package:com.example","to":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:com.example.model.User","label":"imports","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"import:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:com.example.repository.UserRepository","label":"imports","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"class:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:UserService","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:findById","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:create","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:delete","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:authenticate","label":"contains","confidence":0.98},
+{"from":"file:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt","to":"fun:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/src/main/kotlin/com/example/UserService.kt:hash","label":"contains","confidence":0.98},
+{"from":"schema:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql","to":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:id","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:name","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:email","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:password_hash","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:users:created_at","label":"contains","confidence":1.0},
+{"from":"schema:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql","to":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:id","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:user_id","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:created_at","label":"contains","confidence":1.0},
+{"from":"table:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions","to":"column:/Users/erenalpaslan/Projects/context-graph/test-fixtures/kotlin-project/schema.sql:sessions:expires_at","label":"contains","confidence":1.0}
+];
+
+const container = document.getElementById('graph');
+const nodesDS = new vis.DataSet(allNodes.map(n => ({...n, title: n.type + '\\n' + n.label, font:{color:'#fff'}})));
+const edgesDS = new vis.DataSet(allEdges.map((e,i) => ({...e, id: i, arrows:'to', color:{color:'#555'}, font:{color:'#aaa',size:10}})));
+
+const options = {
+  physics: { stabilization: { iterations: 100 }, barnesHut: { gravitationalConstant: -3000 } },
+  nodes: { shape: 'dot', size: 10, borderWidth: 2, font: { size: 11 } },
+  edges: { smooth: { type: 'continuous' }, width: 1 },
+  interaction: { hover: true, navigationButtons: true }
+};
+
+const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, options);
+
+network.on('click', function(params) {
+  if (params.nodes.length) {
+    const n = nodesDS.get(params.nodes[0]);
+    document.getElementById('info').innerHTML = '<b>' + n.label + '</b> [' + n.type + '] id=' + n.id + ' confidence=' + n.confidence;
+  }
+});
+
+function filterNodes(q) {
+  const lower = q.toLowerCase();
+  nodesDS.forEach(n => {
+    nodesDS.update({ id: n.id, hidden: q && !n.label.toLowerCase().includes(lower) });
+  });
+}
+
+function filterByConfidence(minConf) {
+  nodesDS.forEach(n => {
+    nodesDS.update({ id: n.id, hidden: n.confidence < minConf });
+  });
+  edgesDS.forEach(e => {
+    edgesDS.update({ id: e.id, hidden: e.confidence < minConf });
+  });
+}
+</script>
+</body>
+</html>
