@@ -118,9 +118,11 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     }
 
     override fun deleteNodesForArtifact(artifactId: ArtifactId): Unit = transaction {
-        val nodeIds = NodeArtifactsTable
-            .selectAll().where { NodeArtifactsTable.artifactId eq artifactId.value }
-            .map { it[NodeArtifactsTable.nodeId] }
+        // NodeArtifactsTable is never populated; derive node IDs from ProvenanceTable instead.
+        val nodeIds = ProvenanceTable
+            .selectAll().where { ProvenanceTable.artifactId eq artifactId.value }
+            .map { it[ProvenanceTable.entityId] }
+            .distinct()
 
         nodeIds.forEach { nodeId ->
             EdgesTable.deleteWhere { sourceId eq nodeId }
@@ -128,7 +130,6 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             ProvenanceTable.deleteWhere { entityId eq nodeId }
             NodesTable.deleteWhere { NodesTable.id eq nodeId }
         }
-        NodeArtifactsTable.deleteWhere { NodeArtifactsTable.artifactId eq artifactId.value }
         ProvenanceTable.deleteWhere { ProvenanceTable.artifactId eq artifactId.value }
     }
 
