@@ -12,5 +12,6 @@ include(
     ":modules:cli",
     ":modules:report",
     ":modules:visualization",
-    ":modules:eval"
+    ":modules:eval",
+    ":modules:benchmark"
 )
