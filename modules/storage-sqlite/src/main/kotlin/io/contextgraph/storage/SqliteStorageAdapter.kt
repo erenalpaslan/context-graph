@@ -10,6 +10,7 @@ import io.contextgraph.core.NodeType
 import io.contextgraph.core.Provenance
 import io.contextgraph.core.StorageAdapter
 import io.contextgraph.core.EdgeType
+import io.contextgraph.core.UnresolvedReference
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
@@ -21,6 +22,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.nio.file.Path
 import java.sql.DriverManager
@@ -82,6 +84,16 @@ object NodeArtifactsTable : Table("node_artifacts") {
     override val primaryKey = PrimaryKey(nodeId, artifactId)
 }
 
+object UnresolvedReferencesTable : Table("unresolved_references") {
+    val id = integer("id").autoIncrement()
+    val artifactId = text("artifact_id")
+    val repoRelativePath = text("repo_relative_path")
+    val referenceName = text("reference_name")
+    val referringSymbolId = text("referring_symbol_id")
+    val line = integer("line")
+    override val primaryKey = PrimaryKey(id)
+}
+
 class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     private val jdbcUrl: String
 
@@ -124,9 +136,19 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             .map { it[ProvenanceTable.entityId] }
             .distinct()
 
+        // `calls` edges are pass 2's, not pass 1's: io.contextgraph.ingest.ReferenceResolver
+        // owns their entire lifecycle, wiping and recomputing the complete set from the
+        // current symbol table on every full index run. Deleting them here -- keyed on
+        // *this* artifact's nodes -- would destroy edges *other* artifacts hold into this
+        // one (e.g. another file's `Calls` edge to a method declared here) with no
+        // mechanism to restore them, since the other artifact isn't being reprocessed. That
+        // was the orphaning bug: a cross-artifact edge silently disappearing on an unrelated
+        // reindex. Structural edges this file itself produced (Contains, Imports) are never
+        // cross-artifact, so they are unaffected by excluding just this one type.
+        val callsType = EdgeType.stringify(EdgeType.Calls)
         nodeIds.forEach { nodeId ->
-            EdgesTable.deleteWhere { sourceId eq nodeId }
-            EdgesTable.deleteWhere { targetId eq nodeId }
+            EdgesTable.deleteWhere { (sourceId eq nodeId) and (type neq callsType) }
+            EdgesTable.deleteWhere { (targetId eq nodeId) and (type neq callsType) }
             ProvenanceTable.deleteWhere { entityId eq nodeId }
             NodesTable.deleteWhere { NodesTable.id eq nodeId }
         }
@@ -271,6 +293,41 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     }
 
     override fun close() {}
+
+    override fun findNodesByLabel(label: String): List<GraphNode> = transaction {
+        NodesTable.selectAll().where { NodesTable.label eq label }.map { it.toGraphNode() }
+    }
+
+    override fun insertUnresolvedReference(reference: UnresolvedReference): Unit = transaction {
+        UnresolvedReferencesTable.insert {
+            it[artifactId] = reference.artifactId.value
+            it[repoRelativePath] = reference.repoRelativePath
+            it[referenceName] = reference.referenceName
+            it[referringSymbolId] = reference.referringSymbolId.value
+            it[line] = reference.line
+        }
+    }
+
+    override fun deleteUnresolvedReferencesForArtifact(artifactId: ArtifactId): Unit = transaction {
+        UnresolvedReferencesTable.deleteWhere { UnresolvedReferencesTable.artifactId eq artifactId.value }
+    }
+
+    override fun getAllUnresolvedReferences(): List<UnresolvedReference> = transaction {
+        UnresolvedReferencesTable.selectAll().map {
+            UnresolvedReference(
+                referenceName = it[UnresolvedReferencesTable.referenceName],
+                referringSymbolId = NodeId(it[UnresolvedReferencesTable.referringSymbolId]),
+                repoRelativePath = it[UnresolvedReferencesTable.repoRelativePath],
+                artifactId = ArtifactId(it[UnresolvedReferencesTable.artifactId]),
+                line = it[UnresolvedReferencesTable.line]
+            )
+        }
+    }
+
+    override fun deleteEdgesOfType(type: EdgeType): Unit = transaction {
+        val typeString = EdgeType.stringify(type)
+        EdgesTable.deleteWhere { EdgesTable.type eq typeString }
+    }
 
     private fun ResultRow.toArtifact() = Artifact(
         id = ArtifactId(this[ArtifactsTable.id]),

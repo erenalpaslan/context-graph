@@ -1,0 +1,1313 @@
+{
+    "nodes": [
+        {
+            "id": "Async/Fetcher.kt",
+            "type": "CodeFile",
+            "label": "Fetcher.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "Async/Fetcher.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Async/Fetcher.kt#Fetcher",
+            "type": "Class",
+            "label": "Fetcher",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.async.Fetcher",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Async/Fetcher.kt",
+                    "lineStart": 3,
+                    "lineEnd": 15,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Async/Fetcher.kt#Fetcher.buildGreeting()",
+            "type": "Method",
+            "label": "buildGreeting",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.async.Fetcher.buildGreeting",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Async/Fetcher.kt",
+                    "lineStart": 12,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Async/Fetcher.kt#Fetcher.cachedGreeting",
+            "type": "Property",
+            "label": "cachedGreeting",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.async.Fetcher.cachedGreeting",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Async/Fetcher.kt",
+                    "lineStart": 4,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Async/Fetcher.kt#Fetcher.fetch(String)",
+            "type": "Method",
+            "label": "fetch",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.async.Fetcher.fetch",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Async/Fetcher.kt",
+                    "lineStart": 8,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt",
+            "type": "CodeFile",
+            "label": "UserService.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService",
+            "type": "Class",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 6,
+                    "lineEnd": 25,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.<init>(String,Int)",
+            "type": "Method",
+            "label": "<init>",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.<init>",
+                "kind": "constructor"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.AuditLog",
+            "type": "Class",
+            "label": "AuditLog",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.AuditLog",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 21,
+                    "lineEnd": 24,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.AuditLog.record()",
+            "type": "Method",
+            "label": "record",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.AuditLog.record",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 22,
+                    "lineEnd": 23,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.Companion",
+            "type": "CompanionObject",
+            "label": "Companion",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.Companion",
+                "kind": "companion_object"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 15,
+                    "lineEnd": 19,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.Companion.MAX_RETRIES",
+            "type": "Property",
+            "label": "MAX_RETRIES",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.Companion.MAX_RETRIES",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.Companion.of(String)",
+            "type": "Method",
+            "label": "of",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.Companion.of",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 18,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.loginCount",
+            "type": "Property",
+            "label": "loginCount",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.loginCount",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.name",
+            "type": "Property",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.name",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.save(String)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.save",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 7,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#UserService.save(String,Int)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.save",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 11,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#import:kotlin.collections.List",
+            "type": "Module",
+            "label": "kotlin.collections.List",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "kotlin.collections.List"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.kt#import:kotlin.math.*",
+            "type": "Module",
+            "label": "kotlin.math.*",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "kotlin.math.*"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.kt",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.kt",
+            "type": "CodeFile",
+            "label": "Broken.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.kt#Broken",
+            "type": "Class",
+            "label": "Broken",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.broken.Broken",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.kt",
+                    "lineStart": 3,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.kt#Broken.oops()",
+            "type": "Method",
+            "label": "oops",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.broken.Broken.oops",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.kt",
+                    "lineStart": 4,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Extensions/StringExtensions.kt",
+            "type": "CodeFile",
+            "label": "StringExtensions.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "Extensions/StringExtensions.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Extensions/StringExtensions.kt#Int.shout()",
+            "type": "Method",
+            "label": "shout",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.ext.Int.shout",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Extensions/StringExtensions.kt",
+                    "lineStart": 10,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Extensions/StringExtensions.kt#String.firstOrEmpty",
+            "type": "Property",
+            "label": "firstOrEmpty",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.ext.String.firstOrEmpty",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Extensions/StringExtensions.kt",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Extensions/StringExtensions.kt#String.shout()",
+            "type": "Method",
+            "label": "shout",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.ext.String.shout",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Extensions/StringExtensions.kt",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Extensions/StringExtensions.kt#String.shout(Int)",
+            "type": "Method",
+            "label": "shout",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.ext.String.shout",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Extensions/StringExtensions.kt",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Gaps/ContextReceivers.kt",
+            "type": "CodeFile",
+            "label": "ContextReceivers.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "Gaps/ContextReceivers.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Gaps/ContextReceivers.kt#Logger",
+            "type": "Interface",
+            "label": "Logger",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.gaps.Logger",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "Gaps/ContextReceivers.kt",
+                    "lineStart": 14,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Gaps/ContextReceivers.kt#doWork()",
+            "type": "Function",
+            "label": "doWork",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.gaps.doWork",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Gaps/ContextReceivers.kt",
+                    "lineStart": 11,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "MultiPlatform/Platform.kt",
+            "type": "CodeFile",
+            "label": "Platform.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "MultiPlatform/Platform.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "MultiPlatform/Platform.kt#Platform",
+            "type": "Class",
+            "label": "Platform",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.platform.Platform",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "MultiPlatform/Platform.kt",
+                    "lineStart": 3,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "MultiPlatform/Platform.kt#Platform.name()",
+            "type": "Method",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.platform.Platform.name",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "MultiPlatform/Platform.kt",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "MultiPlatform/PlatformJvm.kt",
+            "type": "CodeFile",
+            "label": "PlatformJvm.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "MultiPlatform/PlatformJvm.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "MultiPlatform/PlatformJvm.kt#Platform",
+            "type": "Class",
+            "label": "Platform",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.platform.Platform",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "MultiPlatform/PlatformJvm.kt",
+                    "lineStart": 3,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "MultiPlatform/PlatformJvm.kt#Platform.name()",
+            "type": "Method",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.platform.Platform.name",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "MultiPlatform/PlatformJvm.kt",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt",
+            "type": "CodeFile",
+            "label": "Shapes.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Circle",
+            "type": "Class",
+            "label": "Circle",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Circle",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 7,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Circle.<init>(Double)",
+            "type": "Method",
+            "label": "<init>",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Circle.<init>",
+                "kind": "constructor"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Circle.area()",
+            "type": "Method",
+            "label": "area",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Circle.area",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Circle.radius",
+            "type": "Property",
+            "label": "radius",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Circle.radius",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Color",
+            "type": "Enum",
+            "label": "Color",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color",
+                "kind": "enum"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 15,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Color.BLUE",
+            "type": "Property",
+            "label": "BLUE",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color.BLUE",
+                "kind": "enum_entry"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Color.GREEN",
+            "type": "Property",
+            "label": "GREEN",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color.GREEN",
+                "kind": "enum_entry"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Color.RED",
+            "type": "Property",
+            "label": "RED",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color.RED",
+                "kind": "enum_entry"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#EmptyShape",
+            "type": "Object",
+            "label": "EmptyShape",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.EmptyShape",
+                "kind": "object"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 11,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#EmptyShape.area()",
+            "type": "Method",
+            "label": "area",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.EmptyShape.area",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Shape",
+            "type": "Interface",
+            "label": "Shape",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Shape",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 3,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.kt#Shape.area()",
+            "type": "Method",
+            "label": "area",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Shape.area",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.kt",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "TopLevel/Utils.kt",
+            "type": "CodeFile",
+            "label": "Utils.kt",
+            "confidence": 1.0,
+            "properties": {
+                "language": "kotlin"
+            },
+            "provenance": [
+                {
+                    "path": "TopLevel/Utils.kt",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "TopLevel/Utils.kt#Handler",
+            "type": "TypeAlias",
+            "label": "Handler",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.util.Handler",
+                "kind": "type_alias"
+            },
+            "provenance": [
+                {
+                    "path": "TopLevel/Utils.kt",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "TopLevel/Utils.kt#café",
+            "type": "Property",
+            "label": "café",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.util.café",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "TopLevel/Utils.kt",
+                    "lineStart": 18,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "TopLevel/Utils.kt#defaultRetries",
+            "type": "Property",
+            "label": "defaultRetries",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.util.defaultRetries",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "TopLevel/Utils.kt",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "TopLevel/Utils.kt#préparer(Int,Int)",
+            "type": "Function",
+            "label": "préparer",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.util.préparer",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "TopLevel/Utils.kt",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "TopLevel/Utils.kt#square(Int)",
+            "type": "Function",
+            "label": "square",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.util.square",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "TopLevel/Utils.kt",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Async/Fetcher.kt:Async/Fetcher.kt#Fetcher",
+            "source": "Async/Fetcher.kt",
+            "target": "Async/Fetcher.kt#Fetcher",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Async/Fetcher.kt#Fetcher:Async/Fetcher.kt#Fetcher.buildGreeting()",
+            "source": "Async/Fetcher.kt#Fetcher",
+            "target": "Async/Fetcher.kt#Fetcher.buildGreeting()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Async/Fetcher.kt#Fetcher:Async/Fetcher.kt#Fetcher.cachedGreeting",
+            "source": "Async/Fetcher.kt#Fetcher",
+            "target": "Async/Fetcher.kt#Fetcher.cachedGreeting",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Async/Fetcher.kt#Fetcher:Async/Fetcher.kt#Fetcher.fetch(String)",
+            "source": "Async/Fetcher.kt#Fetcher",
+            "target": "Async/Fetcher.kt#Fetcher.fetch(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt:Auth/UserService.kt#UserService",
+            "source": "Auth/UserService.kt",
+            "target": "Auth/UserService.kt#UserService",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.kt:Auth/UserService.kt#import:kotlin.collections.List",
+            "source": "Auth/UserService.kt",
+            "target": "Auth/UserService.kt#import:kotlin.collections.List",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.kt:Auth/UserService.kt#import:kotlin.math.*",
+            "source": "Auth/UserService.kt",
+            "target": "Auth/UserService.kt#import:kotlin.math.*",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.<init>(String,Int)",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.<init>(String,Int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.AuditLog",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.AuditLog",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.Companion",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.Companion",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.loginCount",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.loginCount",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.name",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.save(String)",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.save(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService:Auth/UserService.kt#UserService.save(String,Int)",
+            "source": "Auth/UserService.kt#UserService",
+            "target": "Auth/UserService.kt#UserService.save(String,Int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService.AuditLog:Auth/UserService.kt#UserService.AuditLog.record()",
+            "source": "Auth/UserService.kt#UserService.AuditLog",
+            "target": "Auth/UserService.kt#UserService.AuditLog.record()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService.Companion:Auth/UserService.kt#UserService.Companion.MAX_RETRIES",
+            "source": "Auth/UserService.kt#UserService.Companion",
+            "target": "Auth/UserService.kt#UserService.Companion.MAX_RETRIES",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.kt#UserService.Companion:Auth/UserService.kt#UserService.Companion.of(String)",
+            "source": "Auth/UserService.kt#UserService.Companion",
+            "target": "Auth/UserService.kt#UserService.Companion.of(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.kt:Broken/Broken.kt#Broken",
+            "source": "Broken/Broken.kt",
+            "target": "Broken/Broken.kt#Broken",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.kt#Broken:Broken/Broken.kt#Broken.oops()",
+            "source": "Broken/Broken.kt#Broken",
+            "target": "Broken/Broken.kt#Broken.oops()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Extensions/StringExtensions.kt:Extensions/StringExtensions.kt#Int.shout()",
+            "source": "Extensions/StringExtensions.kt",
+            "target": "Extensions/StringExtensions.kt#Int.shout()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Extensions/StringExtensions.kt:Extensions/StringExtensions.kt#String.firstOrEmpty",
+            "source": "Extensions/StringExtensions.kt",
+            "target": "Extensions/StringExtensions.kt#String.firstOrEmpty",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Extensions/StringExtensions.kt:Extensions/StringExtensions.kt#String.shout()",
+            "source": "Extensions/StringExtensions.kt",
+            "target": "Extensions/StringExtensions.kt#String.shout()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Extensions/StringExtensions.kt:Extensions/StringExtensions.kt#String.shout(Int)",
+            "source": "Extensions/StringExtensions.kt",
+            "target": "Extensions/StringExtensions.kt#String.shout(Int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Gaps/ContextReceivers.kt:Gaps/ContextReceivers.kt#Logger",
+            "source": "Gaps/ContextReceivers.kt",
+            "target": "Gaps/ContextReceivers.kt#Logger",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Gaps/ContextReceivers.kt:Gaps/ContextReceivers.kt#doWork()",
+            "source": "Gaps/ContextReceivers.kt",
+            "target": "Gaps/ContextReceivers.kt#doWork()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:MultiPlatform/Platform.kt:MultiPlatform/Platform.kt#Platform",
+            "source": "MultiPlatform/Platform.kt",
+            "target": "MultiPlatform/Platform.kt#Platform",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:MultiPlatform/Platform.kt#Platform:MultiPlatform/Platform.kt#Platform.name()",
+            "source": "MultiPlatform/Platform.kt#Platform",
+            "target": "MultiPlatform/Platform.kt#Platform.name()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:MultiPlatform/PlatformJvm.kt:MultiPlatform/PlatformJvm.kt#Platform",
+            "source": "MultiPlatform/PlatformJvm.kt",
+            "target": "MultiPlatform/PlatformJvm.kt#Platform",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:MultiPlatform/PlatformJvm.kt#Platform:MultiPlatform/PlatformJvm.kt#Platform.name()",
+            "source": "MultiPlatform/PlatformJvm.kt#Platform",
+            "target": "MultiPlatform/PlatformJvm.kt#Platform.name()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt:Shapes/Shapes.kt#Circle",
+            "source": "Shapes/Shapes.kt",
+            "target": "Shapes/Shapes.kt#Circle",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt:Shapes/Shapes.kt#Color",
+            "source": "Shapes/Shapes.kt",
+            "target": "Shapes/Shapes.kt#Color",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt:Shapes/Shapes.kt#EmptyShape",
+            "source": "Shapes/Shapes.kt",
+            "target": "Shapes/Shapes.kt#EmptyShape",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt:Shapes/Shapes.kt#Shape",
+            "source": "Shapes/Shapes.kt",
+            "target": "Shapes/Shapes.kt#Shape",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Circle:Shapes/Shapes.kt#Circle.<init>(Double)",
+            "source": "Shapes/Shapes.kt#Circle",
+            "target": "Shapes/Shapes.kt#Circle.<init>(Double)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Circle:Shapes/Shapes.kt#Circle.area()",
+            "source": "Shapes/Shapes.kt#Circle",
+            "target": "Shapes/Shapes.kt#Circle.area()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Circle:Shapes/Shapes.kt#Circle.radius",
+            "source": "Shapes/Shapes.kt#Circle",
+            "target": "Shapes/Shapes.kt#Circle.radius",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Color:Shapes/Shapes.kt#Color.BLUE",
+            "source": "Shapes/Shapes.kt#Color",
+            "target": "Shapes/Shapes.kt#Color.BLUE",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Color:Shapes/Shapes.kt#Color.GREEN",
+            "source": "Shapes/Shapes.kt#Color",
+            "target": "Shapes/Shapes.kt#Color.GREEN",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Color:Shapes/Shapes.kt#Color.RED",
+            "source": "Shapes/Shapes.kt#Color",
+            "target": "Shapes/Shapes.kt#Color.RED",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#EmptyShape:Shapes/Shapes.kt#EmptyShape.area()",
+            "source": "Shapes/Shapes.kt#EmptyShape",
+            "target": "Shapes/Shapes.kt#EmptyShape.area()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.kt#Shape:Shapes/Shapes.kt#Shape.area()",
+            "source": "Shapes/Shapes.kt#Shape",
+            "target": "Shapes/Shapes.kt#Shape.area()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:TopLevel/Utils.kt:TopLevel/Utils.kt#Handler",
+            "source": "TopLevel/Utils.kt",
+            "target": "TopLevel/Utils.kt#Handler",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:TopLevel/Utils.kt:TopLevel/Utils.kt#café",
+            "source": "TopLevel/Utils.kt",
+            "target": "TopLevel/Utils.kt#café",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:TopLevel/Utils.kt:TopLevel/Utils.kt#defaultRetries",
+            "source": "TopLevel/Utils.kt",
+            "target": "TopLevel/Utils.kt#defaultRetries",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:TopLevel/Utils.kt:TopLevel/Utils.kt#préparer(Int,Int)",
+            "source": "TopLevel/Utils.kt",
+            "target": "TopLevel/Utils.kt#préparer(Int,Int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:TopLevel/Utils.kt:TopLevel/Utils.kt#square(Int)",
+            "source": "TopLevel/Utils.kt",
+            "target": "TopLevel/Utils.kt#square(Int)",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in Broken/Broken.kt (tree-sitter/kotlin); extraction is partial"
+        }
+    ]
+}

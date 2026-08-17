@@ -2,20 +2,11 @@ package io.contextgraph.mcp
 
 import io.contextgraph.core.ContextGraphConfig
 import io.contextgraph.core.EdgeType
-import io.contextgraph.core.ExtractionContext
-import io.contextgraph.core.ExtractorRegistry
 import io.contextgraph.core.NodeId
 import io.contextgraph.core.NodeType
-import io.contextgraph.extractors.CodeExtractor
-import io.contextgraph.extractors.ConfigExtractor
-import io.contextgraph.extractors.MarkdownExtractor
-import io.contextgraph.extractors.PdfExtractor
-import io.contextgraph.extractors.SemanticExtractor
-import io.contextgraph.extractors.SqlExtractor
 import io.contextgraph.graph.GraphAlgorithms
-import io.contextgraph.ingest.ChecksumTracker
-import io.contextgraph.ingest.FileDiscovery
-import io.contextgraph.ingest.IngestPipeline
+import io.contextgraph.ingest.ReindexPrimitive
+import io.contextgraph.ingest.describe.LiteLlmModuleEmbedder
 import io.contextgraph.query.QueryEngine
 import io.contextgraph.report.ReportGenerator
 import io.contextgraph.storage.SqliteStorageAdapter
@@ -35,10 +26,12 @@ import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -53,6 +46,25 @@ class ContextGraphMcpServer(
 ) {
     private val storage = SqliteStorageAdapter(dbPath)
     private val queryEngine = QueryEngine(storage)
+
+    /**
+     * `dbPath` is always `<projectRoot>/.contextgraph/{graph.db,graph.local.db}` -- the one
+     * topology [io.contextgraph.core.GraphDb] establishes and every caller (CLI, watcher, this
+     * server) follows. [ExploreEngine] needs the project root, not the db path, to resolve a
+     * symbol's `Provenance.path` (repo-relative) to an openable file for verbatim source.
+     */
+    private val projectRoot: Path = run {
+        val absolute = dbPath.toAbsolutePath().normalize()
+        val parent = absolute.parent
+        if (parent != null && parent.fileName?.toString() == ".contextgraph") {
+            parent.parent ?: parent
+        } else {
+            parent ?: Path.of(".")
+        }
+    }
+
+    private val exploreEngine = ExploreEngine(storage, projectRoot, LiteLlmModuleEmbedder(), config.litellm)
+    private val exploreJson = Json { prettyPrint = true; encodeDefaults = true }
 
     fun createServer(): Server {
         val server = Server(
@@ -74,9 +86,62 @@ class ContextGraphMcpServer(
     }
 
     private fun registerTools(server: Server) {
+        // Slice 17 (AC-24/25/37): the primary way to use this server. Registered first --
+        // description leads with "primary tool" -- and every tool below is de-emphasised in
+        // its own description now that this one exists, per the slice's ergonomics decision:
+        // agents choose badly among many tools, so answer most questions with one fat call
+        // instead of asking an agent to chain several thin ones together.
+        server.addTool(
+            "contextgraph.explore",
+            "PRIMARY TOOL -- answer a natural-language question about this codebase in one call: " +
+                "matched modules with descriptions, relevant symbols, VERBATIM SOURCE for those " +
+                "symbols, their resolved edges (with confidence and resolution rung), and blast " +
+                "radius (what depends on them). Prefer this over the other tools below for most " +
+                "questions -- they return pointers you would then have to follow with a separate " +
+                "file read; this returns the source directly. Caps its response at a token budget " +
+                "(default ${DEFAULT_EXPLORE_TOKEN_BUDGET}, configurable via 'tokenBudget'): the " +
+                "highest-ranked symbols carry full source, the rest carry signature and location " +
+                "only and are marked 'elided': true. A question matching nothing returns " +
+                "'empty': true rather than an error.",
+            Tool.Input(
+                buildJsonObject {
+                    putJsonObject("question") { put("type", "string"); put("description", "Natural-language question about the codebase") }
+                    putJsonObject("tokenBudget") {
+                        put("type", "number")
+                        put("description", "Max response size in (approximate) tokens. Default $DEFAULT_EXPLORE_TOKEN_BUDGET.")
+                    }
+                },
+                listOf("question")
+            )
+        ) { request ->
+            val question = request.arguments["question"]?.jsonPrimitive?.content
+                ?: return@addTool errorResult("Missing 'question' argument")
+            val tokenBudget = request.arguments["tokenBudget"]?.jsonPrimitive?.content?.toIntOrNull()
+                ?: DEFAULT_EXPLORE_TOKEN_BUDGET
+            try {
+                val response = runBlocking { exploreEngine.explore(question, tokenBudget) }
+                CallToolResult(
+                    content = listOf(TextContent(exploreJson.encodeToString(ExploreResponse.serializer(), response))),
+                    isError = false
+                )
+            } catch (e: Exception) {
+                logger.error(e) { "explore failed" }
+                errorResult(e.message ?: "Explore failed")
+            }
+        }
+
+        // index_project now goes through the same shared reindex primitive
+        // (`io.contextgraph.ingest.ReindexPrimitive`) that the CLI's `index`/`refresh`, the
+        // watcher, and `ci-reindex` all use -- previously it built and ran its own IngestPipeline
+        // directly, a fourth reindex call site that took neither of the primitive's two locks
+        // (in-JVM ReentrantLock + cross-process `<dbPath>.lock`), so it could corrupt the graph
+        // database if run concurrently with the watcher or a CLI refresh. `ReindexPrimitive`
+        // moved out of `modules:cli` into `modules:ingest` (both `cli` and `mcp-server` already
+        // depend on it, and it depends back on neither) precisely so this tool could reach it
+        // without a circular Gradle dependency on `modules:cli`.
         server.addTool(
             "contextgraph.index_project",
-            "Index a project directory into the knowledge graph",
+            "Index a project directory into the knowledge graph. Secondary tool -- prefer 'contextgraph.explore' to answer questions once a project is indexed.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("path") { put("type", "string"); put("description", "Absolute path to the project directory") }
@@ -87,19 +152,8 @@ class ContextGraphMcpServer(
             val path = request.arguments["path"]?.jsonPrimitive?.content
                 ?: return@addTool errorResult("Missing 'path' argument")
             try {
-                val projectPath = Path.of(path)
-                val registry = ExtractorRegistry(listOf(
-                    MarkdownExtractor(), CodeExtractor(), PdfExtractor(),
-                    SqlExtractor(), ConfigExtractor(), SemanticExtractor()
-                ))
-                val pipeline = IngestPipeline(
-                    discovery = FileDiscovery(config),
-                    registry = registry,
-                    checksumTracker = ChecksumTracker(),
-                    storage = storage,
-                    context = ExtractionContext(projectPath, config)
-                )
-                val stats = runBlocking { pipeline.index(projectPath) }
+                val projectPath = Path.of(path).toAbsolutePath().normalize()
+                val stats = ReindexPrimitive.run(projectPath, config, dbPath)
                 CallToolResult(
                     content = listOf(TextContent("Indexed ${stats.artifactCount} artifacts, ${stats.nodeCount} nodes, ${stats.edgeCount} edges")),
                     isError = false
@@ -112,7 +166,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.search_nodes",
-            "Search the knowledge graph for nodes matching a query",
+            "Search the knowledge graph for nodes matching a query. Secondary tool -- returns pointers, not source; prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("query") { put("type", "string"); put("description", "Search query") }
@@ -137,7 +191,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.get_node",
-            "Fetch a node by ID with its properties and provenance",
+            "Fetch a node by ID with its properties and provenance. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject { putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") } },
                 listOf("nodeId")
@@ -163,7 +217,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.expand_node",
-            "BFS neighborhood expansion from a node",
+            "BFS neighborhood expansion from a node. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID to expand") }
@@ -183,7 +237,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.find_path",
-            "Find shortest explanation path between two nodes",
+            "Find shortest explanation path between two nodes. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("fromId") { put("type", "string"); put("description", "Source node ID") }
@@ -204,7 +258,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.get_evidence",
-            "Get full provenance chain for a node",
+            "Get full provenance chain for a node. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject { putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") } },
                 listOf("nodeId")
@@ -222,7 +276,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.impact_analysis",
-            "What depends on this node (reverse dependency analysis)",
+            "What depends on this node (reverse dependency analysis). Secondary tool -- 'contextgraph.explore' includes a confidence-aware blast radius per matched symbol.",
             Tool.Input(
                 buildJsonObject { putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") } },
                 listOf("nodeId")
@@ -238,7 +292,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.related_files",
-            "Get source files associated with a node",
+            "Get source files associated with a node. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject { putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") } },
                 listOf("nodeId")
@@ -253,7 +307,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.build_context",
-            "Build a ranked context bundle for a task description",
+            "Build a ranked context bundle for a task description. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("task") { put("type", "string"); put("description", "Task description or question") }
@@ -277,7 +331,7 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.generate_report",
-            "Generate GRAPH_REPORT.md and graph.html",
+            "Generate GRAPH_REPORT.md and graph.html. Secondary tool -- prefer 'contextgraph.explore' to answer a specific question; use this for a whole-repo report file.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("outputPath") { put("type", "string"); put("description", "Output directory (optional)") }
@@ -414,7 +468,24 @@ fun ContextGraphMcpServer.startStdio() {
         System.out.asSink().buffered()
     )
     logger.info { "ContextGraph MCP Server starting (stdio)" }
-    runBlocking { server.connect(transport) }
+
+    // Server.connect() only performs the handshake -- it returns as soon as the transport is
+    // started, not when the session ends. Left alone, that makes runBlocking { connect(...) }
+    // return immediately after startup and the JVM exits with stdin still open, so no client
+    // ever gets an `initialize` response. The SDK's own lifecycle signal for "the session is
+    // over" is the onClose callback: Protocol.connect() wires transport.onClose { doClose() },
+    // and doClose() calls the (overridable) onClose() that Server uses to invoke whatever
+    // callback was registered via server.onClose { ... }. So we register that callback first,
+    // connect, then suspend on it -- the process now stays alive for exactly the transport's
+    // lifetime (client disconnect / stdin EOF) and shuts down the moment it closes, with no
+    // polling or thread-join hack.
+    runBlocking {
+        val closed = CompletableDeferred<Unit>()
+        server.onClose { closed.complete(Unit) }
+        server.connect(transport)
+        closed.await()
+    }
+    logger.info { "ContextGraph MCP Server stopped (stdio closed)" }
 }
 
 fun main() {

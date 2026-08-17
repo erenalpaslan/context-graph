@@ -21,6 +21,12 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.clikt)
     implementation(libs.kotlin.logging)
+    // describe-modules (slice 15): DescribeModulesCommand constructs LiteLlmModuleDescriber()
+    // directly, whose default constructor argument type (HttpClientEngine, from ktor-client-cio)
+    // must be resolvable on this module's own compile classpath -- ingest's dependency on it is
+    // `implementation`-scoped (deliberately not leaked as part of ingest's public API) so it does
+    // not carry through transitively.
+    implementation(libs.ktor.client.cio)
     runtimeOnly(libs.logback)
     testImplementation(libs.kotest.runner)
     testImplementation(libs.kotest.assertions)

@@ -1,0 +1,677 @@
+{
+    "nodes": [
+        {
+            "id": "Auth/UserService.java",
+            "type": "CodeFile",
+            "label": "UserService.java",
+            "confidence": 1.0,
+            "properties": {
+                "language": "java"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService",
+            "type": "Class",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 6,
+                    "lineEnd": 26,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.<init>(String)",
+            "type": "Method",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.UserService",
+                "kind": "constructor"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 10,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.AuditLog",
+            "type": "Class",
+            "label": "AuditLog",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.AuditLog",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 22,
+                    "lineEnd": 25,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.AuditLog.record()",
+            "type": "Method",
+            "label": "record",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.AuditLog.record",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 23,
+                    "lineEnd": 24,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.failureCount",
+            "type": "Field",
+            "label": "failureCount",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.failureCount",
+                "kind": "field"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.loginCount",
+            "type": "Field",
+            "label": "loginCount",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.loginCount",
+                "kind": "field"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.name",
+                "kind": "field"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.save(String)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 14,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#UserService.save(String,int)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.auth.UserService.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 18,
+                    "lineEnd": 20,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#import:java.util.List",
+            "type": "Module",
+            "label": "java.util.List",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "java.util.List"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.java#import:java.util.Objects",
+            "type": "Module",
+            "label": "java.util.Objects",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "java.util.Objects"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.java",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Billing/UserService.java",
+            "type": "CodeFile",
+            "label": "UserService.java",
+            "confidence": 1.0,
+            "properties": {
+                "language": "java"
+            },
+            "provenance": [
+                {
+                    "path": "Billing/UserService.java",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Billing/UserService.java#UserService",
+            "type": "Class",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.billing.UserService",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Billing/UserService.java",
+                    "lineStart": 5,
+                    "lineEnd": 11,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Billing/UserService.java#UserService.balance",
+            "type": "Field",
+            "label": "balance",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.billing.UserService.balance",
+                "kind": "field"
+            },
+            "provenance": [
+                {
+                    "path": "Billing/UserService.java",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Billing/UserService.java#UserService.charge(BigDecimal)",
+            "type": "Method",
+            "label": "charge",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.billing.UserService.charge",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Billing/UserService.java",
+                    "lineStart": 8,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Billing/UserService.java#import:java.math.BigDecimal",
+            "type": "Module",
+            "label": "java.math.BigDecimal",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "java.math.BigDecimal"
+            },
+            "provenance": [
+                {
+                    "path": "Billing/UserService.java",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.java",
+            "type": "CodeFile",
+            "label": "Broken.java",
+            "confidence": 1.0,
+            "properties": {
+                "language": "java"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.java",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.java#Broken",
+            "type": "Class",
+            "label": "Broken",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.broken.Broken",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.java",
+                    "lineStart": 3,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.java#Broken.oops()",
+            "type": "Method",
+            "label": "oops",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.broken.Broken.oops",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.java",
+                    "lineStart": 4,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java",
+            "type": "CodeFile",
+            "label": "Shapes.java",
+            "confidence": 1.0,
+            "properties": {
+                "language": "java"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Color",
+            "type": "Enum",
+            "label": "Color",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color",
+                "kind": "enum"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 7,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Color.BLUE",
+            "type": "Field",
+            "label": "BLUE",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color.BLUE",
+                "kind": "enum_constant"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Color.GREEN",
+            "type": "Field",
+            "label": "GREEN",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color.GREEN",
+                "kind": "enum_constant"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Color.RED",
+            "type": "Field",
+            "label": "RED",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Color.RED",
+                "kind": "enum_constant"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Point",
+            "type": "Record",
+            "label": "Point",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Point",
+                "kind": "record"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 11,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Shape",
+            "type": "Interface",
+            "label": "Shape",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Shape",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 3,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.java#Shape.area()",
+            "type": "Method",
+            "label": "area",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.shapes.Shape.area",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.java",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Auth/UserService.java:Auth/UserService.java#UserService",
+            "source": "Auth/UserService.java",
+            "target": "Auth/UserService.java#UserService",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.java:Auth/UserService.java#import:java.util.List",
+            "source": "Auth/UserService.java",
+            "target": "Auth/UserService.java#import:java.util.List",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.java:Auth/UserService.java#import:java.util.Objects",
+            "source": "Auth/UserService.java",
+            "target": "Auth/UserService.java#import:java.util.Objects",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.<init>(String)",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.<init>(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.AuditLog",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.AuditLog",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.failureCount",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.failureCount",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.loginCount",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.loginCount",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.name",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.save(String)",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.save(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService:Auth/UserService.java#UserService.save(String,int)",
+            "source": "Auth/UserService.java#UserService",
+            "target": "Auth/UserService.java#UserService.save(String,int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.java#UserService.AuditLog:Auth/UserService.java#UserService.AuditLog.record()",
+            "source": "Auth/UserService.java#UserService.AuditLog",
+            "target": "Auth/UserService.java#UserService.AuditLog.record()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Billing/UserService.java:Billing/UserService.java#UserService",
+            "source": "Billing/UserService.java",
+            "target": "Billing/UserService.java#UserService",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Billing/UserService.java:Billing/UserService.java#import:java.math.BigDecimal",
+            "source": "Billing/UserService.java",
+            "target": "Billing/UserService.java#import:java.math.BigDecimal",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Billing/UserService.java#UserService:Billing/UserService.java#UserService.balance",
+            "source": "Billing/UserService.java#UserService",
+            "target": "Billing/UserService.java#UserService.balance",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Billing/UserService.java#UserService:Billing/UserService.java#UserService.charge(BigDecimal)",
+            "source": "Billing/UserService.java#UserService",
+            "target": "Billing/UserService.java#UserService.charge(BigDecimal)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.java:Broken/Broken.java#Broken",
+            "source": "Broken/Broken.java",
+            "target": "Broken/Broken.java#Broken",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.java#Broken:Broken/Broken.java#Broken.oops()",
+            "source": "Broken/Broken.java#Broken",
+            "target": "Broken/Broken.java#Broken.oops()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java:Shapes/Shapes.java#Color",
+            "source": "Shapes/Shapes.java",
+            "target": "Shapes/Shapes.java#Color",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java:Shapes/Shapes.java#Point",
+            "source": "Shapes/Shapes.java",
+            "target": "Shapes/Shapes.java#Point",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java:Shapes/Shapes.java#Shape",
+            "source": "Shapes/Shapes.java",
+            "target": "Shapes/Shapes.java#Shape",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java#Color:Shapes/Shapes.java#Color.BLUE",
+            "source": "Shapes/Shapes.java#Color",
+            "target": "Shapes/Shapes.java#Color.BLUE",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java#Color:Shapes/Shapes.java#Color.GREEN",
+            "source": "Shapes/Shapes.java#Color",
+            "target": "Shapes/Shapes.java#Color.GREEN",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java#Color:Shapes/Shapes.java#Color.RED",
+            "source": "Shapes/Shapes.java#Color",
+            "target": "Shapes/Shapes.java#Color.RED",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.java#Shape:Shapes/Shapes.java#Shape.area()",
+            "source": "Shapes/Shapes.java#Shape",
+            "target": "Shapes/Shapes.java#Shape.area()",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in Broken/Broken.java (tree-sitter/java); extraction is partial"
+        }
+    ]
+}

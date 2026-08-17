@@ -1,0 +1,1138 @@
+{
+    "nodes": [
+        {
+            "id": "Auth/UserService.swift",
+            "type": "CodeFile",
+            "label": "UserService.swift",
+            "confidence": 1.0,
+            "properties": {
+                "language": "swift"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService",
+            "type": "Class",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 3,
+                    "lineEnd": 23,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.AuditLog",
+            "type": "Class",
+            "label": "AuditLog",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.AuditLog",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 19,
+                    "lineEnd": 22,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.AuditLog.record()",
+            "type": "Method",
+            "label": "record",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.AuditLog.record",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 20,
+                    "lineEnd": 21,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.init(String)",
+            "type": "Method",
+            "label": "init",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.init",
+                "kind": "initializer"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 7,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.loginCount",
+            "type": "Field",
+            "label": "loginCount",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.loginCount",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.name",
+                "kind": "stored_property",
+                "mutability": "let"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.save(String)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 11,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#UserService.save(String,Int)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 15,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.swift#import:Foundation",
+            "type": "Module",
+            "label": "Foundation",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Foundation"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.swift",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserServiceGreetable.swift",
+            "type": "CodeFile",
+            "label": "UserServiceGreetable.swift",
+            "confidence": 1.0,
+            "properties": {
+                "language": "swift"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserServiceGreetable.swift",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserServiceGreetable.swift#UserService+ext@1",
+            "type": "Extension",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "conformances": [
+                    "Greetable"
+                ],
+                "fqn": "UserService",
+                "kind": "extension"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserServiceGreetable.swift",
+                    "lineStart": 1,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserServiceGreetable.swift#UserService+ext@1.greet()",
+            "type": "Method",
+            "label": "greet",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.greet",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserServiceGreetable.swift",
+                    "lineStart": 2,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserServiceGreetable.swift#UserService+ext@7",
+            "type": "Extension",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService",
+                "kind": "extension"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserServiceGreetable.swift",
+                    "lineStart": 7,
+                    "lineEnd": 11,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserServiceGreetable.swift#UserService+ext@7.Config",
+            "type": "Struct",
+            "label": "Config",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.Config",
+                "kind": "struct"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserServiceGreetable.swift",
+                    "lineStart": 8,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserServiceGreetable.swift#UserService+ext@7.Config.retries",
+            "type": "Field",
+            "label": "retries",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.Config.retries",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserServiceGreetable.swift",
+                    "lineStart": 9,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.swift",
+            "type": "CodeFile",
+            "label": "Broken.swift",
+            "confidence": 1.0,
+            "properties": {
+                "language": "swift"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.swift",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.swift#Broken",
+            "type": "Class",
+            "label": "Broken",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Broken",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.swift",
+                    "lineStart": 1,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.swift#Broken.oops()",
+            "type": "Method",
+            "label": "oops",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Broken.oops",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.swift",
+                    "lineStart": 2,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift",
+            "type": "CodeFile",
+            "label": "Shapes.swift",
+            "confidence": 1.0,
+            "properties": {
+                "language": "swift"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Color",
+            "type": "Enum",
+            "label": "Color",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Color",
+                "kind": "enum"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 5,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Color.blue",
+            "type": "Field",
+            "label": "blue",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Color.blue",
+                "kind": "enum_case"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Color.green",
+            "type": "Field",
+            "label": "green",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Color.green",
+                "kind": "enum_case"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Color.red",
+            "type": "Field",
+            "label": "red",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Color.red",
+                "kind": "enum_case"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Outcome",
+            "type": "Enum",
+            "label": "Outcome",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Outcome",
+                "kind": "enum"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 16,
+                    "lineEnd": 19,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Outcome.failure",
+            "type": "Field",
+            "label": "failure",
+            "confidence": 0.98,
+            "properties": {
+                "associatedValues": "(error: String)",
+                "fqn": "Outcome.failure",
+                "kind": "enum_case"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 18,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Outcome.success",
+            "type": "Field",
+            "label": "success",
+            "confidence": 0.98,
+            "properties": {
+                "associatedValues": "(value: String)",
+                "fqn": "Outcome.success",
+                "kind": "enum_case"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 17,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Point",
+            "type": "Struct",
+            "label": "Point",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Point",
+                "kind": "struct"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 11,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Point.x",
+            "type": "Field",
+            "label": "x",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Point.x",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Point.y",
+            "type": "Field",
+            "label": "y",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Point.y",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 13,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Shape",
+            "type": "Protocol",
+            "label": "Shape",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Shape",
+                "kind": "protocol"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 1,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Shapes/Shapes.swift#Shape.area()",
+            "type": "Method",
+            "label": "area",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Shape.area",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Shapes/Shapes.swift",
+                    "lineStart": 2,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift",
+            "type": "CodeFile",
+            "label": "ContentView.swift",
+            "confidence": 1.0,
+            "properties": {
+                "language": "swift"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#+++(Int,Int)",
+            "type": "Function",
+            "label": "+++",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "+++",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 32,
+                    "lineEnd": 34,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#Container",
+            "type": "Class",
+            "label": "Container",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Container",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 24,
+                    "lineEnd": 26,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#Container.items",
+            "type": "Field",
+            "label": "items",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Container.items",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 25,
+                    "lineEnd": 25,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#ContentView",
+            "type": "Struct",
+            "label": "ContentView",
+            "confidence": 0.98,
+            "properties": {
+                "conformances": [
+                    "View"
+                ],
+                "fqn": "ContentView",
+                "kind": "struct"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 3,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#ContentView.body",
+            "type": "Field",
+            "label": "body",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ContentView.body",
+                "kind": "computed_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 7,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#ContentView.count",
+            "type": "Field",
+            "label": "count",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ContentView.count",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#ContentView.increment()",
+            "type": "Method",
+            "label": "increment",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ContentView.increment",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 11,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#ContentView.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ContentView.name",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#Counter",
+            "type": "Actor",
+            "label": "Counter",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Counter",
+                "kind": "actor"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 16,
+                    "lineEnd": 22,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#Counter.increment()",
+            "type": "Method",
+            "label": "increment",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Counter.increment",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 19,
+                    "lineEnd": 21,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#Counter.value",
+            "type": "Field",
+            "label": "value",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Counter.value",
+                "kind": "stored_property",
+                "mutability": "var"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 17,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#Handler",
+            "type": "TypeAlias",
+            "label": "Handler",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Handler",
+                "kind": "typealias"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 28,
+                    "lineEnd": 28,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "SwiftUI/ContentView.swift#import:SwiftUI",
+            "type": "Module",
+            "label": "SwiftUI",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "SwiftUI"
+            },
+            "provenance": [
+                {
+                    "path": "SwiftUI/ContentView.swift",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Auth/UserService.swift:Auth/UserService.swift#UserService",
+            "source": "Auth/UserService.swift",
+            "target": "Auth/UserService.swift#UserService",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.swift:Auth/UserService.swift#import:Foundation",
+            "source": "Auth/UserService.swift",
+            "target": "Auth/UserService.swift#import:Foundation",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService:Auth/UserService.swift#UserService.AuditLog",
+            "source": "Auth/UserService.swift#UserService",
+            "target": "Auth/UserService.swift#UserService.AuditLog",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService:Auth/UserService.swift#UserService.init(String)",
+            "source": "Auth/UserService.swift#UserService",
+            "target": "Auth/UserService.swift#UserService.init(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService:Auth/UserService.swift#UserService.loginCount",
+            "source": "Auth/UserService.swift#UserService",
+            "target": "Auth/UserService.swift#UserService.loginCount",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService:Auth/UserService.swift#UserService.name",
+            "source": "Auth/UserService.swift#UserService",
+            "target": "Auth/UserService.swift#UserService.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService:Auth/UserService.swift#UserService.save(String)",
+            "source": "Auth/UserService.swift#UserService",
+            "target": "Auth/UserService.swift#UserService.save(String)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService:Auth/UserService.swift#UserService.save(String,Int)",
+            "source": "Auth/UserService.swift#UserService",
+            "target": "Auth/UserService.swift#UserService.save(String,Int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.swift#UserService.AuditLog:Auth/UserService.swift#UserService.AuditLog.record()",
+            "source": "Auth/UserService.swift#UserService.AuditLog",
+            "target": "Auth/UserService.swift#UserService.AuditLog.record()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserServiceGreetable.swift:Auth/UserServiceGreetable.swift#UserService+ext@1",
+            "source": "Auth/UserServiceGreetable.swift",
+            "target": "Auth/UserServiceGreetable.swift#UserService+ext@1",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserServiceGreetable.swift:Auth/UserServiceGreetable.swift#UserService+ext@7",
+            "source": "Auth/UserServiceGreetable.swift",
+            "target": "Auth/UserServiceGreetable.swift#UserService+ext@7",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserServiceGreetable.swift#UserService+ext@1:Auth/UserServiceGreetable.swift#UserService+ext@1.greet()",
+            "source": "Auth/UserServiceGreetable.swift#UserService+ext@1",
+            "target": "Auth/UserServiceGreetable.swift#UserService+ext@1.greet()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserServiceGreetable.swift#UserService+ext@7:Auth/UserServiceGreetable.swift#UserService+ext@7.Config",
+            "source": "Auth/UserServiceGreetable.swift#UserService+ext@7",
+            "target": "Auth/UserServiceGreetable.swift#UserService+ext@7.Config",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserServiceGreetable.swift#UserService+ext@7.Config:Auth/UserServiceGreetable.swift#UserService+ext@7.Config.retries",
+            "source": "Auth/UserServiceGreetable.swift#UserService+ext@7.Config",
+            "target": "Auth/UserServiceGreetable.swift#UserService+ext@7.Config.retries",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.swift:Broken/Broken.swift#Broken",
+            "source": "Broken/Broken.swift",
+            "target": "Broken/Broken.swift#Broken",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.swift#Broken:Broken/Broken.swift#Broken.oops()",
+            "source": "Broken/Broken.swift#Broken",
+            "target": "Broken/Broken.swift#Broken.oops()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift:Shapes/Shapes.swift#Color",
+            "source": "Shapes/Shapes.swift",
+            "target": "Shapes/Shapes.swift#Color",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift:Shapes/Shapes.swift#Outcome",
+            "source": "Shapes/Shapes.swift",
+            "target": "Shapes/Shapes.swift#Outcome",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift:Shapes/Shapes.swift#Point",
+            "source": "Shapes/Shapes.swift",
+            "target": "Shapes/Shapes.swift#Point",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift:Shapes/Shapes.swift#Shape",
+            "source": "Shapes/Shapes.swift",
+            "target": "Shapes/Shapes.swift#Shape",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Color:Shapes/Shapes.swift#Color.blue",
+            "source": "Shapes/Shapes.swift#Color",
+            "target": "Shapes/Shapes.swift#Color.blue",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Color:Shapes/Shapes.swift#Color.green",
+            "source": "Shapes/Shapes.swift#Color",
+            "target": "Shapes/Shapes.swift#Color.green",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Color:Shapes/Shapes.swift#Color.red",
+            "source": "Shapes/Shapes.swift#Color",
+            "target": "Shapes/Shapes.swift#Color.red",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Outcome:Shapes/Shapes.swift#Outcome.failure",
+            "source": "Shapes/Shapes.swift#Outcome",
+            "target": "Shapes/Shapes.swift#Outcome.failure",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Outcome:Shapes/Shapes.swift#Outcome.success",
+            "source": "Shapes/Shapes.swift#Outcome",
+            "target": "Shapes/Shapes.swift#Outcome.success",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Point:Shapes/Shapes.swift#Point.x",
+            "source": "Shapes/Shapes.swift#Point",
+            "target": "Shapes/Shapes.swift#Point.x",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Point:Shapes/Shapes.swift#Point.y",
+            "source": "Shapes/Shapes.swift#Point",
+            "target": "Shapes/Shapes.swift#Point.y",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Shapes/Shapes.swift#Shape:Shapes/Shapes.swift#Shape.area()",
+            "source": "Shapes/Shapes.swift#Shape",
+            "target": "Shapes/Shapes.swift#Shape.area()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift:SwiftUI/ContentView.swift#+++(Int,Int)",
+            "source": "SwiftUI/ContentView.swift",
+            "target": "SwiftUI/ContentView.swift#+++(Int,Int)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift:SwiftUI/ContentView.swift#Container",
+            "source": "SwiftUI/ContentView.swift",
+            "target": "SwiftUI/ContentView.swift#Container",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift:SwiftUI/ContentView.swift#ContentView",
+            "source": "SwiftUI/ContentView.swift",
+            "target": "SwiftUI/ContentView.swift#ContentView",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift:SwiftUI/ContentView.swift#Counter",
+            "source": "SwiftUI/ContentView.swift",
+            "target": "SwiftUI/ContentView.swift#Counter",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift:SwiftUI/ContentView.swift#Handler",
+            "source": "SwiftUI/ContentView.swift",
+            "target": "SwiftUI/ContentView.swift#Handler",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:SwiftUI/ContentView.swift:SwiftUI/ContentView.swift#import:SwiftUI",
+            "source": "SwiftUI/ContentView.swift",
+            "target": "SwiftUI/ContentView.swift#import:SwiftUI",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#Container:SwiftUI/ContentView.swift#Container.items",
+            "source": "SwiftUI/ContentView.swift#Container",
+            "target": "SwiftUI/ContentView.swift#Container.items",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#ContentView:SwiftUI/ContentView.swift#ContentView.body",
+            "source": "SwiftUI/ContentView.swift#ContentView",
+            "target": "SwiftUI/ContentView.swift#ContentView.body",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#ContentView:SwiftUI/ContentView.swift#ContentView.count",
+            "source": "SwiftUI/ContentView.swift#ContentView",
+            "target": "SwiftUI/ContentView.swift#ContentView.count",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#ContentView:SwiftUI/ContentView.swift#ContentView.increment()",
+            "source": "SwiftUI/ContentView.swift#ContentView",
+            "target": "SwiftUI/ContentView.swift#ContentView.increment()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#ContentView:SwiftUI/ContentView.swift#ContentView.name",
+            "source": "SwiftUI/ContentView.swift#ContentView",
+            "target": "SwiftUI/ContentView.swift#ContentView.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#Counter:SwiftUI/ContentView.swift#Counter.increment()",
+            "source": "SwiftUI/ContentView.swift#Counter",
+            "target": "SwiftUI/ContentView.swift#Counter.increment()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:SwiftUI/ContentView.swift#Counter:SwiftUI/ContentView.swift#Counter.value",
+            "source": "SwiftUI/ContentView.swift#Counter",
+            "target": "SwiftUI/ContentView.swift#Counter.value",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in Broken/Broken.swift (tree-sitter/swift); extraction is partial"
+        }
+    ]
+}

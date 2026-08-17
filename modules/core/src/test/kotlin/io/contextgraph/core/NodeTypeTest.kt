@@ -2,6 +2,7 @@ package io.contextgraph.core
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class NodeTypeTest : FunSpec({
@@ -42,5 +43,15 @@ class NodeTypeTest : FunSpec({
 
     test("stringify Custom returns the custom name") {
         NodeType.stringify(NodeType.Custom("Widget")) shouldBe "Widget"
+    }
+
+    test("CodeModule is distinct from Module and Package") {
+        NodeType.CodeModule shouldNotBe NodeType.Module
+        NodeType.CodeModule shouldNotBe NodeType.Package
+    }
+
+    test("CodeModule roundtrips through fromString/stringify") {
+        NodeType.fromString(NodeType.stringify(NodeType.CodeModule)) shouldBe NodeType.CodeModule
+        NodeType.fromString("CodeModule") shouldBe NodeType.CodeModule
     }
 })

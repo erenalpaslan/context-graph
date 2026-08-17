@@ -17,7 +17,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.text.PDFTextStripper
-import java.io.File
 
 class PdfExtractor : ResourceExtractor {
     override val id = "pdf"
@@ -32,14 +31,18 @@ class PdfExtractor : ResourceExtractor {
             Provenance(artifact.id, artifact.path, page = page, textSpan = span.take(200), extractor = id, extractedAt = now)
         }
 
-        Loader.loadPDF(File(artifact.path)).use { doc ->
+        // artifact.path is repo-relative (slice 09's artifact-identity fix), never directly
+        // openable on its own -- resolve it against context.projectRoot first, same as every
+        // other extractor reading its own artifact's file from disk.
+        val file = context.projectRoot.resolve(artifact.path).toFile()
+        Loader.loadPDF(file).use { doc ->
             val stripper = PDFTextStripper()
             val pageCount = doc.numberOfPages
 
             val fileNode = GraphNode(
                 id = NodeId("file:${artifact.id.value}"),
                 type = artifact.type,
-                label = File(artifact.path).name,
+                label = file.name,
                 properties = mapOf("pageCount" to JsonPrimitive(pageCount)),
                 confidence = 1.0,
                 provenance = listOf(Provenance(artifact.id, artifact.path, extractor = id, extractedAt = now))

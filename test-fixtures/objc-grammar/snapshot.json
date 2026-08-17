@@ -1,0 +1,924 @@
+{
+    "nodes": [
+        {
+            "id": "Broken/Broken.m",
+            "type": "CodeFile",
+            "label": "Broken.m",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.m",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.m#BrokenWidget",
+            "type": "Class",
+            "label": "BrokenWidget",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "BrokenWidget",
+                "kind": "implementation"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.m",
+                    "lineStart": 3,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.m#BrokenWidget.oops",
+            "type": "Method",
+            "label": "oops",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "BrokenWidget.oops",
+                "kind": "instance_method",
+                "selector": "oops"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.m",
+                    "lineStart": 5,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.m#import:Widget.h",
+            "type": "Module",
+            "label": "Widget.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.h"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.m",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Macros/EnumTypes.h",
+            "type": "CodeFile",
+            "label": "EnumTypes.h",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Macros/EnumTypes.h",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Macros/EnumTypes.h#WidgetFactory",
+            "type": "Class",
+            "label": "WidgetFactory",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "WidgetFactory",
+                "kind": "interface",
+                "superclass": "NSObject"
+            },
+            "provenance": [
+                {
+                    "path": "Macros/EnumTypes.h",
+                    "lineStart": 10,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Macros/EnumTypes.h#WidgetFactory.makeWidgetOfKind:",
+            "type": "Method",
+            "label": "makeWidgetOfKind:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "WidgetFactory.makeWidgetOfKind:",
+                "kind": "instance_method",
+                "selector": "makeWidgetOfKind:"
+            },
+            "provenance": [
+                {
+                    "path": "Macros/EnumTypes.h",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Macros/EnumTypes.h#import:Foundation/Foundation.h",
+            "type": "Module",
+            "label": "Foundation/Foundation.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Foundation/Foundation.h"
+            },
+            "provenance": [
+                {
+                    "path": "Macros/EnumTypes.h",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Protocols/WidgetDelegate.h",
+            "type": "CodeFile",
+            "label": "WidgetDelegate.h",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Protocols/WidgetDelegate.h",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Protocols/WidgetDelegate.h#WidgetDelegate",
+            "type": "Protocol",
+            "label": "WidgetDelegate",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "WidgetDelegate",
+                "kind": "protocol",
+                "protocols": "NSObject"
+            },
+            "provenance": [
+                {
+                    "path": "Protocols/WidgetDelegate.h",
+                    "lineStart": 3,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Protocols/WidgetDelegate.h#WidgetDelegate.widgetDidFail",
+            "type": "Method",
+            "label": "widgetDidFail",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "WidgetDelegate.widgetDidFail",
+                "kind": "instance_method",
+                "selector": "widgetDidFail"
+            },
+            "provenance": [
+                {
+                    "path": "Protocols/WidgetDelegate.h",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Protocols/WidgetDelegate.h#WidgetDelegate.widgetDidFinish:",
+            "type": "Method",
+            "label": "widgetDidFinish:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "WidgetDelegate.widgetDidFinish:",
+                "kind": "instance_method",
+                "selector": "widgetDidFinish:"
+            },
+            "provenance": [
+                {
+                    "path": "Protocols/WidgetDelegate.h",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Protocols/WidgetDelegate.h#import:Foundation/Foundation.h",
+            "type": "Module",
+            "label": "Foundation/Foundation.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Foundation/Foundation.h"
+            },
+            "provenance": [
+                {
+                    "path": "Protocols/WidgetDelegate.h",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.h",
+            "type": "CodeFile",
+            "label": "Widget+Extras.h",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.h",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.h#Widget.Extras",
+            "type": "Category",
+            "label": "Widget (Extras)",
+            "confidence": 0.98,
+            "properties": {
+                "extendedType": "Widget",
+                "fqn": "Widget.Extras",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.h",
+                    "lineStart": 3,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.h#Widget.Extras.extraMethod",
+            "type": "Method",
+            "label": "extraMethod",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.Extras.extraMethod",
+                "kind": "instance_method",
+                "selector": "extraMethod"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.h",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.h#import:Widget.h",
+            "type": "Module",
+            "label": "Widget.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.h"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.h",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.m",
+            "type": "CodeFile",
+            "label": "Widget+Extras.m",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.m",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.m#Widget.Extras",
+            "type": "Category",
+            "label": "Widget (Extras)",
+            "confidence": 0.98,
+            "properties": {
+                "extendedType": "Widget",
+                "fqn": "Widget.Extras",
+                "kind": "implementation"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.m",
+                    "lineStart": 3,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.m#Widget.Extras.extraMethod",
+            "type": "Method",
+            "label": "extraMethod",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.Extras.extraMethod",
+                "kind": "instance_method",
+                "selector": "extraMethod"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.m",
+                    "lineStart": 5,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget+Extras.m#import:Widget+Extras.h",
+            "type": "Module",
+            "label": "Widget+Extras.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget+Extras.h"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget+Extras.m",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h",
+            "type": "CodeFile",
+            "label": "Widget.h",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget",
+            "type": "Class",
+            "label": "Widget",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget",
+                "kind": "interface",
+                "protocols": "NSCopying",
+                "superclass": "NSObject"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 4,
+                    "lineEnd": 15,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.completion",
+            "type": "Property",
+            "label": "completion",
+            "confidence": 0.98,
+            "properties": {
+                "attributes": "nonatomic,copy",
+                "fqn": "Widget.completion",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.doThing:with:",
+            "type": "Method",
+            "label": "doThing:with:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.doThing:with:",
+                "kind": "instance_method",
+                "selector": "doThing:with:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 11,
+                    "lineEnd": 11,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.fetchWithCompletion:",
+            "type": "Method",
+            "label": "fetchWithCompletion:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.fetchWithCompletion:",
+                "kind": "instance_method",
+                "selector": "fetchWithCompletion:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.initWithName:",
+            "type": "Method",
+            "label": "initWithName:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.initWithName:",
+                "kind": "instance_method",
+                "selector": "initWithName:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 10,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.name",
+            "type": "Property",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "attributes": "nonatomic,strong",
+                "fqn": "Widget.name",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.tags",
+            "type": "Property",
+            "label": "tags",
+            "confidence": 0.98,
+            "properties": {
+                "attributes": "nonatomic,copy,nullable",
+                "fqn": "Widget.tags",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#Widget.widgetWithName:",
+            "type": "Method",
+            "label": "widgetWithName:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.widgetWithName:",
+                "kind": "class_method",
+                "selector": "widgetWithName:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 13,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#import:../Protocols/WidgetDelegate.h",
+            "type": "Module",
+            "label": "../Protocols/WidgetDelegate.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "../Protocols/WidgetDelegate.h"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 2,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.h#import:Foundation/Foundation.h",
+            "type": "Module",
+            "label": "Foundation/Foundation.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Foundation/Foundation.h"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.h",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.m",
+            "type": "CodeFile",
+            "label": "Widget.m",
+            "confidence": 1.0,
+            "properties": {
+                "language": "objc"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.m",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.m#Widget",
+            "type": "Class",
+            "label": "Widget",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget",
+                "kind": "implementation"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.m",
+                    "lineStart": 3,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.m#Widget.doThing:with:",
+            "type": "Method",
+            "label": "doThing:with:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.doThing:with:",
+                "kind": "instance_method",
+                "selector": "doThing:with:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.m",
+                    "lineStart": 10,
+                    "lineEnd": 11,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.m#Widget.initWithName:",
+            "type": "Method",
+            "label": "initWithName:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.initWithName:",
+                "kind": "instance_method",
+                "selector": "initWithName:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.m",
+                    "lineStart": 5,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.m#Widget.widgetWithName:",
+            "type": "Method",
+            "label": "widgetWithName:",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.widgetWithName:",
+                "kind": "class_method",
+                "selector": "widgetWithName:"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.m",
+                    "lineStart": 13,
+                    "lineEnd": 15,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.m#import:Widget.h",
+            "type": "Module",
+            "label": "Widget.h",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget.h"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.m",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Broken/Broken.m:Broken/Broken.m#BrokenWidget",
+            "source": "Broken/Broken.m",
+            "target": "Broken/Broken.m#BrokenWidget",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Broken/Broken.m:Broken/Broken.m#import:Widget.h",
+            "source": "Broken/Broken.m",
+            "target": "Broken/Broken.m#import:Widget.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Broken/Broken.m#BrokenWidget:Broken/Broken.m#BrokenWidget.oops",
+            "source": "Broken/Broken.m#BrokenWidget",
+            "target": "Broken/Broken.m#BrokenWidget.oops",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Macros/EnumTypes.h:Macros/EnumTypes.h#WidgetFactory",
+            "source": "Macros/EnumTypes.h",
+            "target": "Macros/EnumTypes.h#WidgetFactory",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Macros/EnumTypes.h:Macros/EnumTypes.h#import:Foundation/Foundation.h",
+            "source": "Macros/EnumTypes.h",
+            "target": "Macros/EnumTypes.h#import:Foundation/Foundation.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Macros/EnumTypes.h#WidgetFactory:Macros/EnumTypes.h#WidgetFactory.makeWidgetOfKind:",
+            "source": "Macros/EnumTypes.h#WidgetFactory",
+            "target": "Macros/EnumTypes.h#WidgetFactory.makeWidgetOfKind:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Protocols/WidgetDelegate.h:Protocols/WidgetDelegate.h#WidgetDelegate",
+            "source": "Protocols/WidgetDelegate.h",
+            "target": "Protocols/WidgetDelegate.h#WidgetDelegate",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Protocols/WidgetDelegate.h:Protocols/WidgetDelegate.h#import:Foundation/Foundation.h",
+            "source": "Protocols/WidgetDelegate.h",
+            "target": "Protocols/WidgetDelegate.h#import:Foundation/Foundation.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Protocols/WidgetDelegate.h#WidgetDelegate:Protocols/WidgetDelegate.h#WidgetDelegate.widgetDidFail",
+            "source": "Protocols/WidgetDelegate.h#WidgetDelegate",
+            "target": "Protocols/WidgetDelegate.h#WidgetDelegate.widgetDidFail",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Protocols/WidgetDelegate.h#WidgetDelegate:Protocols/WidgetDelegate.h#WidgetDelegate.widgetDidFinish:",
+            "source": "Protocols/WidgetDelegate.h#WidgetDelegate",
+            "target": "Protocols/WidgetDelegate.h#WidgetDelegate.widgetDidFinish:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget+Extras.h:Widgets/Widget+Extras.h#Widget.Extras",
+            "source": "Widgets/Widget+Extras.h",
+            "target": "Widgets/Widget+Extras.h#Widget.Extras",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Widgets/Widget+Extras.h:Widgets/Widget+Extras.h#import:Widget.h",
+            "source": "Widgets/Widget+Extras.h",
+            "target": "Widgets/Widget+Extras.h#import:Widget.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget+Extras.h#Widget.Extras:Widgets/Widget+Extras.h#Widget.Extras.extraMethod",
+            "source": "Widgets/Widget+Extras.h#Widget.Extras",
+            "target": "Widgets/Widget+Extras.h#Widget.Extras.extraMethod",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget+Extras.m:Widgets/Widget+Extras.m#Widget.Extras",
+            "source": "Widgets/Widget+Extras.m",
+            "target": "Widgets/Widget+Extras.m#Widget.Extras",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Widgets/Widget+Extras.m:Widgets/Widget+Extras.m#import:Widget+Extras.h",
+            "source": "Widgets/Widget+Extras.m",
+            "target": "Widgets/Widget+Extras.m#import:Widget+Extras.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget+Extras.m#Widget.Extras:Widgets/Widget+Extras.m#Widget.Extras.extraMethod",
+            "source": "Widgets/Widget+Extras.m#Widget.Extras",
+            "target": "Widgets/Widget+Extras.m#Widget.Extras.extraMethod",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h:Widgets/Widget.h#Widget",
+            "source": "Widgets/Widget.h",
+            "target": "Widgets/Widget.h#Widget",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Widgets/Widget.h:Widgets/Widget.h#import:../Protocols/WidgetDelegate.h",
+            "source": "Widgets/Widget.h",
+            "target": "Widgets/Widget.h#import:../Protocols/WidgetDelegate.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Widgets/Widget.h:Widgets/Widget.h#import:Foundation/Foundation.h",
+            "source": "Widgets/Widget.h",
+            "target": "Widgets/Widget.h#import:Foundation/Foundation.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.completion",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.completion",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.doThing:with:",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.doThing:with:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.fetchWithCompletion:",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.fetchWithCompletion:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.initWithName:",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.initWithName:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.name",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.tags",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.tags",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.h#Widget:Widgets/Widget.h#Widget.widgetWithName:",
+            "source": "Widgets/Widget.h#Widget",
+            "target": "Widgets/Widget.h#Widget.widgetWithName:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.m:Widgets/Widget.m#Widget",
+            "source": "Widgets/Widget.m",
+            "target": "Widgets/Widget.m#Widget",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Widgets/Widget.m:Widgets/Widget.m#import:Widget.h",
+            "source": "Widgets/Widget.m",
+            "target": "Widgets/Widget.m#import:Widget.h",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.m#Widget:Widgets/Widget.m#Widget.doThing:with:",
+            "source": "Widgets/Widget.m#Widget",
+            "target": "Widgets/Widget.m#Widget.doThing:with:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.m#Widget:Widgets/Widget.m#Widget.initWithName:",
+            "source": "Widgets/Widget.m#Widget",
+            "target": "Widgets/Widget.m#Widget.initWithName:",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.m#Widget:Widgets/Widget.m#Widget.widgetWithName:",
+            "source": "Widgets/Widget.m#Widget",
+            "target": "Widgets/Widget.m#Widget.widgetWithName:",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in Broken/Broken.m (tree-sitter/objc); extraction is partial"
+        },
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in Macros/EnumTypes.h (tree-sitter/objc); extraction is partial"
+        }
+    ]
+}

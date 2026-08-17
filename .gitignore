@@ -3,6 +3,9 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Kotlin compiler build artifacts (e.g. .kotlin/sessions)
+.kotlin/
+
 # JVM
 *.class
 *.jar
@@ -17,11 +20,18 @@ build/
 *.iws
 .vscode/
 
-# ContextGraph runtime
-.contextgraph/
+# ContextGraph runtime — graph.db is the committed baseline, written only by CI;
+# graph.local.db is the gitignored developer/watcher overlay. See GraphDb.kt.
+# Leading **/ matches nested .contextgraph/ dirs too (test fixtures, nested
+# projects), not just the repo root — a plain ".contextgraph/*" has a slash in
+# the middle, which git anchors to the .gitignore's own directory only, so
+# nested dirs would otherwise fall through this rule entirely and rely on the
+# *.db catch-all alone (which doesn't cover e.g. a nested config.json).
+**/.contextgraph/*
 *.db
 *.db-shm
 *.db-wal
+!.contextgraph/graph.db
 
 # Secrets
 .env

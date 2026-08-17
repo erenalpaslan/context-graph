@@ -1,0 +1,248 @@
+{
+    "nodes": [
+        {
+            "id": "Components/Button.tsx",
+            "type": "CodeFile",
+            "label": "Button.tsx",
+            "confidence": 1.0,
+            "properties": {
+                "language": "tsx"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#Button",
+            "type": "Component",
+            "label": "Button",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Button",
+                "kind": "arrow_function"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 8,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#ButtonProps",
+            "type": "Interface",
+            "label": "ButtonProps",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ButtonProps",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 3,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#ButtonProps.label",
+            "type": "Field",
+            "label": "label",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ButtonProps.label",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#ButtonProps.onClick",
+            "type": "Field",
+            "label": "onClick",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "ButtonProps.onClick",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#Icon()",
+            "type": "Component",
+            "label": "Icon",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Icon",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 24,
+                    "lineEnd": 26,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#MemoButton",
+            "type": "Component",
+            "label": "MemoButton",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "MemoButton",
+                "kind": "function_expression"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 12,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#StyledButton",
+            "type": "Component",
+            "label": "StyledButton",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "StyledButton",
+                "kind": "value"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 16,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#helperNotAComponent(number,number)",
+            "type": "Function",
+            "label": "helperNotAComponent",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "helperNotAComponent",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 20,
+                    "lineEnd": 22,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Components/Button.tsx#import:react",
+            "type": "Module",
+            "label": "react",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "react"
+            },
+            "provenance": [
+                {
+                    "path": "Components/Button.tsx",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Components/Button.tsx:Components/Button.tsx#Button",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#Button",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx:Components/Button.tsx#ButtonProps",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#ButtonProps",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx:Components/Button.tsx#Icon()",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#Icon()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx:Components/Button.tsx#MemoButton",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#MemoButton",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx:Components/Button.tsx#StyledButton",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#StyledButton",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx:Components/Button.tsx#helperNotAComponent(number,number)",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#helperNotAComponent(number,number)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Components/Button.tsx:Components/Button.tsx#import:react",
+            "source": "Components/Button.tsx",
+            "target": "Components/Button.tsx#import:react",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx#ButtonProps:Components/Button.tsx#ButtonProps.label",
+            "source": "Components/Button.tsx#ButtonProps",
+            "target": "Components/Button.tsx#ButtonProps.label",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Components/Button.tsx#ButtonProps:Components/Button.tsx#ButtonProps.onClick",
+            "source": "Components/Button.tsx#ButtonProps",
+            "target": "Components/Button.tsx#ButtonProps.onClick",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": []
+}

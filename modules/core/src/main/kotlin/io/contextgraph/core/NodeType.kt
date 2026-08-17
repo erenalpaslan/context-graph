@@ -23,6 +23,7 @@ sealed interface NodeType {
     @Serializable data object Method : NodeType
     @Serializable data object Module : NodeType
     @Serializable data object Package : NodeType
+    @Serializable data object CodeModule : NodeType
     @Serializable data object API : NodeType
     @Serializable data object Route : NodeType
     @Serializable data object Component : NodeType
@@ -62,6 +63,7 @@ sealed interface NodeType {
             "Method" -> Method
             "Module" -> Module
             "Package" -> Package
+            "CodeModule" -> CodeModule
             "API" -> API
             "Route" -> Route
             "Component" -> Component

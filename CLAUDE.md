@@ -90,4 +90,13 @@ The server exposes 10 tools over stdio: `index_project`, `search_nodes`, `get_no
 
 ## Testing
 
-Tests use **Kotest** (JUnit5 runner). Test fixtures live in `test-fixtures/` with pre-built `.contextgraph/graph.db` databases for integration tests.
+Tests use **Kotest** (JUnit5 runner). Test fixtures live in `test-fixtures/` as source-only projects (e.g. `test-fixtures/kotlin-project/`) — no `.contextgraph/graph.db` is committed under `test-fixtures/`, since `.gitignore`'s `**/.contextgraph/*` rule excludes every nested `.contextgraph/` directory (only the repo root's own `.contextgraph/graph.db` is the deliberate exception — see below). Tests that need a graph for a fixture build it from that source at test time by running the real pipeline (`FileDiscovery` → extractors → `IngestPipeline` → `SqliteStorageAdapter`) against a temp DB path; this is fast, deterministic, and requires no state beyond a fresh `git clone`. See `modules/cli/src/test/kotlin/io/contextgraph/cli/FixtureGenerationTest.kt` for the pattern.
+
+### Committed graph baseline
+
+The repo root's own `.contextgraph/graph.db` is a committed baseline, written only by
+CI, so agents can query a fresh clone before any local indexing has happened.
+`.contextgraph/graph.local.db` is the gitignored developer/watcher overlay, seeded by
+copying the baseline on first local write. See `GraphDb.kt` for the read/write seam
+every caller goes through, and `GraphDbGitIntegrationTest.kt` for the real-git proof
+of fresh-clone reads, overlay seeding, and baseline non-modification.

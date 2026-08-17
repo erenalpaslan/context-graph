@@ -1,0 +1,74 @@
+{
+    "nodes": [
+        {
+            "id": "Hello.java",
+            "type": "CodeFile",
+            "label": "Hello.java",
+            "confidence": 1.0,
+            "properties": {
+                "language": "java"
+            },
+            "provenance": [
+                {
+                    "path": "Hello.java",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Hello.java#Hello",
+            "type": "Class",
+            "label": "Hello",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.reusecheck.Hello",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Hello.java",
+                    "lineStart": 3,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Hello.java#Hello.greet()",
+            "type": "Method",
+            "label": "greet",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "com.example.reusecheck.Hello.greet",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Hello.java",
+                    "lineStart": 4,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Hello.java:Hello.java#Hello",
+            "source": "Hello.java",
+            "target": "Hello.java#Hello",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Hello.java#Hello:Hello.java#Hello.greet()",
+            "source": "Hello.java#Hello",
+            "target": "Hello.java#Hello.greet()",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": []
+}
