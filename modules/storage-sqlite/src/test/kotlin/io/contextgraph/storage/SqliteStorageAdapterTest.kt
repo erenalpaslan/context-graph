@@ -11,6 +11,7 @@ import io.contextgraph.core.Provenance
 import io.contextgraph.core.Artifact
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -90,11 +91,54 @@ class SqliteStorageAdapterTest : FunSpec({
         }
 
         test("searchNodes filters by node type") {
-            storage.upsertNode(makeNode("A", "AuthService", NodeType.Class))
-            storage.upsertNode(makeNode("B", "authenticate", NodeType.Function))
-            val results = storage.searchNodes("auth", types = listOf(NodeType.Function))
+            // "OrderService" and "OrderValidator" both split to a real "Order" sub-token, so
+            // both are genuine FTS candidates for "order" -- this isolates the type filter
+            // itself from any FTS-vs-LIKE-fallback ambiguity (unlike a bare substring such as
+            // "auth" of "authenticate", which FTS's MATCH deliberately does not satisfy: no
+            // prefix/substring matching, only whole-token matching).
+            storage.upsertNode(makeNode("A", "OrderService", NodeType.Class))
+            storage.upsertNode(makeNode("B", "OrderValidator", NodeType.Function))
+            val results = storage.searchNodes("order", types = listOf(NodeType.Function))
             results shouldHaveSize 1
             results.single().id shouldBe NodeId("B")
+        }
+
+        // These two use a *decoy* node whose own label already matches the query term as a
+        // whole FTS token (e.g. label "Rung" matches MATCH 'rung' outright). That forces
+        // searchNodes' FTS branch to be taken (ftsResults is non-empty), which is the
+        // production path: SqliteStorageAdapter.searchNodes only falls back to a LIKE scan
+        // when FTS returns literally zero rows for the *entire table* -- with only the
+        // target node present, that fallback would mask the defect this test exists to catch,
+        // since a substring LIKE happens to match a compound identifier regardless of FTS
+        // tokenization. The decoy removes that false-negative risk.
+        test("searchNodes finds a compound identifier by a leading sub-word") {
+            val target = makeNode(
+                "ingest/RungDistribution.kt#RungDistribution",
+                "RungDistribution"
+            )
+            val decoy = makeNode("unrelated/Rung.kt#Rung", "Rung")
+            storage.upsertNode(target)
+            storage.upsertNode(decoy)
+
+            val results = storage.searchNodes("rung")
+
+            results.map { it.id } shouldHaveSize 2
+            results.map { it.id } shouldContainExactlyInAnyOrder listOf(target.id, decoy.id)
+        }
+
+        test("searchNodes finds a compound identifier by an interior sub-word") {
+            val target = makeNode(
+                "ingest/RungDistribution.kt#RungDistribution",
+                "RungDistribution"
+            )
+            val decoy = makeNode("unrelated/Distribution.kt#Distribution", "Distribution")
+            storage.upsertNode(target)
+            storage.upsertNode(decoy)
+
+            val results = storage.searchNodes("distribution")
+
+            results.map { it.id } shouldHaveSize 2
+            results.map { it.id } shouldContainExactlyInAnyOrder listOf(target.id, decoy.id)
         }
     }
 

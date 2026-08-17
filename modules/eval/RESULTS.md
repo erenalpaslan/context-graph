@@ -4,6 +4,134 @@
 what counts as "good enough" comes after, with evidence. What follows is what happened,
 including where `explore` lost.
 
+## Second re-run notice (2026-08-17): compound-identifier retrieval fix
+
+Everything below this section (down to "Re-run notice (2026-08-17): the previous run was
+against a broken extractor") is the prior run, kept verbatim for history. This section reports
+a second, later fix and a fresh run on top of it — same 10 questions, same grading logic, same
+target repo, only the graph's FTS index changed.
+
+**The defect fixed here:** `nodes_fts` (the FTS5 search index `SqliteStorageAdapter.searchNodes`
+queries) used FTS5's default tokenizer, which splits only on non-alphanumeric characters. A
+compound identifier with no internal separator — camelCase (`RungDistribution`), an acronym run
+(`HTTPServerFactory`), or a digit boundary (`Base64Encoder`) — was indexed as a single token, so
+a query for an interior or leading sub-word (`rung`, `distribution`, `sqlite`) could not retrieve
+it. `ExploreEngine.matchSymbols` (unedited by this fix) calls `searchNodes` once per question
+token, so any question mentioning a sub-word of a compound symbol name lost that symbol as a
+candidate entirely. This is exactly the mechanism behind the L4 loss below, and part of the L1
+loss (see the corrected L1 diagnosis below).
+
+**The fix:** a new `IdentifierSplitter` (`modules/core`, general-purpose, not eval-specific)
+splits an identifier into component words — camelCase/acronym/digit boundaries, plus
+snake_case/kebab-case/dotted names (already handled by FTS5's own tokenizer, but split for
+completeness by any future consumer). `SqliteStorageAdapter.upsertNode` now writes the original
+label *plus* its split components into `nodes_fts`'s `label` column, so a search for any
+component word retrieves the node. `NodesTable` (the source of truth for `GraphNode.label`) is
+untouched — only what is indexed changed. No schema migration: the FTS5 column shape is
+identical, but any already-existing database (including this repo's own committed baseline)
+keeps stale, unsplit FTS content until every node is re-upserted. Because `ci-reindex` is
+checksum-incremental, regenerating the committed baseline for this fix required a full reindex
+(existing `.contextgraph/graph.db` deleted first), not a plain `ci-reindex` run — an incremental
+run would have refreshed FTS only for the handful of files this fix itself touched, leaving the
+other ~3,600 nodes' FTS rows stale.
+
+Verified before/after at the real `SqliteStorageAdapter` level (not just raw FTS), with a decoy
+node that forces the FTS-match code path rather than the coincidental LIKE-substring fallback
+`searchNodes` takes when FTS returns zero rows for the whole table: inserting `RungDistribution`
+alongside a decoy `Rung`/`Distribution` node and searching `"rung"` / `"distribution"` **failed
+before this fix** (0/2 tests passing, `AssertionError`) and **passes after** (28/28 tests in
+`SqliteStorageAdapterTest`, `--rerun-tasks`, `BUILD SUCCESSFUL`).
+
+### Results, per question — new run vs the previous (fixed-extractor) run
+
+| ID | Type | NEW hit | NEW tokens | NEW via | OLD hit (fixed-extractor run below) | OLD tokens |
+|----|------|:---:|---:|---|:---:|---:|
+| L1 | LOCATE | **NO** | 8,955 | — | **NO** | 4,691 |
+| L2 | LOCATE | YES | 13,366 | symbol | YES | 4,605 |
+| L3 | LOCATE | YES | 8,285 | symbol | YES | 3,314 |
+| L4 | LOCATE | **YES** | 4,739 | symbol | **NO** | 2,579 |
+| I1 | IMPACT | YES | 6,165 | edge | YES | 3,771 |
+| I2 | IMPACT | YES | 6,711 | edge | YES | 4,425 |
+| I3 | IMPACT | YES | 10,701 | symbol | YES | 9,302 |
+| C1 | CROSS_FILE | YES | 9,794 | edge | YES | 9,673 |
+| C2 | CROSS_FILE | YES | 7,664 | edge | YES | 5,819 |
+| C3 | CROSS_FILE | YES | 15,302 | symbol | YES | 14,898 |
+| **Total** | | **9/10** | **91,682** | | **8/10** | **63,077** |
+
+Confidence-floor sensitivity re-checked identically to the previous run: **9/10 at both
+`blastRadiusConfidenceFloor=0.80` and `0.45`**, same one loss (L1) at both — hit/miss still not
+sensitive to the floor. Token cost at 0.45: 92,902 (vs 91,682 at 0.80), same small floor-driven
+increase pattern as before.
+
+**L4 flips from a loss to a win, exactly as the fix targets.** `RungDistribution`'s own class and
+methods (`compute`, `languageOf`, `rungOf`) are now retrievable by the question's tokens `rung`
+and `distribution` alone — confirmed directly against the regenerated graph:
+`nodes_fts MATCH 'rung'` and `MATCH 'distribution'` both now return
+`RungDistribution.kt#RungDistribution`, which they did not before (see the original L4 writeup
+below for the pre-fix state).
+
+**L1 is still a loss, but the root cause is corrected here, and it turns out to be only partly
+what this fix addresses.** The previous L1 writeup (below) attributed the loss entirely to
+token-level tokenization (interface `StorageAdapter` matches, impl `SqliteStorageAdapter`
+doesn't). That is real, and this fix does make `SqliteStorageAdapter.kt` retrievable by the
+sub-word `sqlite` (verified: `nodes_fts MATCH 'sqlite'` now includes the file node and other
+`sqlite`-prefixed symbols it did not before). **But the concrete class node
+`SqliteStorageAdapter` does not exist anywhere in the graph at all** —
+`SELECT * FROM nodes WHERE label='SqliteStorageAdapter'` returns zero rows, before and after this
+fix, confirmed against both the regenerated committed baseline and this run's fresh index. Root
+cause, found by parsing the file directly against the same tree-sitter Kotlin grammar the pipeline
+uses: `tree.rootNode.hasError` is `true` for `SqliteStorageAdapter.kt`, and the entire class body
+(`class SqliteStorageAdapter(...) : StorageAdapter { ... }`, rows 96/97 through end of file) is one
+`ERROR` node — the grammar mishandles an Exposed-SQL-DSL infix expression followed by a navigation
+suffix (`ArtifactsTable.id eq id.value`, ` .` flagged as a stray `ERROR` node), and tree-sitter's
+error recovery never re-synchronizes back into a valid `class_declaration`, so no symbol for the
+class itself is ever emitted — nested `object` declarations inside it (`ArtifactsTable`, etc.)
+still get extracted, but `SqliteStorageAdapter` the class does not. **Confirmed pre-existing and
+unrelated to this fix**: parsing the file exactly as committed at HEAD (`git show
+29894a5:.../SqliteStorageAdapter.kt`, before any change made here) through the same grammar
+reproduces the identical error shape. This is a tree-sitter Kotlin grammar gap
+(`modules/tree-sitter/.../grammars/KotlinGrammar.kt`), out of this fix's file ownership (grammar
+files are explicitly off-limits here) — flagged as a follow-up, not fixed. L1's remaining
+candidate list post-fix is `SqliteStorageAdapterTest` (the test class, matched via the same
+`sqlite` sub-word) plus `StorageAdapter`'s interface methods — still not the graded answer, since
+neither is `storage-sqlite/.../SqliteStorageAdapter.kt`.
+
+**Token cost rose substantially — 63,077 → 91,682 (+45%), on the identical 8 questions that were
+already hits, not just the newly-fixed L4.** This is the honest cost side of the fix: indexing
+every compound identifier's sub-words broadens the FTS candidate pool for every query that
+happens to share a common word (`service`, `resolver`, `edge`, etc.), pulling more symbols and
+more blast-radius edges into scope even when the extra candidates don't change the hit/miss
+verdict. Not tuned away — the task this fix serves is retrieval generality, not this benchmark's
+token budget, and gaming the ten questions was explicitly out of scope.
+
+**Net effect on the score: 8/10 → 9/10.** This is a general fix — no code here special-cases any
+of the ten questions or the strings "rung", "distribution", or "sqlite" — and it moved the number.
+L1 is unresolved, but now for a correctly diagnosed, out-of-scope reason (grammar extraction gap)
+rather than a token-matching one.
+
+Raw output from this run: `modules/eval/last-run/explore-results-floor0.80.json` and
+`explore-results-floor0.45.json` — regenerated by this run, overwriting the previous run's files
+(same convention: "Both are regenerated, not hand-edited, the next time this is re-run", below).
+Graph freshly indexed for this run: 251 artifacts, 3,610 nodes, 5,990 edges, 8 files with parse
+warnings (7 are pre-existing and either deliberately-malformed test fixtures
+(`test-fixtures/*/Broken/Broken.*`) or the grammar's own source file
+(`tree-sitter/.../KotlinGrammar.kt`); the 8th is `SqliteStorageAdapter.kt`, diagnosed above). Node
+count differs slightly from the previous run's "273 artifacts, 3583 nodes, 5951 edges" — expected
+repo drift between when that run was taken and now (this fix's own new files, and other unrelated
+commits), not an effect of this change.
+
+### Unit tests supporting this fix (outside `modules/eval`, noted here for the record)
+
+- `modules/core/src/test/kotlin/io/contextgraph/core/IdentifierSplitterTest.kt` — 9 tests, pure,
+  covering camelCase, acronym runs, snake_case, kebab-case, dotted names, digit boundaries, and
+  the single-word-unchanged case. `./gradlew :modules:core:test --tests
+  "io.contextgraph.core.IdentifierSplitterTest"` → `BUILD SUCCESSFUL`, 9/9.
+- `modules/storage-sqlite/src/test/kotlin/io/contextgraph/storage/SqliteStorageAdapterTest.kt` —
+  2 new integration tests through the real `SqliteStorageAdapter`, described above. Full module
+  suite: `./gradlew :modules:storage-sqlite:test --rerun-tasks` → `BUILD SUCCESSFUL`, 28/28.
+- Full repo suite after the fix: `./gradlew test --continue` → `BUILD SUCCESSFUL`, 404 tests
+  (393 baseline + 11 new), 0 failures.
+
 ## Re-run notice (2026-08-17): the previous run was against a broken extractor
 
 The run this document previously reported was taken while `KotlinSymbolExtractor` threw

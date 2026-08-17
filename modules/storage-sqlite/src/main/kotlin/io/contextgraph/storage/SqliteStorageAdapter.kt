@@ -5,6 +5,7 @@ import io.contextgraph.core.ArtifactId
 import io.contextgraph.core.GraphEdge
 import io.contextgraph.core.GraphNode
 import io.contextgraph.core.GraphStats
+import io.contextgraph.core.IdentifierSplitter
 import io.contextgraph.core.NodeId
 import io.contextgraph.core.NodeType
 import io.contextgraph.core.Provenance
@@ -171,9 +172,21 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             it[confidence] = node.confidence
         }
 
-        // Update FTS
+        // Update FTS. `nodes_fts` is a search index, not a source of truth -- the real label
+        // lives in NodesTable above, untouched. FTS5's default tokenizer only splits on
+        // non-alphanumeric characters, so a compound identifier with no separator (camelCase,
+        // acronym runs, digit-adjacent words -- e.g. "RungDistribution") is indexed as a single
+        // token and cannot be found by any of its component words. Appending the split
+        // components alongside the original label lets a search for "rung" or "distribution"
+        // retrieve "RungDistribution" without changing what is displayed or stored as truth.
+        val ftsWords = IdentifierSplitter.split(node.label)
+        val ftsLabel = if (ftsWords.size > 1) {
+            (listOf(node.label) + ftsWords).joinToString(" ")
+        } else {
+            node.label
+        }
         try {
-            exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES ('${node.id.value.replace("'", "''")}', '${node.label.replace("'", "''")}', '${propsJson.replace("'", "''")}')")
+            exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES ('${node.id.value.replace("'", "''")}', '${ftsLabel.replace("'", "''")}', '${propsJson.replace("'", "''")}')")
         } catch (_: Exception) {}
     }
 
