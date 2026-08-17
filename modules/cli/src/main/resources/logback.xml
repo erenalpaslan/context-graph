@@ -1,0 +1,20 @@
+<!--
+  Without this file, logback falls back to its built-in default (DEBUG, console appender),
+  which floods stdout with Flyway/Exposed SQL debug lines. That defeats AC-28's "emits
+  machine-readable output suitable for CI logs" for `ci-reindex` (slice 13): its one line of
+  JSON needs to be findable, not buried under migration chatter. WARN keeps genuine problems
+  visible without the noise; the CLI's own progress/result output goes through Clikt's
+  `echo()`, which this does not touch.
+-->
+<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -- %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

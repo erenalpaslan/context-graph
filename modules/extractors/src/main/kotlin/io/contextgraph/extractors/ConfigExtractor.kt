@@ -28,7 +28,9 @@ class ConfigExtractor : ResourceExtractor {
     private val yaml = Yaml()
 
     override suspend fun extract(artifact: Artifact, context: ExtractionContext): ExtractionResult {
-        val path = Path.of(artifact.path)
+        // artifact.path is repo-relative (slice 09's artifact-identity fix); resolve
+        // against context.projectRoot to get an openable path.
+        val path = context.projectRoot.resolve(artifact.path)
         val name = path.name.lowercase()
         return when {
             name == "package.json" -> extractPackageJson(artifact, path)

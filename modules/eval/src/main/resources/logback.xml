@@ -1,0 +1,19 @@
+<!--
+  Without this file, logback falls back to its built-in default (DEBUG, console appender),
+  which floods stdout with Exposed SQL debug lines and buries the eval report's own table
+  under them. WARN keeps genuine problems (e.g. an extractor failure surfacing through
+  ExploreEngine) visible without the noise. Same rationale, same shape, as
+  modules/cli/src/main/resources/logback.xml.
+-->
+<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -- %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

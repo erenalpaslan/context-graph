@@ -1,0 +1,686 @@
+{
+    "nodes": [
+        {
+            "id": "Auth/Logger.ts",
+            "type": "CodeFile",
+            "label": "Logger.ts",
+            "confidence": 1.0,
+            "properties": {
+                "language": "typescript"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/Logger.ts",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/Logger.ts#Logger",
+            "type": "Class",
+            "label": "Logger",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Logger",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/Logger.ts",
+                    "lineStart": 1,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/Logger.ts#Logger.log(string)",
+            "type": "Method",
+            "label": "log",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Logger.log",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/Logger.ts",
+                    "lineStart": 2,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts",
+            "type": "CodeFile",
+            "label": "UserService.ts",
+            "confidence": 1.0,
+            "properties": {
+                "language": "typescript"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#IUserService",
+            "type": "Interface",
+            "label": "IUserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "IUserService",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 4,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#IUserService.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "IUserService.name",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#IUserService.save(string)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "IUserService.save",
+                "kind": "abstract_method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#Role",
+            "type": "Enum",
+            "label": "Role",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Role",
+                "kind": "enum"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 11,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#Role.Admin",
+            "type": "Field",
+            "label": "Admin",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Role.Admin",
+                "kind": "enum_member"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#Role.Member",
+            "type": "Field",
+            "label": "Member",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Role.Member",
+                "kind": "enum_member"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 13,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserId",
+            "type": "TypeAlias",
+            "label": "UserId",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserId",
+                "kind": "type_alias"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 9,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserService",
+            "type": "Class",
+            "label": "UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 17,
+                    "lineEnd": 33,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserService.constructor(Logger)",
+            "type": "Method",
+            "label": "constructor",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.constructor",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 20,
+                    "lineEnd": 20,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserService.create()",
+            "type": "Method",
+            "label": "create",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.create",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 30,
+                    "lineEnd": 32,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserService.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.name",
+                "kind": "property"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 18,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserService.save(string)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 22,
+                    "lineEnd": 24,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#UserService.save(string,number)",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "UserService.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 26,
+                    "lineEnd": 28,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#import:./Logger",
+            "type": "Module",
+            "label": "./Logger",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "./Logger"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/UserService.ts#import:fs",
+            "type": "Module",
+            "label": "fs",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "fs"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/UserService.ts",
+                    "lineStart": 2,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/index.ts",
+            "type": "CodeFile",
+            "label": "index.ts",
+            "confidence": 1.0,
+            "properties": {
+                "language": "typescript"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/index.ts",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Auth/index.ts#export:./UserService",
+            "type": "Module",
+            "label": "./UserService",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "./UserService"
+            },
+            "provenance": [
+                {
+                    "path": "Auth/index.ts",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Broken/Broken.ts",
+            "type": "CodeFile",
+            "label": "Broken.ts",
+            "confidence": 1.0,
+            "properties": {
+                "language": "typescript"
+            },
+            "provenance": [
+                {
+                    "path": "Broken/Broken.ts",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/AnonymousDefault.ts",
+            "type": "CodeFile",
+            "label": "AnonymousDefault.ts",
+            "confidence": 1.0,
+            "properties": {
+                "language": "typescript"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/AnonymousDefault.ts",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/AnonymousDefault.ts#AnonymousDefault",
+            "type": "Function",
+            "label": "AnonymousDefault",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "AnonymousDefault",
+                "kind": "default_export"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/AnonymousDefault.ts",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/helpers.ts",
+            "type": "CodeFile",
+            "label": "helpers.ts",
+            "confidence": 1.0,
+            "properties": {
+                "language": "typescript"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/helpers.ts",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/helpers.ts#add(number,number)",
+            "type": "Function",
+            "label": "add",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "add",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/helpers.ts",
+                    "lineStart": 1,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/helpers.ts#formatUser(string)",
+            "type": "Function",
+            "label": "formatUser",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "formatUser",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/helpers.ts",
+                    "lineStart": 9,
+                    "lineEnd": 11,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/helpers.ts#internalHelper",
+            "type": "Function",
+            "label": "internalHelper",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "internalHelper",
+                "kind": "arrow_function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/helpers.ts",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/helpers.ts#multiply",
+            "type": "Function",
+            "label": "multiply",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "multiply",
+                "kind": "arrow_function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/helpers.ts",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Auth/Logger.ts:Auth/Logger.ts#Logger",
+            "source": "Auth/Logger.ts",
+            "target": "Auth/Logger.ts#Logger",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/Logger.ts#Logger:Auth/Logger.ts#Logger.log(string)",
+            "source": "Auth/Logger.ts#Logger",
+            "target": "Auth/Logger.ts#Logger.log(string)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts:Auth/UserService.ts#IUserService",
+            "source": "Auth/UserService.ts",
+            "target": "Auth/UserService.ts#IUserService",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts:Auth/UserService.ts#Role",
+            "source": "Auth/UserService.ts",
+            "target": "Auth/UserService.ts#Role",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts:Auth/UserService.ts#UserId",
+            "source": "Auth/UserService.ts",
+            "target": "Auth/UserService.ts#UserId",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts:Auth/UserService.ts#UserService",
+            "source": "Auth/UserService.ts",
+            "target": "Auth/UserService.ts#UserService",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.ts:Auth/UserService.ts#import:./Logger",
+            "source": "Auth/UserService.ts",
+            "target": "Auth/UserService.ts#import:./Logger",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/UserService.ts:Auth/UserService.ts#import:fs",
+            "source": "Auth/UserService.ts",
+            "target": "Auth/UserService.ts#import:fs",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#IUserService:Auth/UserService.ts#IUserService.name",
+            "source": "Auth/UserService.ts#IUserService",
+            "target": "Auth/UserService.ts#IUserService.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#IUserService:Auth/UserService.ts#IUserService.save(string)",
+            "source": "Auth/UserService.ts#IUserService",
+            "target": "Auth/UserService.ts#IUserService.save(string)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#Role:Auth/UserService.ts#Role.Admin",
+            "source": "Auth/UserService.ts#Role",
+            "target": "Auth/UserService.ts#Role.Admin",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#Role:Auth/UserService.ts#Role.Member",
+            "source": "Auth/UserService.ts#Role",
+            "target": "Auth/UserService.ts#Role.Member",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#UserService:Auth/UserService.ts#UserService.constructor(Logger)",
+            "source": "Auth/UserService.ts#UserService",
+            "target": "Auth/UserService.ts#UserService.constructor(Logger)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#UserService:Auth/UserService.ts#UserService.create()",
+            "source": "Auth/UserService.ts#UserService",
+            "target": "Auth/UserService.ts#UserService.create()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#UserService:Auth/UserService.ts#UserService.name",
+            "source": "Auth/UserService.ts#UserService",
+            "target": "Auth/UserService.ts#UserService.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#UserService:Auth/UserService.ts#UserService.save(string)",
+            "source": "Auth/UserService.ts#UserService",
+            "target": "Auth/UserService.ts#UserService.save(string)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Auth/UserService.ts#UserService:Auth/UserService.ts#UserService.save(string,number)",
+            "source": "Auth/UserService.ts#UserService",
+            "target": "Auth/UserService.ts#UserService.save(string,number)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Auth/index.ts:Auth/index.ts#export:./UserService",
+            "source": "Auth/index.ts",
+            "target": "Auth/index.ts#export:./UserService",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/AnonymousDefault.ts:Utils/AnonymousDefault.ts#AnonymousDefault",
+            "source": "Utils/AnonymousDefault.ts",
+            "target": "Utils/AnonymousDefault.ts#AnonymousDefault",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/helpers.ts:Utils/helpers.ts#add(number,number)",
+            "source": "Utils/helpers.ts",
+            "target": "Utils/helpers.ts#add(number,number)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/helpers.ts:Utils/helpers.ts#formatUser(string)",
+            "source": "Utils/helpers.ts",
+            "target": "Utils/helpers.ts#formatUser(string)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/helpers.ts:Utils/helpers.ts#internalHelper",
+            "source": "Utils/helpers.ts",
+            "target": "Utils/helpers.ts#internalHelper",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/helpers.ts:Utils/helpers.ts#multiply",
+            "source": "Utils/helpers.ts",
+            "target": "Utils/helpers.ts#multiply",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in Broken/Broken.ts (tree-sitter/typescript); extraction is partial"
+        }
+    ]
+}

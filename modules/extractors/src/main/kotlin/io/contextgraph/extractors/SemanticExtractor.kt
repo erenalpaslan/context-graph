@@ -60,7 +60,9 @@ class SemanticExtractor : ResourceExtractor {
 
         semaphore.withPermit {
             try {
-                val content = Path.of(artifact.path).readText().take(8000)
+                // artifact.path is repo-relative (slice 09's artifact-identity fix); resolve
+                // against context.projectRoot to get an openable path.
+                val content = context.projectRoot.resolve(artifact.path).readText().take(8000)
                 val client = HttpClient(CIO) {
                     install(ContentNegotiation) { json(lenientJson) }
                 }

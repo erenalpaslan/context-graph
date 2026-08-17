@@ -27,12 +27,15 @@ class SqlExtractor : ResourceExtractor {
         val nodes = mutableListOf<GraphNode>()
         val edges = mutableListOf<GraphEdge>()
         val now = Clock.System.now()
-        val sql = Path.of(artifact.path).readText()
+        // artifact.path is repo-relative (slice 09's artifact-identity fix); resolve
+        // against context.projectRoot to get an openable path.
+        val path = context.projectRoot.resolve(artifact.path)
+        val sql = path.readText()
 
         val schemaNode = GraphNode(
             id = NodeId("schema:${artifact.id.value}"),
             type = NodeType.DatabaseSchema,
-            label = Path.of(artifact.path).fileName.toString(),
+            label = path.fileName.toString(),
             confidence = 1.0,
             provenance = listOf(Provenance(artifact.id, artifact.path, extractor = id, extractedAt = now))
         )

@@ -1,5 +1,7 @@
 dependencies {
     implementation(project(":modules:core"))
+    implementation(project(":modules:tree-sitter"))
+    implementation(libs.ktreesitter)
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)

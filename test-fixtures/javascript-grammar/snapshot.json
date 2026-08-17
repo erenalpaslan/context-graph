@@ -1,0 +1,306 @@
+{
+    "nodes": [
+        {
+            "id": "Utils/extra.js",
+            "type": "CodeFile",
+            "label": "extra.js",
+            "confidence": 1.0,
+            "properties": {
+                "language": "javascript"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/extra.js",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js",
+            "type": "CodeFile",
+            "label": "math.js",
+            "confidence": 1.0,
+            "properties": {
+                "language": "javascript"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#Calculator",
+            "type": "Class",
+            "label": "Calculator",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Calculator",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 9,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#Calculator.add(amount)",
+            "type": "Method",
+            "label": "add",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Calculator.add",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 14,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#Calculator.constructor(initial)",
+            "type": "Method",
+            "label": "constructor",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Calculator.constructor",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 10,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#add(a,b)",
+            "type": "Function",
+            "label": "add",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "add",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 3,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#export:./extra",
+            "type": "Module",
+            "label": "./extra",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "./extra"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#square(x)",
+            "type": "Function",
+            "label": "square",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "square",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 20,
+                    "lineEnd": 22,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Utils/math.js#subtract",
+            "type": "Function",
+            "label": "subtract",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "subtract",
+                "kind": "arrow_function"
+            },
+            "provenance": [
+                {
+                    "path": "Utils/math.js",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.jsx",
+            "type": "CodeFile",
+            "label": "Widget.jsx",
+            "confidence": 1.0,
+            "properties": {
+                "language": "javascript"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.jsx",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.jsx#Panel(props)",
+            "type": "Component",
+            "label": "Panel",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Panel",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.jsx",
+                    "lineStart": 7,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.jsx#Widget",
+            "type": "Component",
+            "label": "Widget",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "Widget",
+                "kind": "arrow_function"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.jsx",
+                    "lineStart": 3,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "Widgets/Widget.jsx#import:react",
+            "type": "Module",
+            "label": "react",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "react"
+            },
+            "provenance": [
+                {
+                    "path": "Widgets/Widget.jsx",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:Utils/math.js:Utils/math.js#Calculator",
+            "source": "Utils/math.js",
+            "target": "Utils/math.js#Calculator",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/math.js:Utils/math.js#add(a,b)",
+            "source": "Utils/math.js",
+            "target": "Utils/math.js#add(a,b)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Utils/math.js:Utils/math.js#export:./extra",
+            "source": "Utils/math.js",
+            "target": "Utils/math.js#export:./extra",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/math.js:Utils/math.js#square(x)",
+            "source": "Utils/math.js",
+            "target": "Utils/math.js#square(x)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/math.js:Utils/math.js#subtract",
+            "source": "Utils/math.js",
+            "target": "Utils/math.js#subtract",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/math.js#Calculator:Utils/math.js#Calculator.add(amount)",
+            "source": "Utils/math.js#Calculator",
+            "target": "Utils/math.js#Calculator.add(amount)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Utils/math.js#Calculator:Utils/math.js#Calculator.constructor(initial)",
+            "source": "Utils/math.js#Calculator",
+            "target": "Utils/math.js#Calculator.constructor(initial)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.jsx:Widgets/Widget.jsx#Panel(props)",
+            "source": "Widgets/Widget.jsx",
+            "target": "Widgets/Widget.jsx#Panel(props)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:Widgets/Widget.jsx:Widgets/Widget.jsx#Widget",
+            "source": "Widgets/Widget.jsx",
+            "target": "Widgets/Widget.jsx#Widget",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:Widgets/Widget.jsx:Widgets/Widget.jsx#import:react",
+            "source": "Widgets/Widget.jsx",
+            "target": "Widgets/Widget.jsx#import:react",
+            "type": "imports",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": []
+}

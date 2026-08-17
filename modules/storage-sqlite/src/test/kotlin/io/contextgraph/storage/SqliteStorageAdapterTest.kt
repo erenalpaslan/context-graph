@@ -11,6 +11,7 @@ import io.contextgraph.core.Provenance
 import io.contextgraph.core.Artifact
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -90,11 +91,54 @@ class SqliteStorageAdapterTest : FunSpec({
         }
 
         test("searchNodes filters by node type") {
-            storage.upsertNode(makeNode("A", "AuthService", NodeType.Class))
-            storage.upsertNode(makeNode("B", "authenticate", NodeType.Function))
-            val results = storage.searchNodes("auth", types = listOf(NodeType.Function))
+            // "OrderService" and "OrderValidator" both split to a real "Order" sub-token, so
+            // both are genuine FTS candidates for "order" -- this isolates the type filter
+            // itself from any FTS-vs-LIKE-fallback ambiguity (unlike a bare substring such as
+            // "auth" of "authenticate", which FTS's MATCH deliberately does not satisfy: no
+            // prefix/substring matching, only whole-token matching).
+            storage.upsertNode(makeNode("A", "OrderService", NodeType.Class))
+            storage.upsertNode(makeNode("B", "OrderValidator", NodeType.Function))
+            val results = storage.searchNodes("order", types = listOf(NodeType.Function))
             results shouldHaveSize 1
             results.single().id shouldBe NodeId("B")
+        }
+
+        // These two use a *decoy* node whose own label already matches the query term as a
+        // whole FTS token (e.g. label "Rung" matches MATCH 'rung' outright). That forces
+        // searchNodes' FTS branch to be taken (ftsResults is non-empty), which is the
+        // production path: SqliteStorageAdapter.searchNodes only falls back to a LIKE scan
+        // when FTS returns literally zero rows for the *entire table* -- with only the
+        // target node present, that fallback would mask the defect this test exists to catch,
+        // since a substring LIKE happens to match a compound identifier regardless of FTS
+        // tokenization. The decoy removes that false-negative risk.
+        test("searchNodes finds a compound identifier by a leading sub-word") {
+            val target = makeNode(
+                "ingest/RungDistribution.kt#RungDistribution",
+                "RungDistribution"
+            )
+            val decoy = makeNode("unrelated/Rung.kt#Rung", "Rung")
+            storage.upsertNode(target)
+            storage.upsertNode(decoy)
+
+            val results = storage.searchNodes("rung")
+
+            results.map { it.id } shouldHaveSize 2
+            results.map { it.id } shouldContainExactlyInAnyOrder listOf(target.id, decoy.id)
+        }
+
+        test("searchNodes finds a compound identifier by an interior sub-word") {
+            val target = makeNode(
+                "ingest/RungDistribution.kt#RungDistribution",
+                "RungDistribution"
+            )
+            val decoy = makeNode("unrelated/Distribution.kt#Distribution", "Distribution")
+            storage.upsertNode(target)
+            storage.upsertNode(decoy)
+
+            val results = storage.searchNodes("distribution")
+
+            results.map { it.id } shouldHaveSize 2
+            results.map { it.id } shouldContainExactlyInAnyOrder listOf(target.id, decoy.id)
         }
     }
 
@@ -181,6 +225,114 @@ class SqliteStorageAdapterTest : FunSpec({
             storage.upsertProvenance(node.id.value, "node", prov)
             storage.deleteNodesForArtifact(artifactId)
             storage.getAllNodes().shouldBeEmpty()
+        }
+
+        test("does not delete a Calls edge another artifact holds into this artifact's node") {
+            // Regression test for the orphaning bug slice 09 fixes: reindexing artifact B
+            // (whose node "callee" is the *target* of a Calls edge artifact A's node holds)
+            // must not silently drop that edge just because B's own nodes are being
+            // replaced. Calls edges are pass 2's (io.contextgraph.ingest.ReferenceResolver)
+            // to own -- it wipes and rebuilds the complete set every full index run, which
+            // is what actually keeps them consistent; deleteNodesForArtifact must stay out
+            // of the way in the meantime rather than destroy a cross-artifact edge that
+            // nothing (since A isn't being reprocessed) would ever restore.
+            val artifactA = ArtifactId("/src/A.kt")
+            val artifactB = ArtifactId("/src/B.kt")
+            val caller = GraphNode(NodeId("A#caller"), NodeType.Method, "caller")
+            val callee = GraphNode(NodeId("B#callee"), NodeType.Method, "callee")
+            storage.upsertNode(caller)
+            storage.upsertNode(callee)
+            storage.upsertProvenance(caller.id.value, "node", Provenance(artifactA, "/src/A.kt", extractor = "code", extractedAt = now()))
+            storage.upsertProvenance(callee.id.value, "node", Provenance(artifactB, "/src/B.kt", extractor = "code", extractedAt = now()))
+            storage.upsertEdge(makeEdge(caller.id.value, callee.id.value, EdgeType.Calls))
+
+            // B is reindexed (e.g. an unrelated edit bumped its checksum); A is untouched.
+            storage.deleteNodesForArtifact(artifactB)
+
+            storage.getEdgesTo(callee.id).map { it.type } shouldBe listOf(EdgeType.Calls)
+        }
+
+        test("still deletes non-Calls edges touching this artifact's nodes") {
+            val artifactA = ArtifactId("/src/A.kt")
+            val fileNode = GraphNode(NodeId("A#file"), NodeType.CodeFile, "A.kt")
+            val member = GraphNode(NodeId("A#member"), NodeType.Method, "member")
+            storage.upsertNode(fileNode)
+            storage.upsertNode(member)
+            storage.upsertProvenance(fileNode.id.value, "node", Provenance(artifactA, "/src/A.kt", extractor = "code", extractedAt = now()))
+            storage.upsertProvenance(member.id.value, "node", Provenance(artifactA, "/src/A.kt", extractor = "code", extractedAt = now()))
+            storage.upsertEdge(makeEdge(fileNode.id.value, member.id.value, EdgeType.Contains))
+
+            storage.deleteNodesForArtifact(artifactA)
+
+            storage.getEdgesFrom(fileNode.id).shouldBeEmpty()
+        }
+    }
+
+    context("unresolvedReferences") {
+        fun makeReference(name: String, referringSymbolId: String, artifactId: String, path: String) =
+            io.contextgraph.core.UnresolvedReference(
+                referenceName = name,
+                referringSymbolId = NodeId(referringSymbolId),
+                repoRelativePath = path,
+                artifactId = ArtifactId(artifactId),
+                line = 1
+            )
+
+        test("insertUnresolvedReference and getAllUnresolvedReferences roundtrip") {
+            storage.insertUnresolvedReference(makeReference("calleeFn", "A#caller", "A.kt", "A.kt"))
+            val all = storage.getAllUnresolvedReferences()
+            all shouldHaveSize 1
+            all.single().referenceName shouldBe "calleeFn"
+        }
+
+        test("deleteUnresolvedReferencesForArtifact removes only that artifact's rows") {
+            storage.insertUnresolvedReference(makeReference("x", "A#caller", "A.kt", "A.kt"))
+            storage.insertUnresolvedReference(makeReference("y", "B#caller", "B.kt", "B.kt"))
+            storage.deleteUnresolvedReferencesForArtifact(ArtifactId("A.kt"))
+            val remaining = storage.getAllUnresolvedReferences()
+            remaining shouldHaveSize 1
+            remaining.single().referenceName shouldBe "y"
+        }
+    }
+
+    context("deleteEdgesOfType") {
+        test("removes only edges of the given type, leaving others intact") {
+            storage.upsertNode(makeNode("N1", "One"))
+            storage.upsertNode(makeNode("N2", "Two"))
+            storage.upsertEdge(makeEdge("N1", "N2", EdgeType.Calls))
+            storage.upsertEdge(makeEdge("N1", "N2", EdgeType.Contains))
+            storage.deleteEdgesOfType(EdgeType.Calls)
+            val remaining = storage.getAllEdges()
+            remaining shouldHaveSize 1
+            remaining.single().type shouldBe EdgeType.Contains
+        }
+    }
+
+    context("findNodesByLabel") {
+        test("returns every node with an exact label match, across types") {
+            storage.upsertNode(makeNode("N1", "shared", type = NodeType.Method))
+            storage.upsertNode(makeNode("N2", "shared", type = NodeType.Class))
+            storage.upsertNode(makeNode("N3", "different", type = NodeType.Method))
+            storage.findNodesByLabel("shared") shouldHaveSize 2
+            storage.findNodesByLabel("nonexistent").shouldBeEmpty()
+        }
+
+        test("nodes(label) is backed by an index, since ReferenceResolver calls this once per unresolved reference") {
+            val tmpDir = Files.createTempDirectory("contextgraph-test-migration")
+            val dbFile = tmpDir.resolve("graph.db")
+            // Opening the adapter runs Flyway migrations, including V3 which adds idx_nodes_label.
+            SqliteStorageAdapter(dbFile).close()
+
+            java.sql.DriverManager.getConnection("jdbc:sqlite:${dbFile.toAbsolutePath()}").use { conn ->
+                conn.createStatement().use { stmt ->
+                    stmt.executeQuery(
+                        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'nodes' AND sql LIKE '%(label)%'"
+                    ).use { rs ->
+                        rs.next() shouldBe true
+                        rs.getString("name") shouldBe "idx_nodes_label"
+                    }
+                }
+            }
         }
     }
 

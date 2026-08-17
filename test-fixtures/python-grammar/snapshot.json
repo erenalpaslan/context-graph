@@ -1,0 +1,1125 @@
+{
+    "nodes": [
+        {
+            "id": "broken.py",
+            "type": "CodeFile",
+            "label": "broken.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "broken.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "broken.py#Broken",
+            "type": "Class",
+            "label": "Broken",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "broken.Broken",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "broken.py",
+                    "lineStart": 1,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/__init__.py",
+            "type": "CodeFile",
+            "label": "__init__.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/__init__.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/__init__.py#PkgMarker",
+            "type": "Class",
+            "label": "PkgMarker",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.PkgMarker",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/__init__.py",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/__init__.py",
+            "type": "CodeFile",
+            "label": "__init__.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/__init__.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/helpers.py",
+            "type": "CodeFile",
+            "label": "helpers.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/helpers.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/helpers.py#format_name",
+            "type": "Function",
+            "label": "format_name",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "pkg.auth.helpers.format_name",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/helpers.py",
+                    "lineStart": 1,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py",
+            "type": "CodeFile",
+            "label": "service.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Config",
+            "type": "Class",
+            "label": "Config",
+            "confidence": 0.98,
+            "properties": {
+                "decorators": [
+                    "dataclass"
+                ],
+                "fqn": "pkg.auth.service.Config",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 13,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Config.host",
+            "type": "Field",
+            "label": "host",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.Config.host",
+                "kind": "class_attribute"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 15,
+                    "lineEnd": 15,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Config.port",
+            "type": "Field",
+            "label": "port",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.Config.port",
+                "kind": "class_attribute"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#DEFAULT_HOST",
+            "type": "Constant",
+            "label": "DEFAULT_HOST",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.DEFAULT_HOST",
+                "kind": "constant"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 10,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#DEFAULT_PORT",
+            "type": "Constant",
+            "label": "DEFAULT_PORT",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.DEFAULT_PORT",
+                "kind": "constant"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 10,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#MAX_RETRIES",
+            "type": "Constant",
+            "label": "MAX_RETRIES",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.MAX_RETRIES",
+                "kind": "constant"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 9,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service",
+            "type": "Class",
+            "label": "Service",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.Service",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 19,
+                    "lineEnd": 38,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.Inner",
+            "type": "Class",
+            "label": "Inner",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.Service.Inner",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 36,
+                    "lineEnd": 38,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.Inner.act",
+            "type": "Method",
+            "label": "act",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "pkg.auth.service.Service.Inner.act",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 37,
+                    "lineEnd": 38,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.__init__",
+            "type": "Method",
+            "label": "__init__",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "pkg.auth.service.Service.__init__",
+                "kind": "constructor"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 23,
+                    "lineEnd": 24,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service._cache",
+            "type": "Field",
+            "label": "_cache",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.Service._cache",
+                "kind": "class_attribute"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 21,
+                    "lineEnd": 21,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.fetch",
+            "type": "Method",
+            "label": "fetch",
+            "confidence": 0.98,
+            "properties": {
+                "async": true,
+                "fqn": "pkg.auth.service.Service.fetch",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 29,
+                    "lineEnd": 30,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.helper",
+            "type": "Method",
+            "label": "helper",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "decorators": [
+                    "staticmethod"
+                ],
+                "fqn": "pkg.auth.service.Service.helper",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 32,
+                    "lineEnd": 34,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.service.Service.name",
+                "kind": "class_attribute"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 20,
+                    "lineEnd": 20,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#Service.save",
+            "type": "Method",
+            "label": "save",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "pkg.auth.service.Service.save",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 26,
+                    "lineEnd": 27,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#flaky",
+            "type": "Function",
+            "label": "flaky",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "decorators": [
+                    "retry(times=3)"
+                ],
+                "fqn": "pkg.auth.service.flaky",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 48,
+                    "lineEnd": 50,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:deep.thing",
+            "type": "Module",
+            "label": "deep.thing",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "deep.thing",
+                "kind": "import",
+                "raw": "from ....deep import thing",
+                "relative": true
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:os",
+            "type": "Module",
+            "label": "os",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "os",
+                "kind": "import",
+                "raw": "import os",
+                "relative": false
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:os.path",
+            "type": "Module",
+            "label": "os.path",
+            "confidence": 0.98,
+            "properties": {
+                "alias": "osp",
+                "fqn": "os.path",
+                "kind": "import",
+                "raw": "import os.path",
+                "relative": false
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 2,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:pkg.auth.helpers",
+            "type": "Module",
+            "label": "pkg.auth.helpers",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.auth.helpers",
+                "kind": "import",
+                "raw": "from . import helpers",
+                "relative": true
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:pkg.models",
+            "type": "Module",
+            "label": "pkg.models",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.models",
+                "kind": "import",
+                "raw": "from .. import models",
+                "relative": true
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 5,
+                    "lineEnd": 5,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:pkg.models.User",
+            "type": "Module",
+            "label": "pkg.models.User",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.models.User",
+                "kind": "import",
+                "raw": "from ..models import User",
+                "relative": true
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#import:typing.Optional",
+            "type": "Module",
+            "label": "typing.Optional",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "typing.Optional",
+                "kind": "import",
+                "raw": "from typing import Optional",
+                "relative": false
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#process",
+            "type": "Function",
+            "label": "process",
+            "confidence": 0.98,
+            "properties": {
+                "async": true,
+                "fqn": "pkg.auth.service.process",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 41,
+                    "lineEnd": 45,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/auth/service.py#process.transform",
+            "type": "Function",
+            "label": "transform",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "pkg.auth.service.process.transform",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/auth/service.py",
+                    "lineStart": 42,
+                    "lineEnd": 43,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/models.py",
+            "type": "CodeFile",
+            "label": "models.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/models.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/models.py#User",
+            "type": "Class",
+            "label": "User",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.models.User",
+                "kind": "class"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/models.py",
+                    "lineStart": 1,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/models.py#User.__init__",
+            "type": "Method",
+            "label": "__init__",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "pkg.models.User.__init__",
+                "kind": "constructor"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/models.py",
+                    "lineStart": 5,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/models.py#User.id",
+            "type": "Field",
+            "label": "id",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.models.User.id",
+                "kind": "class_attribute"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/models.py",
+                    "lineStart": 2,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "pkg/models.py#User.name",
+            "type": "Field",
+            "label": "name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "pkg.models.User.name",
+                "kind": "class_attribute"
+            },
+            "provenance": [
+                {
+                    "path": "pkg/models.py",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py",
+            "type": "CodeFile",
+            "label": "standalone.py",
+            "confidence": 1.0,
+            "properties": {
+                "language": "python"
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py#TOP_CONST",
+            "type": "Constant",
+            "label": "TOP_CONST",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "standalone.TOP_CONST",
+                "kind": "constant"
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py#decorated_top",
+            "type": "Function",
+            "label": "decorated_top",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "decorators": [
+                    "decorator"
+                ],
+                "fqn": "standalone.decorated_top",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": 13,
+                    "lineEnd": 15,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py#import:sibling",
+            "type": "Module",
+            "label": "sibling",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "sibling",
+                "kind": "import",
+                "raw": "from . import sibling",
+                "relative": true
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": 1,
+                    "lineEnd": 1,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py#import:toohigh",
+            "type": "Module",
+            "label": "toohigh",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "toohigh",
+                "kind": "import",
+                "raw": "from .. import toohigh",
+                "relative": true
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": 2,
+                    "lineEnd": 2,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py#make_adder",
+            "type": "Function",
+            "label": "make_adder",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "standalone.make_adder",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": 7,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "standalone.py#make_adder.adder",
+            "type": "Function",
+            "label": "adder",
+            "confidence": 0.98,
+            "properties": {
+                "async": false,
+                "fqn": "standalone.make_adder.adder",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "standalone.py",
+                    "lineStart": 8,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:broken.py:broken.py#Broken",
+            "source": "broken.py",
+            "target": "broken.py#Broken",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/__init__.py:pkg/__init__.py#PkgMarker",
+            "source": "pkg/__init__.py",
+            "target": "pkg/__init__.py#PkgMarker",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/helpers.py:pkg/auth/helpers.py#format_name",
+            "source": "pkg/auth/helpers.py",
+            "target": "pkg/auth/helpers.py#format_name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#Config",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#Config",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#DEFAULT_HOST",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#DEFAULT_HOST",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#DEFAULT_PORT",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#DEFAULT_PORT",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#MAX_RETRIES",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#MAX_RETRIES",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#Service",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#Service",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#flaky",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#flaky",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:deep.thing",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:deep.thing",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:os",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:os",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:os.path",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:os.path",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:pkg.auth.helpers",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:pkg.auth.helpers",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:pkg.models",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:pkg.models",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:pkg.models.User",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:pkg.models.User",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:pkg/auth/service.py:pkg/auth/service.py#import:typing.Optional",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#import:typing.Optional",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py:pkg/auth/service.py#process",
+            "source": "pkg/auth/service.py",
+            "target": "pkg/auth/service.py#process",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Config:pkg/auth/service.py#Config.host",
+            "source": "pkg/auth/service.py#Config",
+            "target": "pkg/auth/service.py#Config.host",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Config:pkg/auth/service.py#Config.port",
+            "source": "pkg/auth/service.py#Config",
+            "target": "pkg/auth/service.py#Config.port",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service.Inner",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service.Inner",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service.__init__",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service.__init__",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service._cache",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service._cache",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service.fetch",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service.fetch",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service.helper",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service.helper",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service.name",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service:pkg/auth/service.py#Service.save",
+            "source": "pkg/auth/service.py#Service",
+            "target": "pkg/auth/service.py#Service.save",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#Service.Inner:pkg/auth/service.py#Service.Inner.act",
+            "source": "pkg/auth/service.py#Service.Inner",
+            "target": "pkg/auth/service.py#Service.Inner.act",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/auth/service.py#process:pkg/auth/service.py#process.transform",
+            "source": "pkg/auth/service.py#process",
+            "target": "pkg/auth/service.py#process.transform",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/models.py:pkg/models.py#User",
+            "source": "pkg/models.py",
+            "target": "pkg/models.py#User",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/models.py#User:pkg/models.py#User.__init__",
+            "source": "pkg/models.py#User",
+            "target": "pkg/models.py#User.__init__",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/models.py#User:pkg/models.py#User.id",
+            "source": "pkg/models.py#User",
+            "target": "pkg/models.py#User.id",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:pkg/models.py#User:pkg/models.py#User.name",
+            "source": "pkg/models.py#User",
+            "target": "pkg/models.py#User.name",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:standalone.py:standalone.py#TOP_CONST",
+            "source": "standalone.py",
+            "target": "standalone.py#TOP_CONST",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:standalone.py:standalone.py#decorated_top",
+            "source": "standalone.py",
+            "target": "standalone.py#decorated_top",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:standalone.py:standalone.py#import:sibling",
+            "source": "standalone.py",
+            "target": "standalone.py#import:sibling",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:standalone.py:standalone.py#import:toohigh",
+            "source": "standalone.py",
+            "target": "standalone.py#import:toohigh",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:standalone.py:standalone.py#make_adder",
+            "source": "standalone.py",
+            "target": "standalone.py#make_adder",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:standalone.py#make_adder:standalone.py#make_adder.adder",
+            "source": "standalone.py#make_adder",
+            "target": "standalone.py#make_adder.adder",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in broken.py (tree-sitter/python); extraction is partial"
+        }
+    ]
+}

@@ -13,6 +13,8 @@ class EdgeTypeTest : FunSpec({
         EdgeType.fromString("depends_on") shouldBe EdgeType.DependsOn
         EdgeType.fromString("similar_to") shouldBe EdgeType.SimilarTo
         EdgeType.fromString("SimilarTo")  shouldBe EdgeType.SimilarTo
+        EdgeType.fromString("sibling_of") shouldBe EdgeType.SiblingOf
+        EdgeType.fromString("SiblingOf")  shouldBe EdgeType.SiblingOf
     }
 
     test("fromString unknown value returns Custom") {
@@ -26,7 +28,7 @@ class EdgeTypeTest : FunSpec({
             EdgeType.Contains, EdgeType.Defines, EdgeType.Imports, EdgeType.Calls,
             EdgeType.DependsOn, EdgeType.Implements, EdgeType.Tests, EdgeType.References,
             EdgeType.Cites, EdgeType.Supports, EdgeType.Contradicts, EdgeType.Explains,
-            EdgeType.Uses, EdgeType.SimilarTo, EdgeType.DerivedFrom
+            EdgeType.Uses, EdgeType.SimilarTo, EdgeType.DerivedFrom, EdgeType.SiblingOf
         )
         types.forEach { type ->
             EdgeType.fromString(EdgeType.stringify(type)) shouldBe type

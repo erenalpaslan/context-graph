@@ -34,7 +34,10 @@ class MarkdownExtractor : ResourceExtractor {
     override val supportedTypes = setOf(NodeType.MarkdownFile, NodeType.Document)
 
     override suspend fun extract(artifact: Artifact, context: ExtractionContext): ExtractionResult {
-        val content = Path.of(artifact.path).readText()
+        // artifact.path is repo-relative (slice 09's artifact-identity fix); resolve
+        // against context.projectRoot to get an openable path.
+        val path = context.projectRoot.resolve(artifact.path)
+        val content = path.readText()
         val parser = Parser.builder()
             .extensions(listOf(TablesExtension.create(), HeadingAnchorExtension.create()))
             .build()
@@ -47,7 +50,7 @@ class MarkdownExtractor : ResourceExtractor {
         val fileNode = GraphNode(
             id = NodeId("file:${artifact.id.value}"),
             type = artifact.type,
-            label = Path.of(artifact.path).fileName.toString(),
+            label = path.fileName.toString(),
             confidence = 1.0,
             provenance = listOf(Provenance(artifact.id, artifact.path, extractor = id, extractedAt = now))
         )

@@ -19,6 +19,16 @@ sealed interface EdgeType {
     @Serializable data object Uses : EdgeType
     @Serializable data object SimilarTo : EdgeType
     @Serializable data object DerivedFrom : EdgeType
+    /**
+     * Links a non-primary declaration site to the primary one within a group of nodes
+     * that share an `fqn` -- a type extended across several files, a Kotlin extension
+     * function repeated on the same receiver, an Objective-C header/implementation split,
+     * TypeScript declaration merging, or plain method overloads. Source is the sibling,
+     * target is the primary declaration [io.contextgraph.ingest.SiblingGrouper] elects.
+     * Never merges the nodes it connects -- see that class's doc for how primary is
+     * chosen and why grouping is off `fqn` alone.
+     */
+    @Serializable data object SiblingOf : EdgeType
     @Serializable data class Custom(val name: String) : EdgeType
 
     companion object {
@@ -38,6 +48,7 @@ sealed interface EdgeType {
             "uses" -> Uses
             "similar_to", "similarto" -> SimilarTo
             "derived_from", "derivedfrom" -> DerivedFrom
+            "sibling_of", "siblingof" -> SiblingOf
             else -> Custom(s)
         }
 
@@ -58,6 +69,7 @@ sealed interface EdgeType {
             Uses -> "uses"
             SimilarTo -> "similar_to"
             DerivedFrom -> "derived_from"
+            SiblingOf -> "sibling_of"
         }
     }
 }
