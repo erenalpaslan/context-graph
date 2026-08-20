@@ -1,0 +1,14 @@
+# Copy to `local.properties` (gitignored) and fill in.
+#
+# Read by modules/benchmark's config/Secrets.kt as the fallback when the
+# corresponding environment variable is unset. The environment always wins, so
+# CI can override a developer's local file without editing it.
+#
+# Never commit local.properties.
+
+# Used by the benchmark's agent client (AnthropicMessagesClient) for the
+# WITH_TOOLS / WITHOUT_TOOLS agent runs. Get one at https://console.anthropic.com
+# -> API keys.
+#
+# Not needed for the retrieval axis (`runRetrieval`), which is LLM-free.
+ANTHROPIC_API_KEY=sk-ant-...

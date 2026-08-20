@@ -34,6 +34,8 @@ private val logger = KotlinLogging.logger {}
 
 private val jsonSerializer = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 
+private val FTS_TOKEN_REGEX = Regex("[\\p{L}\\p{N}_]+")
+
 object ArtifactsTable : Table("artifacts") {
     val id = text("id")
     val type = text("type")
@@ -233,16 +235,48 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             return@transaction q.limit(limit).map { it.toGraphNode() }
         }
 
-        // FTS search
-        val ftsResults = try {
-            exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${query.replace("'", "''")}' LIMIT $limit") { rs ->
-                val ids = mutableListOf<String>()
-                while (rs.next()) ids.add(rs.getString("id"))
-                ids
-            } ?: emptyList()
-        } catch (_: Exception) {
-            // Fallback to LIKE
-            emptyList<String>()
+        val terms = ftsTerms(query)
+
+        // FTS search. `query` may be a whole natural-language sentence, not a single term --
+        // feeding it to MATCH verbatim used to mean two things went wrong at once. First,
+        // FTS5's default MATCH semantics are implicit AND across the whole string, so every
+        // word in the sentence had to appear on the same indexed row: for a multi-word question
+        // that is close to impossible, and it was silently producing zero results across the
+        // board. Second, MATCH's query language treats quotes, '*', ':', '-', '(' etc. as
+        // syntax, so any sentence containing one of those (a question mark alone is harmless,
+        // but a hyphenated word or an apostrophe is not) could throw `fts5: syntax error`.
+        // Splitting the query into individual word-terms and OR-ing each one, quoted, fixes
+        // both: OR means matching *any* term is enough (recall a natural-language query can
+        // realistically get), and a quoted phrase is always a literal string in FTS5's query
+        // language, never an operator -- so no term extracted from user text can ever be
+        // misparsed as syntax, regardless of what punctuation surrounded it in the original
+        // sentence. A single-term query (the existing, working case) degenerates to a
+        // single quoted phrase, which matches exactly as a bareword search did before.
+        val ftsResults: List<String> = if (terms.isEmpty()) {
+            emptyList()
+        } else {
+            val matchExpr = terms.joinToString(" OR ") { "\"${it.replace("\"", "\"\"")}\"" }
+            try {
+                // ORDER BY rank asks SQLite for its built-in bm25 relevance score, so a row
+                // matching more of the OR'd terms (or matching them more distinctively) sorts
+                // ahead of a row matching only one -- otherwise OR-ing terms together would grow
+                // the result set without any way to tell a strong match from a weak one, which
+                // matters because ranking quality (MRR) is measured, not just presence/absence.
+                exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${matchExpr.replace("'", "''")}' ORDER BY rank LIMIT $limit") { rs ->
+                    val ids = mutableListOf<String>()
+                    while (rs.next()) ids.add(rs.getString("id"))
+                    ids
+                } ?: emptyList()
+            } catch (e: Exception) {
+                // This used to be a bare `catch (_: Exception) {}`, which made a genuine FTS5
+                // syntax error indistinguishable from "no matches" -- silently falling through
+                // to a LIKE fallback that (before this change) searched for the *entire original
+                // sentence* as one substring and could therefore never match a real label either.
+                // Logging here means a real MATCH failure is now visible instead of masquerading
+                // as an empty result.
+                logger.warn(e) { "FTS5 MATCH failed for query='$query' (expr='$matchExpr'); falling back to per-term LIKE scan" }
+                emptyList()
+            }
         }
 
         val results = if (ftsResults.isNotEmpty()) {
@@ -253,17 +287,28 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 val typeStrings = types.map { NodeType.stringify(it) }
                 q = q.andWhere { NodesTable.type inList typeStrings }
             }
-            q.limit(limit).map { it.toGraphNode() }
-        } else {
-            // LIKE fallback
+            // `inList` does not preserve the MATCH query's rank order, so re-impose it from
+            // ftsResults (already ordered by rank) rather than trusting row order out of Exposed.
+            val byId = q.associateBy({ it[NodesTable.id] }, { it.toGraphNode() })
+            ftsResults.mapNotNull { byId[it] }
+        } else if (terms.isNotEmpty()) {
+            // LIKE fallback, now OR-ing the same extracted terms rather than substring-matching
+            // the whole original sentence -- a label is (almost) never a full sentence, so the
+            // old fallback was empty by construction and gave the illusion of a safety net that
+            // never actually caught anything.
             var q = NodesTable.selectAll().where {
-                (NodesTable.label like "%$query%") and (NodesTable.confidence greaterEq minConfidence)
+                val termCond: Op<Boolean> = terms
+                    .map<String, Op<Boolean>> { term -> NodesTable.label like "%$term%" }
+                    .reduce { a, b -> a or b }
+                termCond and (NodesTable.confidence greaterEq minConfidence)
             }
             if (types.isNotEmpty()) {
                 val typeStrings = types.map { NodeType.stringify(it) }
                 q = q.andWhere { NodesTable.type inList typeStrings }
             }
             q.limit(limit).map { it.toGraphNode() }
+        } else {
+            emptyList()
         }
 
         results
@@ -341,6 +386,13 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         val typeString = EdgeType.stringify(type)
         EdgesTable.deleteWhere { EdgesTable.type eq typeString }
     }
+
+    // Mirrors FTS5's own unicode61 tokenizer (split on non-alphanumeric, i.e. exactly the
+    // characters that are also MATCH syntax) so every term this extracts is guaranteed free of
+    // anything FTS5's query language could misparse -- quoting each one afterwards is then a
+    // second, independent layer of the same guarantee rather than the only one.
+    private fun ftsTerms(query: String): List<String> =
+        FTS_TOKEN_REGEX.findAll(query).map { it.value }.filter { it.isNotBlank() }.distinct().toList()
 
     private fun ResultRow.toArtifact() = Artifact(
         id = ArtifactId(this[ArtifactsTable.id]),

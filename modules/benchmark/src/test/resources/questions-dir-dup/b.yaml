@@ -1,0 +1,15 @@
+questions:
+  - id: shared-id
+    repoId: excalidraw
+    text: "Question from file b"
+    category: NEUTRAL
+    goldFacts:
+      - id: b-f1
+        statement: "fact 1"
+        evidence: "src/B.kt:1"
+      - id: b-f2
+        statement: "fact 2"
+        evidence: "src/B.kt:2"
+      - id: b-f3
+        statement: "fact 3"
+        evidence: "src/B.kt:3"

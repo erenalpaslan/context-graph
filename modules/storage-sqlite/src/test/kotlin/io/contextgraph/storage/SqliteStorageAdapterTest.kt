@@ -142,6 +142,69 @@ class SqliteStorageAdapterTest : FunSpec({
         }
     }
 
+    // Regression coverage for the fix to FTS5's default implicit-AND semantics: a raw
+    // multi-word `query` string used to be handed to `MATCH` verbatim, which requires every
+    // word to appear on the same indexed row and made a natural-language sentence return zero
+    // results almost by construction. These fixtures are independent of any benchmark question
+    // set -- generic identifiers invented for this test file -- specifically so the fix is
+    // judged against its own logic, not tuned to match a particular gold set's wording.
+    context("searchNodes with natural-language queries") {
+        test("a multi-word natural-language sentence finds a node whose label shares only some of the words") {
+            storage.upsertNode(makeNode("A", "ShoppingCartService", NodeType.Class))
+            storage.upsertNode(makeNode("B", "UnrelatedWidget", NodeType.Class))
+
+            // None of these exact words appear together anywhere -- under the old implicit-AND
+            // MATCH this returned zero. "shopping", "cart" and "service" all appear as split
+            // sub-tokens of ShoppingCartService's indexed label.
+            val results = storage.searchNodes("how does the shopping cart service handle checkout errors")
+
+            results.map { it.id } shouldContainExactlyInAnyOrder listOf(NodeId("A"))
+        }
+
+        test("a single-term query still matches exactly as before (no regression)") {
+            storage.upsertNode(makeNode("auth.Login", "LoginHandler"))
+            storage.upsertNode(makeNode("user.Profile", "UserProfile"))
+
+            val results = storage.searchNodes("Login")
+
+            results shouldHaveSize 1
+            results.single().id shouldBe NodeId("auth.Login")
+        }
+
+        test("FTS5 special characters in the query do not throw and still find a real match") {
+            storage.upsertNode(makeNode("A", "ErrorRetryHandler", NodeType.Class))
+
+            // Quotes, a hyphen, parentheses and a question mark are all MATCH query-language
+            // syntax; fed to MATCH verbatim (the old behavior) this class of input could throw
+            // `fts5: syntax error`. "retry" is a real sub-token of ErrorRetryHandler's indexed
+            // label, so a working fix both survives the punctuation and finds the node.
+            val results = storage.searchNodes("What's the error-handling (retry) logic?")
+
+            results.map { it.id } shouldContainExactlyInAnyOrder listOf(NodeId("A"))
+        }
+
+        test("a lone-punctuation query returns no results without throwing") {
+            storage.upsertNode(makeNode("A", "Anything", NodeType.Class))
+
+            val results = storage.searchNodes("???")
+
+            results.shouldBeEmpty()
+        }
+
+        test("multi-term OR results are ranked best-match-first") {
+            // "graph" and "exporter" both appear as sub-tokens of A's label; only "graph" does
+            // for B. bm25 (FTS5's `rank`) should place the two-term match ahead of the one-term
+            // match, which is what makes the OR'd result set's ordering meaningful for MRR
+            // rather than arbitrary row order.
+            storage.upsertNode(makeNode("A", "GraphExporterTool", NodeType.Class))
+            storage.upsertNode(makeNode("B", "GraphNode", NodeType.Class))
+
+            val results = storage.searchNodes("graph exporter widget")
+
+            results.map { it.id } shouldBe listOf(NodeId("A"), NodeId("B"))
+        }
+    }
+
     context("edges") {
         test("upsertEdge and getEdgesFrom roundtrip") {
             storage.upsertNode(makeNode("A", "Alpha"))

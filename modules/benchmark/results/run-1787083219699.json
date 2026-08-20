@@ -1,0 +1,85 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-1787083219699",
+    "profile": "SMOKE",
+    "generatedAt": "2026-08-18T20:00:20.629799Z",
+    "config": {
+        "toolCallCeiling": 40,
+        "repeatsPerArm": 1,
+        "models": {
+            "agentModel": "gpt-4.1-mini",
+            "judgeModel": "gpt-4.1"
+        }
+    },
+    "corpusRepos": [
+        {
+            "id": "gin",
+            "name": "gin",
+            "url": "https://github.com/gin-gonic/gin.git",
+            "pinnedTag": "v1.12.0",
+            "pinnedSha": "73726dc606796a025971fe451f0aa6f1b9b847f6",
+            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/with",
+            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/without"
+        }
+    ],
+    "questions": [],
+    "ingestRecords": [
+        {
+            "repoId": "gin",
+            "durationMillis": 734,
+            "tokensUsed": 0,
+            "costUsd": 0.0,
+            "config": {
+                "litellm": {
+                    "baseUrl": "http://localhost:4000",
+                    "model": "gpt-4o",
+                    "rateLimitPerMinute": 10,
+                    "enabled": false,
+                    "timeoutSeconds": 30
+                },
+                "includePatterns": [
+                    "**/*"
+                ],
+                "excludePatterns": [
+                    "**/.git/**",
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/.gradle/**",
+                    "**/.contextgraph/**",
+                    "**/target/**",
+                    "**/__pycache__/**"
+                ],
+                "ignoreSecrets": true,
+                "maxFileSizeBytes": 10485760,
+                "moduleRoots": [],
+                "watcher": {
+                    "enabled": false,
+                    "debounceMillis": 500,
+                    "fallbackIntervalMillis": 30000
+                }
+            }
+        }
+    ],
+    "agentRuns": [],
+    "judgeScores": [],
+    "summary": {
+        "perQuestionArm": [],
+        "perRepoArm": [],
+        "perCategoryArm": [],
+        "headline": [],
+        "negativeControl": [],
+        "breakEvenByRepo": [
+            {
+                "repoId": "gin",
+                "result": {
+                    "type": "io.contextgraph.benchmark.model.BreakEvenResult.InsufficientData",
+                    "reason": "missing WITH_TOOLS or WITHOUT_TOOLS cost data for this repo"
+                }
+            }
+        ]
+    },
+    "failedRunCount": 0,
+    "agentClientKind": "REAL",
+    "judgingComplete": true,
+    "failedJudgeCount": 0
+}

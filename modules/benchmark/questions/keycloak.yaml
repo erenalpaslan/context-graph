@@ -1,0 +1,174 @@
+questions:
+  - id: keycloak-q1
+    repoId: keycloak
+    text: "For Keycloak's OTP browser-flow authenticator (provider id auth-otp-form): what interface does the AuthenticatorFactory SPI itself extend, which factory class implements it for this authenticator, what concrete class does that factory's create() method actually hand back — as a pre-built singleton rather than a fresh instance per session — what does that concrete class itself implement, and how does its declared credential-reference category resolve, through a constant declared in a third, unrelated file, to the literal credential type string?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: keycloak-q1-f1
+        statement: "AuthenticatorFactory is declared as an interface that extends both ProviderFactory<Authenticator> and ConfigurableAuthenticatorFactory."
+        evidence: "server-spi-private/src/main/java/org/keycloak/authentication/AuthenticatorFactory.java:32"
+      - id: keycloak-q1-f2
+        statement: "OTPFormAuthenticatorFactory (declared as implementing AuthenticatorFactory) is listed in the java.util.ServiceLoader registration file for AuthenticatorFactory, which is how the provider is discovered at boot."
+        evidence: "services/src/main/resources/META-INF/services/org.keycloak.authentication.AuthenticatorFactory:22"
+      - id: keycloak-q1-f3
+        statement: "OTPFormAuthenticatorFactory declares a public static final SINGLETON field initialized to new OTPFormAuthenticator() — a distinct concrete class from the factory itself — and its create(KeycloakSession) method returns that same SINGLETON instance for every session rather than constructing a fresh one."
+        evidence: "services/src/main/java/org/keycloak/authentication/authenticators/browser/OTPFormAuthenticatorFactory.java:38"
+      - id: keycloak-q1-f4
+        statement: "OTPFormAuthenticator — the class OTPFormAuthenticatorFactory's SINGLETON field holds — is declared, in a separate file with no reference back to OTPFormAuthenticatorFactory anywhere in it, as extending AbstractUsernameFormAuthenticator and implementing both Authenticator and CredentialValidator<OTPCredentialProvider>."
+        evidence: "services/src/main/java/org/keycloak/authentication/authenticators/browser/OTPFormAuthenticator.java:52"
+      - id: keycloak-q1-f5
+        statement: "OTPFormAuthenticatorFactory.getReferenceCategory() returns OTPCredentialModel.TYPE, tying the factory's declared credential-reference category to a constant declared in a third, unrelated file."
+        evidence: "services/src/main/java/org/keycloak/authentication/authenticators/browser/OTPFormAuthenticatorFactory.java:67"
+      - id: keycloak-q1-f6
+        statement: "OTPCredentialModel declares TYPE as the literal constant \"otp\" — the value OTPFormAuthenticatorFactory.getReferenceCategory() actually returns."
+        evidence: "server-spi/src/main/java/org/keycloak/models/credential/OTPCredentialModel.java:17"
+
+  - id: keycloak-q2
+    repoId: keycloak
+    text: "Keycloak's ClientScopeEntity Java entity maps to the CLIENT_SCOPE table today, but that table was not created under that name. Under what table name, and in which changelog file, was it originally created; what column defined in that same createTable block survives unchanged into CLIENT_SCOPE; which later changelog file renames the table to CLIENT_SCOPE; and which two annotations on ClientScopeEntity tie the entity to the table's current name and to that surviving column?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: keycloak-q2-f1
+        statement: "jpa-changelog-1.8.0.xml contains a createTable change for tableName=\"CLIENT_TEMPLATE\" — the original name of what is today the CLIENT_SCOPE table."
+        evidence: "model/jpa/src/main/resources/META-INF/jpa-changelog-1.8.0.xml:33"
+      - id: keycloak-q2-f2
+        statement: "Within that same createTable block, a PROTOCOL column of type VARCHAR(255) is defined on the CLIENT_TEMPLATE table."
+        evidence: "model/jpa/src/main/resources/META-INF/jpa-changelog-1.8.0.xml:40"
+      - id: keycloak-q2-f3
+        statement: "jpa-changelog-4.0.0.xml contains a renameTable change with oldTableName=\"CLIENT_TEMPLATE\" newTableName=\"CLIENT_SCOPE\", renaming the table to its current name in a later changelog file."
+        evidence: "model/jpa/src/main/resources/META-INF/jpa-changelog-4.0.0.xml:141"
+      - id: keycloak-q2-f4
+        statement: "ClientScopeEntity is annotated @Table(name=\"CLIENT_SCOPE\"), mapping the Java entity to the table under its current, post-rename name; the entity file contains no reference anywhere to the table's original CLIENT_TEMPLATE name."
+        evidence: "model/jpa/src/main/java/org/keycloak/models/jpa/entities/ClientScopeEntity.java:47"
+      - id: keycloak-q2-f5
+        statement: "ClientScopeEntity declares a protocol field annotated @Column(name=\"PROTOCOL\"), mapping it to the PROTOCOL column that survived the CLIENT_TEMPLATE-to-CLIENT_SCOPE rename unchanged."
+        evidence: "model/jpa/src/main/java/org/keycloak/models/jpa/entities/ClientScopeEntity.java:71"
+
+  - id: keycloak-q3
+    repoId: keycloak
+    text: "Keycloak's PBKDF2-HMAC-SHA256 password hash provider is registered as Pbkdf2Sha256PasswordHashProviderFactory. What interface does the PasswordHashProviderFactory SPI itself extend; which abstract class does the SHA-256 factory extend for its init()/lifecycle handling; what concrete class does its own create() method construct, and does that concrete class reference the factory by name anywhere; and where does the max-padding-length value passed into that construction actually get set?"
+    category: NEUTRAL
+    goldFacts:
+      - id: keycloak-q3-f1
+        statement: "PasswordHashProviderFactory is declared as an interface that extends ProviderFactory<PasswordHashProvider>."
+        evidence: "server-spi-private/src/main/java/org/keycloak/credential/hash/PasswordHashProviderFactory.java:25"
+      - id: keycloak-q3-f2
+        statement: "Pbkdf2Sha256PasswordHashProviderFactory extends AbstractPbkdf2PasswordHashProviderFactory and implements PasswordHashProviderFactory."
+        evidence: "server-spi-private/src/main/java/org/keycloak/credential/hash/Pbkdf2Sha256PasswordHashProviderFactory.java:10"
+      - id: keycloak-q3-f3
+        statement: "Pbkdf2Sha256PasswordHashProviderFactory.create(KeycloakSession session) returns new Pbkdf2PasswordHashProvider(ID, PBKDF2_ALGORITHM, DEFAULT_ITERATIONS, getMaxPaddingLength(), 256) — a distinct concrete class from the factory itself."
+        evidence: "server-spi-private/src/main/java/org/keycloak/credential/hash/Pbkdf2Sha256PasswordHashProviderFactory.java:23"
+      - id: keycloak-q3-f4
+        statement: "Pbkdf2PasswordHashProvider — the class Pbkdf2Sha256PasswordHashProviderFactory.create() instantiates — is declared, in a separate file with no reference back to Pbkdf2Sha256PasswordHashProviderFactory anywhere in it, as implementing PasswordHashProvider directly."
+        evidence: "server-spi-private/src/main/java/org/keycloak/credential/hash/Pbkdf2PasswordHashProvider.java:39"
+      - id: keycloak-q3-f5
+        statement: "AbstractPbkdf2PasswordHashProviderFactory.init(Config.Scope config) — inherited by Pbkdf2Sha256PasswordHashProviderFactory without being overridden — sets maxPaddingLength from the MAX_PADDING_LENGTH_PROPERTY config key; this is the value getMaxPaddingLength() supplies to create()'s call to the Pbkdf2PasswordHashProvider constructor."
+        evidence: "server-spi-private/src/main/java/org/keycloak/credential/hash/AbstractPbkdf2PasswordHashProviderFactory.java:41"
+      - id: keycloak-q3-f6
+        statement: "Pbkdf2Sha256PasswordHashProviderFactory is listed in the java.util.ServiceLoader registration file for PasswordHashProviderFactory, which is how the provider is discovered at boot."
+        evidence: "services/src/main/resources/META-INF/services/org.keycloak.credential.hash.PasswordHashProviderFactory:2"
+
+  - id: keycloak-q4
+    repoId: keycloak
+    text: "According to docs/updating-database-schema.md, where do database change-sets live and how must a new one be wired into jpa-changelog-master.xml? Concretely, which include entry in jpa-changelog-master.xml pulls in jpa-changelog-26.7.0.xml, which change-set in that file adds a DISPLAY_NAME column to the REALM table, and which Java entity field is mapped to that column?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: keycloak-q4-f1
+        statement: "docs/updating-database-schema.md states that Liquibase change-sets are located in model/jpa/src/main/resources/META-INF."
+        evidence: "docs/updating-database-schema.md:20"
+      - id: keycloak-q4-f2
+        statement: "docs/updating-database-schema.md instructs the reader to \"Add a reference to this file in\" the master changelog when creating a new change-set."
+        evidence: "docs/updating-database-schema.md:26"
+      - id: keycloak-q4-f3
+        statement: "jpa-changelog-master.xml contains the entry <include file=\"META-INF/jpa-changelog-26.7.0.xml\"/>, wiring that changelog file into the master changelog."
+        evidence: "model/jpa/src/main/resources/META-INF/jpa-changelog-master.xml:94"
+      - id: keycloak-q4-f4
+        statement: "jpa-changelog-26.7.0.xml contains a changeSet with author=\"keycloak\" and id=\"26.7.0-45292-realm-display-name-add-column\", matching the doc's convention of setting author to \"keycloak\"."
+        evidence: "model/jpa/src/main/resources/META-INF/jpa-changelog-26.7.0.xml:27"
+      - id: keycloak-q4-f5
+        statement: "That change-set's addColumn on tableName=\"REALM\" adds a column named DISPLAY_NAME of type NVARCHAR(255)."
+        evidence: "model/jpa/src/main/resources/META-INF/jpa-changelog-26.7.0.xml:34"
+      - id: keycloak-q4-f6
+        statement: "RealmEntity declares a displayName field annotated @Column(name=\"DISPLAY_NAME\"), mapping the Java entity field to that column."
+        evidence: "model/jpa/src/main/java/org/keycloak/models/jpa/entities/RealmEntity.java:143"
+
+  - id: keycloak-q5
+    repoId: keycloak
+    text: "For the UPDATE_PASSWORD required action, when AuthenticationManager evaluates required-action triggers during login: which registry lookup resolves a configured required action to its RequiredActionFactory, how does AuthenticationManager obtain a provider instance from that factory before invoking evaluateTriggers on it, which interface declares the evaluateTriggers method being invoked, and — for UPDATE_PASSWORD specifically — which concrete class does that factory's create() method return?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: keycloak-q5-f1
+        statement: "AuthenticationManager.toRequiredActionFactory resolves the factory via a .getProviderFactory(RequiredActionProvider.class, model.getProviderId()) call on the session's KeycloakSessionFactory."
+        evidence: "services/src/main/java/org/keycloak/services/managers/AuthenticationManager.java:1531"
+      - id: keycloak-q5-f2
+        statement: "AuthenticationManager.evaluateRequiredAction obtains a RequiredActionProvider instance by calling factory.create(session), before it goes on to invoke evaluateTriggers on that instance."
+        evidence: "services/src/main/java/org/keycloak/services/managers/AuthenticationManager.java:1498"
+      - id: keycloak-q5-f3
+        statement: "AuthenticationManager.evaluateRequiredAction calls provider.evaluateTriggers(result), which is the actual invocation of the required action's trigger-evaluation logic."
+        evidence: "services/src/main/java/org/keycloak/services/managers/AuthenticationManager.java:1526"
+      - id: keycloak-q5-f4
+        statement: "RequiredActionProvider declares the method void evaluateTriggers(RequiredActionContext context), the interface method AuthenticationManager ultimately calls on each provider."
+        evidence: "server-spi-private/src/main/java/org/keycloak/authentication/RequiredActionProvider.java:70"
+      - id: keycloak-q5-f5
+        statement: "For the UPDATE_PASSWORD required action's own factory, UpdatePassword.create(KeycloakSession session) returns new UpdatePassword() — the same class acts as both its own factory and its own provider."
+        evidence: "services/src/main/java/org/keycloak/authentication/requiredactions/UpdatePassword.java:177"
+      - id: keycloak-q5-f6
+        statement: "UpdatePassword declares its own evaluateTriggers(RequiredActionContext context) override — the method AuthenticationManager ends up invoking on the instance UpdatePassword.create() returns, since that instance is a UpdatePassword itself."
+        evidence: "services/src/main/java/org/keycloak/authentication/requiredactions/UpdatePassword.java:71"
+
+  - id: keycloak-q6
+    repoId: keycloak
+    text: "According to docs/building.md, what JDK versions are supported for building Keycloak from source, what Maven command skips tests during a full build, what command builds only the server distribution, and where does that command leave the resulting ZIP?"
+    category: NEUTRAL
+    goldFacts:
+      - id: keycloak-q6-f1
+        statement: "docs/building.md says to ensure JDK 17, JDK 21, or JDK 25 (and Git) are installed."
+        evidence: "docs/building.md:3"
+      - id: keycloak-q6-f2
+        statement: "docs/building.md gives \"./mvnw clean install -DskipTests\" as the command to build Keycloak without running the tests."
+        evidence: "docs/building.md:26"
+      - id: keycloak-q6-f3
+        statement: "docs/building.md gives \"./mvnw -pl quarkus/deployment,quarkus/dist -am -DskipTests clean install\" as the command to build only the server."
+        evidence: "docs/building.md:38"
+      - id: keycloak-q6-f4
+        statement: "docs/building.md states that the resulting ZIP distribution can then be found in the quarkus/dist/target folder."
+        evidence: "docs/building.md:40"
+
+  - id: keycloak-q7
+    repoId: keycloak
+    text: "What generic lifecycle contract does Keycloak's ProviderFactory interface document for every SPI factory (init/postInit/close ordering, one instance per server), and how do two different runtime managers actually enforce two of its optional methods: how does ProviderManager break a tie between two factories registered under the same provider id using order(), and how does DefaultKeycloakSessionFactory use dependsOn() to order factory initialization at boot?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: keycloak-q7-f1
+        statement: "ProviderFactory's class-level javadoc states that at boot time Keycloak discovers all factories, and for each discovered factory the init() method is called."
+        evidence: "server-spi/src/main/java/org/keycloak/provider/ProviderFactory.java:29"
+      - id: keycloak-q7-f2
+        statement: "That same javadoc continues that the postInit() method is called once all factories have been initialized, and that close() is called when the server shuts down."
+        evidence: "server-spi/src/main/java/org/keycloak/provider/ProviderFactory.java:30"
+      - id: keycloak-q7-f3
+        statement: "ProviderFactory's javadoc states that only one instance of a factory exists per server."
+        evidence: "server-spi/src/main/java/org/keycloak/provider/ProviderFactory.java:32"
+      - id: keycloak-q7-f4
+        statement: "ProviderManager.compareFactories resolves a tie between two ProviderFactory instances registered under the same providerId by returning whichever one has the higher order() value when their order() values differ — this is what order() controls: priority between competing provider factories for the same id."
+        evidence: "services/src/main/java/org/keycloak/provider/ProviderManager.java:136"
+      - id: keycloak-q7-f5
+        statement: "ProviderFactory's dependsOn() is documented as an optional method used to declare that a ProviderFactory has a dependency on one or more Providers."
+        evidence: "server-spi/src/main/java/org/keycloak/provider/ProviderFactory.java:74"
+      - id: keycloak-q7-f6
+        statement: "For each provider class returned by factory.dependsOn(), DefaultKeycloakSessionFactory.initializeProviders recursively calls itself (initializeProviders(providerDep, ...)) to initialize that dependency before continuing — the concrete runtime enforcement, in a third file, of the dependsOn() contract ProviderFactory documents."
+        evidence: "services/src/main/java/org/keycloak/services/DefaultKeycloakSessionFactory.java:137"
+
+  - id: keycloak-q8
+    repoId: keycloak
+    text: "What is the exact literal message-bundle key used by the password minimum-length policy's validation error, where is it declared as a Java string constant, where is it actually used to construct the PolicyError, and what is the exact English message text registered for that key?"
+    category: NEGATIVE_CONTROL
+    goldFacts:
+      - id: keycloak-q8-f1
+        statement: "LengthPasswordPolicyProvider declares a private static final String ERROR_MESSAGE with the literal value \"invalidPasswordMinLengthMessage\"."
+        evidence: "server-spi-private/src/main/java/org/keycloak/policy/LengthPasswordPolicyProvider.java:29"
+      - id: keycloak-q8-f2
+        statement: "LengthPasswordPolicyProvider.validate returns new PolicyError(ERROR_MESSAGE, min) when the given password's length is less than the configured minimum."
+        evidence: "server-spi-private/src/main/java/org/keycloak/policy/LengthPasswordPolicyProvider.java:40"
+      - id: keycloak-q8-f3
+        statement: "The messages_en.properties bundle defines invalidPasswordMinLengthMessage=Invalid password: minimum length {0}. as the exact English message text for that key."
+        evidence: "themes/src/main/resources/theme/base/login/messages/messages_en.properties:326"

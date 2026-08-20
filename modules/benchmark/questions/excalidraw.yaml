@@ -1,0 +1,195 @@
+questions:
+  - id: excalidraw-q1
+    repoId: excalidraw
+    text: "When a user drags a container element that has bound arrows or text, how does Excalidraw propagate the position update to those bound elements — which function computes the new binding-aware endpoint position for a bound arrow, and which separate function applies that computed point to actually move the arrow?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: excalidraw-q1-f1
+        statement: "dragSelectedElements, for each non-arrow element being dragged, calls updateBoundElements(element, scene.getElementsMapIncludingDeleted(), { simultaneouslyUpdated: ... }) after moving the element's coordinates, to keep its bound elements attached."
+        evidence: "packages/excalidraw/element/dragElements.ts:102"
+      - id: excalidraw-q1-f2
+        statement: "updateBoundElements returns immediately without doing anything if the changed element is not a bindable element (isBindableElement(changedElement) is false)."
+        evidence: "packages/excalidraw/element/binding.ts:747"
+      - id: excalidraw-q1-f3
+        statement: "updateBoundElements uses boundElementsVisitor to visit elements bound to the changed element, but the visitor callback itself skips (returns early for) any element that is not a non-deleted linear element, and separately skips any bound element that doesNeedUpdate reports as not stale — only the remaining elements are actually repositioned."
+        evidence: "packages/excalidraw/element/binding.ts:751"
+      - id: excalidraw-q1-f4
+        statement: "updateBoundPoint(element, bindingProp, bindings[bindingProp], bindableElement, elementsMap) is the function that computes the new binding-aware endpoint position for a bound linear element's start or end point; it is called from inside the bindableElementsVisitor callback that builds the `updates` array."
+        evidence: "packages/excalidraw/element/binding.ts:810"
+      - id: excalidraw-q1-f5
+        statement: "For a bound linear element that is not simultaneously being updated itself, updateBoundElements takes the point(s) already computed by updateBoundPoint (the `updates` array) and calls LinearElementEditor.movePoints(element, updates, ...) to actually apply them and move the arrow's bound point(s)."
+        evidence: "packages/excalidraw/element/binding.ts:838"
+      - id: excalidraw-q1-f6
+        statement: "If the bound linear element also has a bound text label, updateBoundElements calls handleBindTextResize(element, elementsMap, false) to keep that label positioned correctly after the reposition."
+        evidence: "packages/excalidraw/element/binding.ts:849"
+
+  - id: excalidraw-q2
+    repoId: excalidraw
+    text: "When elements are deleted from the scene (e.g. via the Delete/Backspace action), how does Excalidraw clean up the bindings that referenced those now-deleted elements, so that surviving elements don't keep dangling references to elements that no longer exist?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: excalidraw-q2-f1
+        statement: "actionDeleteSelected's perform, after deleteSelectedElements produces the next element list, calls fixBindingsAfterDeletion(nextElements, nextElements.filter((el) => el.isDeleted)) to clean up bindings that referenced the just-deleted elements."
+        evidence: "packages/excalidraw/actions/actionDeleteSelected.tsx:275"
+      - id: excalidraw-q2-f2
+        statement: "fixBindingsAfterDeletion, for each deleted element, calls BoundElement.unbindAffected(elements, element, mutateElement) to strip that deleted element's id out of the boundElements list of any bindable element (e.g. a container or arrow endpoint) it had been attached to."
+        evidence: "packages/excalidraw/element/binding.ts:1526"
+      - id: excalidraw-q2-f3
+        statement: "fixBindingsAfterDeletion also calls BindableElement.unbindAffected(elements, element, mutateElement) for each deleted element, to null out the binding pointer of any surviving element that had been bound to it."
+        evidence: "packages/excalidraw/element/binding.ts:1527"
+      - id: excalidraw-q2-f4
+        statement: "BoundElement.unbindAffected visits the deleted bound element's bindable elements and, for each one whose boundElements array still references the deleted element's id, calls updateElementWith to rewrite that array with the deleted element's id filtered out."
+        evidence: "packages/excalidraw/element/binding.ts:1983"
+      - id: excalidraw-q2-f5
+        statement: "BindableElement.unbindAffected visits the deleted bindable element's boundElements and, for each surviving element bound back to it, calls updateElementWith to null out that element's binding property (e.g. containerId, startBinding, or endBinding) so it no longer points at the deleted element."
+        evidence: "packages/excalidraw/element/binding.ts:2100"
+
+  - id: excalidraw-q3
+    repoId: excalidraw
+    text: "Trace how an element in the scene actually gets drawn onto the canvas: which React component invokes the static-scene render function, and where does the rendering code obtain (or generate) the roughjs shape it draws?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: excalidraw-q3-f1
+        statement: "The StaticCanvas React component calls renderStaticScene(...) to draw the non-interactive canvas layer whenever its effect runs."
+        evidence: "packages/excalidraw/components/canvases/StaticCanvas.tsx:68"
+      - id: excalidraw-q3-f2
+        statement: "renderStaticScene, when called with throttle=true, delegates to renderStaticSceneThrottled and returns immediately, instead of falling through to the direct _renderStaticScene(renderConfig) call at the end of the function."
+        evidence: "packages/excalidraw/renderer/staticScene.ts:475"
+      - id: excalidraw-q3-f3
+        statement: "The internal static-scene render routine draws individual elements by calling renderElement for each one (one of several such call sites in the function)."
+        evidence: "packages/excalidraw/renderer/staticScene.ts:314"
+      - id: excalidraw-q3-f4
+        statement: "renderElement (in renderer/renderElement.ts) calls ShapeCache.generateElementShape(element, renderConfig) to obtain the roughjs Drawable shape for the element before drawing it."
+        evidence: "packages/excalidraw/renderer/renderElement.ts:811"
+      - id: excalidraw-q3-f5
+        statement: "ShapeCache.generateElementShape returns the already-cached shape from its WeakMap without regenerating it, as long as a cached (non-exporting) shape is already present for that element."
+        evidence: "packages/excalidraw/scene/ShapeCache.ts:65"
+      - id: excalidraw-q3-f6
+        statement: "When no cached shape is available, ShapeCache.generateElementShape calls the module-level _generateElementShape(element, ShapeCache.rg, renderConfig || { isExporting: false, canvasBackgroundColor: COLOR_PALETTE.white, embedsValidationStatus: null }) from ./Shape, to actually generate a new roughjs shape using the cached RoughGenerator instance."
+        evidence: "packages/excalidraw/scene/ShapeCache.ts:70"
+
+  - id: excalidraw-q4
+    repoId: excalidraw
+    text: "When a WS_SUBTYPES.UPDATE message arrives over the collaboration socket, how does excalidraw-app merge the remote elements into the local scene, and what rule decides whether the local or the remote version of a conflicting element is kept?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: excalidraw-q4-f1
+        statement: "On a WS_SUBTYPES.UPDATE socket message, Collab's message handler calls this._reconcileElements(decryptedData.payload.elements) and feeds the result into this.handleRemoteSceneUpdate."
+        evidence: "excalidraw-app/collab/Collab.tsx:585"
+      - id: excalidraw-q4-f2
+        statement: "Collab's private _reconcileElements method calls the library's reconcileElements function, passing the local elements (including deleted), the restored remote elements, and the current app state."
+        evidence: "excalidraw-app/collab/Collab.tsx:739"
+      - id: excalidraw-q4-f3
+        statement: "reconcileElements is re-exported from packages/excalidraw/index.tsx as part of the @excalidraw/excalidraw package's public surface."
+        evidence: "packages/excalidraw/index.tsx:229"
+      - id: excalidraw-q4-f4
+        statement: "excalidraw-app/collab/Collab.tsx imports reconcileElements directly from the \"@excalidraw/excalidraw\" package specifier — this is the actual cross-package import site that consumes the index.tsx re-export."
+        evidence: "excalidraw-app/collab/Collab.tsx:24"
+      - id: excalidraw-q4-f5
+        statement: "For each remote element, reconcileElements calls shouldDiscardRemoteElement to decide whether the existing local element should be kept instead of the incoming remote one."
+        evidence: "packages/excalidraw/data/reconcile.ts:86"
+      - id: excalidraw-q4-f6
+        statement: "reconcileElements keeps the local version of a conflicting element only when a local element exists at that id AND shouldDiscardRemoteElement returned true for it; otherwise the remote element is used."
+        evidence: "packages/excalidraw/data/reconcile.ts:92"
+
+  - id: excalidraw-q5
+    repoId: excalidraw
+    text: "Trace the call chain from a Ctrl+Z keydown in the editor through to History actually popping an entry off the undo stack."
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: excalidraw-q5-f1
+        statement: "App's document-level keydown handler calls this.actionManager.handleKeyDown(event) once a keydown has fallen through the handler's earlier bail-out conditions (e.g. not inside a writable input, not a reserved shortcut like command-palette or image-export, no dialog blocking it)."
+        evidence: "packages/excalidraw/components/App.tsx:4295"
+      - id: excalidraw-q5-f2
+        statement: "ActionManager.handleKeyDown, once it has found the single registered action whose keyTest matches the event, runs that action by calling this.updater(data[0].perform(elements, appState, value, this.app))."
+        evidence: "packages/excalidraw/actions/manager.tsx:122"
+      - id: excalidraw-q5-f3
+        statement: "createUndoAction's keyTest matches when Ctrl or Cmd is held together with the Z key and Shift is not held."
+        evidence: "packages/excalidraw/actions/actionHistory.tsx:66"
+      - id: excalidraw-q5-f4
+        statement: "createUndoAction's perform calls history.undo(...), wrapped by executeHistoryAction, with the current elements map, app state, and store.snapshot passed as history.undo's arguments."
+        evidence: "packages/excalidraw/actions/actionHistory.tsx:59"
+      - id: excalidraw-q5-f5
+        statement: "History.undo delegates the actual entry retrieval to the private perform method, passing pop: () => History.pop(this.undoStack) as the callback perform will invoke to obtain the entry to apply."
+        evidence: "packages/excalidraw/history.ts:72"
+      - id: excalidraw-q5-f6
+        statement: "The private static History.pop method performs the actual pop by calling stack.pop() on the passed-in stack — this is where History actually removes an entry from the undo stack (when invoked via undo's callback)."
+        evidence: "packages/excalidraw/history.ts:141"
+
+  - id: excalidraw-q6
+    repoId: excalidraw
+    text: "What packages make up this yarn workspaces monorepo, what npm package name does each published package (excalidraw, math, utils) declare, and what is @excalidraw/excalidraw's main entry point?"
+    category: NEUTRAL
+    goldFacts:
+      - id: excalidraw-q6-f1
+        statement: "The root package.json's workspaces array (declared at package.json:5) begins with \"excalidraw-app\" as its first entry, immediately followed on the next four lines by packages/excalidraw, packages/utils, packages/math, and examples/*."
+        evidence: "package.json:6"
+      - id: excalidraw-q6-f2
+        statement: "packages/excalidraw's package.json declares its npm package name as \"@excalidraw/excalidraw\"."
+        evidence: "packages/excalidraw/package.json:2"
+      - id: excalidraw-q6-f3
+        statement: "packages/math's package.json declares its npm package name as \"@excalidraw/math\"."
+        evidence: "packages/math/package.json:2"
+      - id: excalidraw-q6-f4
+        statement: "packages/utils's package.json declares its npm package name as \"@excalidraw/utils\"."
+        evidence: "packages/utils/package.json:2"
+      - id: excalidraw-q6-f5
+        statement: "packages/excalidraw's package.json declares its \"main\" entry point as \"./dist/prod/index.js\"."
+        evidence: "packages/excalidraw/package.json:6"
+
+  - id: excalidraw-q7
+    repoId: excalidraw
+    text: "What are the variants of the ExcalidrawElement discriminated union, what type alias derives the set of each variant's literal type tag, and what do the boundElements and version fields (defined on every element's shared base type) represent?"
+    category: NEUTRAL
+    goldFacts:
+      - id: excalidraw-q7-f1
+        statement: "ExcalidrawElement is a discriminated union of ten element variants: generic, text, linear, arrow, free-draw, image, frame, magic-frame, iframe, and embeddable elements."
+        evidence: "packages/excalidraw/element/types.ts:203"
+      - id: excalidraw-q7-f2
+        statement: "ExcalidrawElementType is derived from the union itself, as ExcalidrawElement[\"type\"] — the set of each variant's literal type tag."
+        evidence: "packages/excalidraw/element/types.ts:371"
+      - id: excalidraw-q7-f3
+        statement: "Every element's shared base type carries a boundElements: readonly BoundElement[] | null field listing the other elements that are bound to it."
+        evidence: "packages/excalidraw/element/types.ts:74"
+      - id: excalidraw-q7-f4
+        statement: "Every element's shared base type also carries a version: number field, sequentially incremented on each change and used to reconcile elements during collaboration or when saving to a server."
+        evidence: "packages/excalidraw/element/types.ts:58"
+
+  - id: excalidraw-q8
+    repoId: excalidraw
+    text: "What are the exact literal localStorage key strings excalidraw-app uses to persist scene elements, app state, collaboration data, and the theme setting, and where are they defined?"
+    category: NEGATIVE_CONTROL
+    goldFacts:
+      - id: excalidraw-q8-f1
+        statement: "STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw\"."
+        evidence: "excalidraw-app/app_constants.ts:39"
+      - id: excalidraw-q8-f2
+        statement: "STORAGE_KEYS.LOCAL_STORAGE_APP_STATE, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw-state\"."
+        evidence: "excalidraw-app/app_constants.ts:40"
+      - id: excalidraw-q8-f3
+        statement: "STORAGE_KEYS.LOCAL_STORAGE_COLLAB, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw-collab\"."
+        evidence: "excalidraw-app/app_constants.ts:41"
+      - id: excalidraw-q8-f4
+        statement: "STORAGE_KEYS.LOCAL_STORAGE_THEME, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw-theme\"."
+        evidence: "excalidraw-app/app_constants.ts:42"
+
+  - id: excalidraw-q9
+    repoId: excalidraw
+    text: "What MIME types do IMAGE_MIME_TYPES's svg, png, and jpg entries map to, and how does the general-purpose MIME_TYPES constant relate to the image-specific IMAGE_MIME_TYPES constant?"
+    category: NEUTRAL
+    goldFacts:
+      - id: excalidraw-q9-f1
+        statement: "IMAGE_MIME_TYPES.svg maps to the MIME type \"image/svg+xml\"."
+        evidence: "packages/excalidraw/constants.ts:205"
+      - id: excalidraw-q9-f2
+        statement: "IMAGE_MIME_TYPES.png maps to the MIME type \"image/png\"."
+        evidence: "packages/excalidraw/constants.ts:206"
+      - id: excalidraw-q9-f3
+        statement: "IMAGE_MIME_TYPES.jpg maps to the MIME type \"image/jpeg\"."
+        evidence: "packages/excalidraw/constants.ts:207"
+      - id: excalidraw-q9-f4
+        statement: "MIME_TYPES.binary is defined as \"application/octet-stream\"."
+        evidence: "packages/excalidraw/constants.ts:227"
+      - id: excalidraw-q9-f5
+        statement: "MIME_TYPES spreads all of IMAGE_MIME_TYPES into itself (...IMAGE_MIME_TYPES), so every image MIME type recognized by IMAGE_MIME_TYPES is also a valid MIME_TYPES value."
+        evidence: "packages/excalidraw/constants.ts:229"

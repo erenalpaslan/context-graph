@@ -1,0 +1,1185 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-1786986469685",
+    "profile": "SMOKE",
+    "generatedAt": "2026-08-17T17:07:49.686036Z",
+    "config": {
+        "toolCallCeiling": 40,
+        "repeatsPerArm": 1,
+        "models": {
+            "agentModel": "claude-sonnet-5",
+            "judgeModel": "claude-opus-5"
+        }
+    },
+    "corpusRepos": [
+        {
+            "id": "gin",
+            "name": "gin",
+            "url": "https://github.com/gin-gonic/gin.git",
+            "pinnedTag": "v1.12.0",
+            "pinnedSha": "73726dc606796a025971fe451f0aa6f1b9b847f6",
+            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/with",
+            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/without"
+        }
+    ],
+    "questions": [
+        {
+            "id": "gin-q1",
+            "repoId": "gin",
+            "text": "How does a request travel from Engine.ServeHTTP through the middleware/handler chain to a route's final handler, and what role does Context.Next() play in driving that flow?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q1-f1",
+                    "statement": "Engine.ServeHTTP pulls a pooled *Context and calls engine.handleHTTPRequest(c) to begin routing the incoming request.",
+                    "evidence": "gin.go:672"
+                },
+                {
+                    "id": "gin-q1-f2",
+                    "statement": "handleHTTPRequest sets c.handlers to the matched route's HandlersChain and calls c.Next() to execute it.",
+                    "evidence": "gin.go:722"
+                },
+                {
+                    "id": "gin-q1-f3",
+                    "statement": "Context.Next() increments c.index and invokes c.handlers[c.index](c) in a loop, which is the mechanism that actually runs the middleware/handler chain.",
+                    "evidence": "context.go:192"
+                },
+                {
+                    "id": "gin-q1-f4",
+                    "statement": "RouterGroup.combineHandlers merges the group's own middleware (group.Handlers) with a route's own handlers into the single HandlersChain that Next() later iterates.",
+                    "evidence": "routergroup.go:246"
+                },
+                {
+                    "id": "gin-q1-f5",
+                    "statement": "handleHTTPRequest looks up the request path in the method's radix tree via root.getValue(rPath, ...), and when a match is found the resulting value.handlers (built at route-registration time via combineHandlers) becomes c.handlers — the exact chain Next() executes at request time.",
+                    "evidence": "gin.go:715"
+                }
+            ]
+        },
+        {
+            "id": "gin-q2",
+            "repoId": "gin",
+            "text": "Why does middleware attached globally via Engine.Use still run on a request that hits the 404 (no matching route) fallback path, and what recomputes the fallback handler chain to include it?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q2-f1",
+                    "statement": "Engine.Use calls engine.RouterGroup.Use(middleware...) to append the given middleware to the engine's own accumulated Handlers list.",
+                    "evidence": "gin.go:341"
+                },
+                {
+                    "id": "gin-q2-f2",
+                    "statement": "Engine.Use then calls engine.rebuild404Handlers() (and rebuild405Handlers()), so that attaching global middleware after NoRoute/NoMethod were already configured still refreshes the fallback chains.",
+                    "evidence": "gin.go:342"
+                },
+                {
+                    "id": "gin-q2-f3",
+                    "statement": "rebuild404Handlers recomputes engine.allNoRoute as engine.combineHandlers(engine.noRoute) — combineHandlers here is the method Engine inherits from its embedded RouterGroup.",
+                    "evidence": "gin.go:357"
+                },
+                {
+                    "id": "gin-q2-f4",
+                    "statement": "combineHandlers copies the RouterGroup's own accumulated Handlers (the global middleware list Engine.Use appends to) to the front of the merged chain via copy(mergedHandlers, group.Handlers) — this is the specific step that puts global middleware into engine.allNoRoute.",
+                    "evidence": "routergroup.go:245"
+                },
+                {
+                    "id": "gin-q2-f5",
+                    "statement": "When handleHTTPRequest finds no matching route, it sets c.handlers = engine.allNoRoute — the global-middleware-plus-noRoute chain computed above — before calling serveError.",
+                    "evidence": "gin.go:758"
+                },
+                {
+                    "id": "gin-q2-f6",
+                    "statement": "serveError calls c.Next() — the same Next() whose loop over c.handlers (established in gin-q1-f3) executes the handler chain — which is why middleware attached globally via Use() (e.g. Logger/Recovery) still runs on a request that never matched a registered route.",
+                    "evidence": "gin.go:766"
+                }
+            ]
+        },
+        {
+            "id": "gin-q3",
+            "repoId": "gin",
+            "text": "How does registering a route with RouterGroup.GET travel through RouterGroup into Engine.addRoute and the per-method radix tree, and how does Engine.Routes() read the registered routes back — including which handler in each node's stored chain it reports?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q3-f1",
+                    "statement": "RouterGroup.GET is a shortcut that calls group.handle(http.MethodGet, relativePath, handlers).",
+                    "evidence": "routergroup.go:117"
+                },
+                {
+                    "id": "gin-q3-f2",
+                    "statement": "RouterGroup.handle computes the absolute path and merged handlers, then calls group.engine.addRoute(httpMethod, absolutePath, handlers).",
+                    "evidence": "routergroup.go:89"
+                },
+                {
+                    "id": "gin-q3-f3",
+                    "statement": "Engine.addRoute finds or creates the per-method *node tree root in engine.trees, then calls root.addRoute(path, handlers) to insert into the radix tree.",
+                    "evidence": "gin.go:377"
+                },
+                {
+                    "id": "gin-q3-f4",
+                    "statement": "node.addRoute in tree.go is the function that actually inserts the path and its handlers into the radix tree used for request matching.",
+                    "evidence": "tree.go:135"
+                },
+                {
+                    "id": "gin-q3-f5",
+                    "statement": "Engine.Routes() walks engine.trees via the iterate() helper to read back every registered method/path/handler as RouteInfo.",
+                    "evidence": "gin.go:392"
+                },
+                {
+                    "id": "gin-q3-f6",
+                    "statement": "iterate(), the recursive helper Engine.Routes() drives, reads each route's reported Handler via root.handlers.Last() — the handler chain stored on that radix-tree node by node.addRoute/insertChild at registration time, not anything a text search on the identifier addRoute would show on its own.",
+                    "evidence": "gin.go:400"
+                }
+            ]
+        }
+    ],
+    "ingestRecords": [
+        {
+            "repoId": "gin",
+            "durationMillis": 5264,
+            "tokensUsed": 0,
+            "costUsd": 0.0,
+            "config": {
+                "litellm": {
+                    "baseUrl": "http://localhost:4000",
+                    "model": "gpt-4o",
+                    "rateLimitPerMinute": 10,
+                    "enabled": false,
+                    "timeoutSeconds": 30
+                },
+                "includePatterns": [
+                    "**/*"
+                ],
+                "excludePatterns": [
+                    "**/.git/**",
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/.gradle/**",
+                    "**/.contextgraph/**",
+                    "**/target/**",
+                    "**/__pycache__/**"
+                ],
+                "ignoreSecrets": true,
+                "maxFileSizeBytes": 10485760,
+                "moduleRoots": [],
+                "watcher": {
+                    "enabled": false,
+                    "debounceMillis": 500,
+                    "fallbackIntervalMillis": 30000
+                }
+            }
+        }
+    ],
+    "agentRuns": [
+        {
+            "id": "bc76785e-a775-4a3a-9020-347a36d43a24",
+            "questionId": "gin-q1",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "toolCallCount": 1,
+            "fileReadCount": 1,
+            "wallClockMillis": 70,
+            "costUsd": 0.01,
+            "finalAnswer": "Deterministic stub answer for gin-q1 (WITH_TOOLS).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "f5c1daa9-28f0-45d2-83b8-40af64191a3d",
+            "questionId": "gin-q1",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "toolCallCount": 6,
+            "fileReadCount": 1,
+            "wallClockMillis": 0,
+            "costUsd": 0.01,
+            "finalAnswer": "Deterministic stub answer for gin-q1 (WITHOUT_TOOLS).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "68432a9b-c8cd-40c4-89fc-4b62c63cdf74",
+            "questionId": "gin-q2",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "toolCallCount": 1,
+            "fileReadCount": 1,
+            "wallClockMillis": 17,
+            "costUsd": 0.01,
+            "finalAnswer": "Deterministic stub answer for gin-q2 (WITH_TOOLS).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "e3c6c390-2640-49a1-95d8-be2fe33fc11a",
+            "questionId": "gin-q2",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "toolCallCount": 6,
+            "fileReadCount": 1,
+            "wallClockMillis": 0,
+            "costUsd": 0.01,
+            "finalAnswer": "Deterministic stub answer for gin-q2 (WITHOUT_TOOLS).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "722f8e5c-6337-4dc2-9b81-df5a38eba30f",
+            "questionId": "gin-q3",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "toolCallCount": 1,
+            "fileReadCount": 1,
+            "wallClockMillis": 24,
+            "costUsd": 0.01,
+            "finalAnswer": "Deterministic stub answer for gin-q3 (WITH_TOOLS).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "dab0b3ae-33ff-41f7-aa88-7f803525d68f",
+            "questionId": "gin-q3",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 500,
+            "outputTokens": 120,
+            "toolCallCount": 6,
+            "fileReadCount": 1,
+            "wallClockMillis": 0,
+            "costUsd": 0.01,
+            "finalAnswer": "Deterministic stub answer for gin-q3 (WITHOUT_TOOLS).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        }
+    ],
+    "judgeScores": [
+        {
+            "id": "bc76785e-a775-4a3a-9020-347a36d43a24:claude-opus-5",
+            "runId": "bc76785e-a775-4a3a-9020-347a36d43a24",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "gin-q1-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "f5c1daa9-28f0-45d2-83b8-40af64191a3d:claude-opus-5",
+            "runId": "f5c1daa9-28f0-45d2-83b8-40af64191a3d",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "gin-q1-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "68432a9b-c8cd-40c4-89fc-4b62c63cdf74:claude-opus-5",
+            "runId": "68432a9b-c8cd-40c4-89fc-4b62c63cdf74",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "gin-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "e3c6c390-2640-49a1-95d8-be2fe33fc11a:claude-opus-5",
+            "runId": "e3c6c390-2640-49a1-95d8-be2fe33fc11a",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "gin-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "722f8e5c-6337-4dc2-9b81-df5a38eba30f:claude-opus-5",
+            "runId": "722f8e5c-6337-4dc2-9b81-df5a38eba30f",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "gin-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "dab0b3ae-33ff-41f7-aa88-7f803525d68f:claude-opus-5",
+            "runId": "dab0b3ae-33ff-41f7-aa88-7f803525d68f",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "gin-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        }
+    ],
+    "summary": {
+        "perQuestionArm": [
+            {
+                "questionId": "gin-q1",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 70.0,
+                        "min": 70.0,
+                        "max": 70.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q1",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q2",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 17.0,
+                        "min": 17.0,
+                        "max": 17.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q2",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q3",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 24.0,
+                        "min": 24.0,
+                        "max": 24.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q3",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "perRepoArm": [
+            {
+                "repoId": "gin",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 24.0,
+                        "min": 17.0,
+                        "max": 70.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "repoId": "gin",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            }
+        ],
+        "perCategoryArm": [
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 24.0,
+                        "min": 17.0,
+                        "max": 70.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            }
+        ],
+        "headline": [
+            {
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 24.0,
+                        "min": 17.0,
+                        "max": 70.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 500.0,
+                        "min": 500.0,
+                        "max": 500.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 120.0,
+                        "min": 120.0,
+                        "max": 120.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 620.0,
+                        "min": 620.0,
+                        "max": 620.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.01,
+                        "min": 0.01,
+                        "max": 0.01,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            }
+        ],
+        "negativeControl": [],
+        "breakEvenByRepo": [
+            {
+                "repoId": "gin",
+                "result": {
+                    "type": "io.contextgraph.benchmark.model.BreakEvenResult.NotAmortizing",
+                    "ingestCostUsd": 0.0,
+                    "savingPerQuestionUsd": 0.0
+                }
+            }
+        ]
+    },
+    "failedRunCount": 0
+}

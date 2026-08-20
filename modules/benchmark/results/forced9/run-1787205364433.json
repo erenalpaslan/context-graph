@@ -1,0 +1,3094 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-1787205364433",
+    "profile": "FULL",
+    "generatedAt": "2026-08-20T06:10:04.024488Z",
+    "config": {
+        "toolCallCeiling": 40,
+        "repeatsPerArm": 1,
+        "models": {
+            "agentModel": "claude-sonnet-5",
+            "judgeModel": "claude-opus-5"
+        },
+        "maxBudgetUsdPerRun": null
+    },
+    "corpusRepos": [
+        {
+            "id": "excalidraw",
+            "name": "Excalidraw",
+            "url": "https://github.com/excalidraw/excalidraw.git",
+            "pinnedTag": "v0.18.1",
+            "pinnedSha": "a2ec2889babf7d2295469c6d90ebe77fae57df84",
+            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/excalidraw/with",
+            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/excalidraw/without"
+        }
+    ],
+    "questions": [
+        {
+            "id": "excalidraw-q1",
+            "repoId": "excalidraw",
+            "text": "When a user drags a container element that has bound arrows or text, how does Excalidraw propagate the position update to those bound elements — which function computes the new binding-aware endpoint position for a bound arrow, and which separate function applies that computed point to actually move the arrow?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q1-f1",
+                    "statement": "dragSelectedElements, for each non-arrow element being dragged, calls updateBoundElements(element, scene.getElementsMapIncludingDeleted(), { simultaneouslyUpdated: ... }) after moving the element's coordinates, to keep its bound elements attached.",
+                    "evidence": "packages/excalidraw/element/dragElements.ts:102"
+                },
+                {
+                    "id": "excalidraw-q1-f2",
+                    "statement": "updateBoundElements returns immediately without doing anything if the changed element is not a bindable element (isBindableElement(changedElement) is false).",
+                    "evidence": "packages/excalidraw/element/binding.ts:747"
+                },
+                {
+                    "id": "excalidraw-q1-f3",
+                    "statement": "updateBoundElements uses boundElementsVisitor to visit elements bound to the changed element, but the visitor callback itself skips (returns early for) any element that is not a non-deleted linear element, and separately skips any bound element that doesNeedUpdate reports as not stale — only the remaining elements are actually repositioned.",
+                    "evidence": "packages/excalidraw/element/binding.ts:751"
+                },
+                {
+                    "id": "excalidraw-q1-f4",
+                    "statement": "updateBoundPoint(element, bindingProp, bindings[bindingProp], bindableElement, elementsMap) is the function that computes the new binding-aware endpoint position for a bound linear element's start or end point; it is called from inside the bindableElementsVisitor callback that builds the `updates` array.",
+                    "evidence": "packages/excalidraw/element/binding.ts:810"
+                },
+                {
+                    "id": "excalidraw-q1-f5",
+                    "statement": "For a bound linear element that is not simultaneously being updated itself, updateBoundElements takes the point(s) already computed by updateBoundPoint (the `updates` array) and calls LinearElementEditor.movePoints(element, updates, ...) to actually apply them and move the arrow's bound point(s).",
+                    "evidence": "packages/excalidraw/element/binding.ts:838"
+                },
+                {
+                    "id": "excalidraw-q1-f6",
+                    "statement": "If the bound linear element also has a bound text label, updateBoundElements calls handleBindTextResize(element, elementsMap, false) to keep that label positioned correctly after the reposition.",
+                    "evidence": "packages/excalidraw/element/binding.ts:849"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q2",
+            "repoId": "excalidraw",
+            "text": "When elements are deleted from the scene (e.g. via the Delete/Backspace action), how does Excalidraw clean up the bindings that referenced those now-deleted elements, so that surviving elements don't keep dangling references to elements that no longer exist?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q2-f1",
+                    "statement": "actionDeleteSelected's perform, after deleteSelectedElements produces the next element list, calls fixBindingsAfterDeletion(nextElements, nextElements.filter((el) => el.isDeleted)) to clean up bindings that referenced the just-deleted elements.",
+                    "evidence": "packages/excalidraw/actions/actionDeleteSelected.tsx:275"
+                },
+                {
+                    "id": "excalidraw-q2-f2",
+                    "statement": "fixBindingsAfterDeletion, for each deleted element, calls BoundElement.unbindAffected(elements, element, mutateElement) to strip that deleted element's id out of the boundElements list of any bindable element (e.g. a container or arrow endpoint) it had been attached to.",
+                    "evidence": "packages/excalidraw/element/binding.ts:1526"
+                },
+                {
+                    "id": "excalidraw-q2-f3",
+                    "statement": "fixBindingsAfterDeletion also calls BindableElement.unbindAffected(elements, element, mutateElement) for each deleted element, to null out the binding pointer of any surviving element that had been bound to it.",
+                    "evidence": "packages/excalidraw/element/binding.ts:1527"
+                },
+                {
+                    "id": "excalidraw-q2-f4",
+                    "statement": "BoundElement.unbindAffected visits the deleted bound element's bindable elements and, for each one whose boundElements array still references the deleted element's id, calls updateElementWith to rewrite that array with the deleted element's id filtered out.",
+                    "evidence": "packages/excalidraw/element/binding.ts:1983"
+                },
+                {
+                    "id": "excalidraw-q2-f5",
+                    "statement": "BindableElement.unbindAffected visits the deleted bindable element's boundElements and, for each surviving element bound back to it, calls updateElementWith to null out that element's binding property (e.g. containerId, startBinding, or endBinding) so it no longer points at the deleted element.",
+                    "evidence": "packages/excalidraw/element/binding.ts:2100"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q3",
+            "repoId": "excalidraw",
+            "text": "Trace how an element in the scene actually gets drawn onto the canvas: which React component invokes the static-scene render function, and where does the rendering code obtain (or generate) the roughjs shape it draws?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q3-f1",
+                    "statement": "The StaticCanvas React component calls renderStaticScene(...) to draw the non-interactive canvas layer whenever its effect runs.",
+                    "evidence": "packages/excalidraw/components/canvases/StaticCanvas.tsx:68"
+                },
+                {
+                    "id": "excalidraw-q3-f2",
+                    "statement": "renderStaticScene, when called with throttle=true, delegates to renderStaticSceneThrottled and returns immediately, instead of falling through to the direct _renderStaticScene(renderConfig) call at the end of the function.",
+                    "evidence": "packages/excalidraw/renderer/staticScene.ts:475"
+                },
+                {
+                    "id": "excalidraw-q3-f3",
+                    "statement": "The internal static-scene render routine draws individual elements by calling renderElement for each one (one of several such call sites in the function).",
+                    "evidence": "packages/excalidraw/renderer/staticScene.ts:314"
+                },
+                {
+                    "id": "excalidraw-q3-f4",
+                    "statement": "renderElement (in renderer/renderElement.ts) calls ShapeCache.generateElementShape(element, renderConfig) to obtain the roughjs Drawable shape for the element before drawing it.",
+                    "evidence": "packages/excalidraw/renderer/renderElement.ts:811"
+                },
+                {
+                    "id": "excalidraw-q3-f5",
+                    "statement": "ShapeCache.generateElementShape returns the already-cached shape from its WeakMap without regenerating it, as long as a cached (non-exporting) shape is already present for that element.",
+                    "evidence": "packages/excalidraw/scene/ShapeCache.ts:65"
+                },
+                {
+                    "id": "excalidraw-q3-f6",
+                    "statement": "When no cached shape is available, ShapeCache.generateElementShape calls the module-level _generateElementShape(element, ShapeCache.rg, renderConfig || { isExporting: false, canvasBackgroundColor: COLOR_PALETTE.white, embedsValidationStatus: null }) from ./Shape, to actually generate a new roughjs shape using the cached RoughGenerator instance.",
+                    "evidence": "packages/excalidraw/scene/ShapeCache.ts:70"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q4",
+            "repoId": "excalidraw",
+            "text": "When a WS_SUBTYPES.UPDATE message arrives over the collaboration socket, how does excalidraw-app merge the remote elements into the local scene, and what rule decides whether the local or the remote version of a conflicting element is kept?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q4-f1",
+                    "statement": "On a WS_SUBTYPES.UPDATE socket message, Collab's message handler calls this._reconcileElements(decryptedData.payload.elements) and feeds the result into this.handleRemoteSceneUpdate.",
+                    "evidence": "excalidraw-app/collab/Collab.tsx:585"
+                },
+                {
+                    "id": "excalidraw-q4-f2",
+                    "statement": "Collab's private _reconcileElements method calls the library's reconcileElements function, passing the local elements (including deleted), the restored remote elements, and the current app state.",
+                    "evidence": "excalidraw-app/collab/Collab.tsx:739"
+                },
+                {
+                    "id": "excalidraw-q4-f3",
+                    "statement": "reconcileElements is re-exported from packages/excalidraw/index.tsx as part of the @excalidraw/excalidraw package's public surface.",
+                    "evidence": "packages/excalidraw/index.tsx:229"
+                },
+                {
+                    "id": "excalidraw-q4-f4",
+                    "statement": "excalidraw-app/collab/Collab.tsx imports reconcileElements directly from the \"@excalidraw/excalidraw\" package specifier — this is the actual cross-package import site that consumes the index.tsx re-export.",
+                    "evidence": "excalidraw-app/collab/Collab.tsx:24"
+                },
+                {
+                    "id": "excalidraw-q4-f5",
+                    "statement": "For each remote element, reconcileElements calls shouldDiscardRemoteElement to decide whether the existing local element should be kept instead of the incoming remote one.",
+                    "evidence": "packages/excalidraw/data/reconcile.ts:86"
+                },
+                {
+                    "id": "excalidraw-q4-f6",
+                    "statement": "reconcileElements keeps the local version of a conflicting element only when a local element exists at that id AND shouldDiscardRemoteElement returned true for it; otherwise the remote element is used.",
+                    "evidence": "packages/excalidraw/data/reconcile.ts:92"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q5",
+            "repoId": "excalidraw",
+            "text": "Trace the call chain from a Ctrl+Z keydown in the editor through to History actually popping an entry off the undo stack.",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q5-f1",
+                    "statement": "App's document-level keydown handler calls this.actionManager.handleKeyDown(event) once a keydown has fallen through the handler's earlier bail-out conditions (e.g. not inside a writable input, not a reserved shortcut like command-palette or image-export, no dialog blocking it).",
+                    "evidence": "packages/excalidraw/components/App.tsx:4295"
+                },
+                {
+                    "id": "excalidraw-q5-f2",
+                    "statement": "ActionManager.handleKeyDown, once it has found the single registered action whose keyTest matches the event, runs that action by calling this.updater(data[0].perform(elements, appState, value, this.app)).",
+                    "evidence": "packages/excalidraw/actions/manager.tsx:122"
+                },
+                {
+                    "id": "excalidraw-q5-f3",
+                    "statement": "createUndoAction's keyTest matches when Ctrl or Cmd is held together with the Z key and Shift is not held.",
+                    "evidence": "packages/excalidraw/actions/actionHistory.tsx:66"
+                },
+                {
+                    "id": "excalidraw-q5-f4",
+                    "statement": "createUndoAction's perform calls history.undo(...), wrapped by executeHistoryAction, with the current elements map, app state, and store.snapshot passed as history.undo's arguments.",
+                    "evidence": "packages/excalidraw/actions/actionHistory.tsx:59"
+                },
+                {
+                    "id": "excalidraw-q5-f5",
+                    "statement": "History.undo delegates the actual entry retrieval to the private perform method, passing pop: () => History.pop(this.undoStack) as the callback perform will invoke to obtain the entry to apply.",
+                    "evidence": "packages/excalidraw/history.ts:72"
+                },
+                {
+                    "id": "excalidraw-q5-f6",
+                    "statement": "The private static History.pop method performs the actual pop by calling stack.pop() on the passed-in stack — this is where History actually removes an entry from the undo stack (when invoked via undo's callback).",
+                    "evidence": "packages/excalidraw/history.ts:141"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q6",
+            "repoId": "excalidraw",
+            "text": "What packages make up this yarn workspaces monorepo, what npm package name does each published package (excalidraw, math, utils) declare, and what is @excalidraw/excalidraw's main entry point?",
+            "category": "NEUTRAL",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q6-f1",
+                    "statement": "The root package.json's workspaces array (declared at package.json:5) begins with \"excalidraw-app\" as its first entry, immediately followed on the next four lines by packages/excalidraw, packages/utils, packages/math, and examples/*.",
+                    "evidence": "package.json:6"
+                },
+                {
+                    "id": "excalidraw-q6-f2",
+                    "statement": "packages/excalidraw's package.json declares its npm package name as \"@excalidraw/excalidraw\".",
+                    "evidence": "packages/excalidraw/package.json:2"
+                },
+                {
+                    "id": "excalidraw-q6-f3",
+                    "statement": "packages/math's package.json declares its npm package name as \"@excalidraw/math\".",
+                    "evidence": "packages/math/package.json:2"
+                },
+                {
+                    "id": "excalidraw-q6-f4",
+                    "statement": "packages/utils's package.json declares its npm package name as \"@excalidraw/utils\".",
+                    "evidence": "packages/utils/package.json:2"
+                },
+                {
+                    "id": "excalidraw-q6-f5",
+                    "statement": "packages/excalidraw's package.json declares its \"main\" entry point as \"./dist/prod/index.js\".",
+                    "evidence": "packages/excalidraw/package.json:6"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q7",
+            "repoId": "excalidraw",
+            "text": "What are the variants of the ExcalidrawElement discriminated union, what type alias derives the set of each variant's literal type tag, and what do the boundElements and version fields (defined on every element's shared base type) represent?",
+            "category": "NEUTRAL",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q7-f1",
+                    "statement": "ExcalidrawElement is a discriminated union of ten element variants: generic, text, linear, arrow, free-draw, image, frame, magic-frame, iframe, and embeddable elements.",
+                    "evidence": "packages/excalidraw/element/types.ts:203"
+                },
+                {
+                    "id": "excalidraw-q7-f2",
+                    "statement": "ExcalidrawElementType is derived from the union itself, as ExcalidrawElement[\"type\"] — the set of each variant's literal type tag.",
+                    "evidence": "packages/excalidraw/element/types.ts:371"
+                },
+                {
+                    "id": "excalidraw-q7-f3",
+                    "statement": "Every element's shared base type carries a boundElements: readonly BoundElement[] | null field listing the other elements that are bound to it.",
+                    "evidence": "packages/excalidraw/element/types.ts:74"
+                },
+                {
+                    "id": "excalidraw-q7-f4",
+                    "statement": "Every element's shared base type also carries a version: number field, sequentially incremented on each change and used to reconcile elements during collaboration or when saving to a server.",
+                    "evidence": "packages/excalidraw/element/types.ts:58"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q8",
+            "repoId": "excalidraw",
+            "text": "What are the exact literal localStorage key strings excalidraw-app uses to persist scene elements, app state, collaboration data, and the theme setting, and where are they defined?",
+            "category": "NEGATIVE_CONTROL",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q8-f1",
+                    "statement": "STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw\".",
+                    "evidence": "excalidraw-app/app_constants.ts:39"
+                },
+                {
+                    "id": "excalidraw-q8-f2",
+                    "statement": "STORAGE_KEYS.LOCAL_STORAGE_APP_STATE, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw-state\".",
+                    "evidence": "excalidraw-app/app_constants.ts:40"
+                },
+                {
+                    "id": "excalidraw-q8-f3",
+                    "statement": "STORAGE_KEYS.LOCAL_STORAGE_COLLAB, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw-collab\".",
+                    "evidence": "excalidraw-app/app_constants.ts:41"
+                },
+                {
+                    "id": "excalidraw-q8-f4",
+                    "statement": "STORAGE_KEYS.LOCAL_STORAGE_THEME, defined in excalidraw-app/app_constants.ts, is the literal string \"excalidraw-theme\".",
+                    "evidence": "excalidraw-app/app_constants.ts:42"
+                }
+            ]
+        },
+        {
+            "id": "excalidraw-q9",
+            "repoId": "excalidraw",
+            "text": "What MIME types do IMAGE_MIME_TYPES's svg, png, and jpg entries map to, and how does the general-purpose MIME_TYPES constant relate to the image-specific IMAGE_MIME_TYPES constant?",
+            "category": "NEUTRAL",
+            "goldFacts": [
+                {
+                    "id": "excalidraw-q9-f1",
+                    "statement": "IMAGE_MIME_TYPES.svg maps to the MIME type \"image/svg+xml\".",
+                    "evidence": "packages/excalidraw/constants.ts:205"
+                },
+                {
+                    "id": "excalidraw-q9-f2",
+                    "statement": "IMAGE_MIME_TYPES.png maps to the MIME type \"image/png\".",
+                    "evidence": "packages/excalidraw/constants.ts:206"
+                },
+                {
+                    "id": "excalidraw-q9-f3",
+                    "statement": "IMAGE_MIME_TYPES.jpg maps to the MIME type \"image/jpeg\".",
+                    "evidence": "packages/excalidraw/constants.ts:207"
+                },
+                {
+                    "id": "excalidraw-q9-f4",
+                    "statement": "MIME_TYPES.binary is defined as \"application/octet-stream\".",
+                    "evidence": "packages/excalidraw/constants.ts:227"
+                },
+                {
+                    "id": "excalidraw-q9-f5",
+                    "statement": "MIME_TYPES spreads all of IMAGE_MIME_TYPES into itself (...IMAGE_MIME_TYPES), so every image MIME type recognized by IMAGE_MIME_TYPES is also a valid MIME_TYPES value.",
+                    "evidence": "packages/excalidraw/constants.ts:229"
+                }
+            ]
+        }
+    ],
+    "ingestRecords": [
+        {
+            "repoId": "excalidraw",
+            "durationMillis": 33961,
+            "tokensUsed": 0,
+            "costUsd": 0.0,
+            "config": {
+                "litellm": {
+                    "baseUrl": "http://localhost:4000",
+                    "model": "gpt-4o",
+                    "rateLimitPerMinute": 10,
+                    "enabled": false,
+                    "timeoutSeconds": 30
+                },
+                "includePatterns": [
+                    "**/*"
+                ],
+                "excludePatterns": [
+                    "**/.git/**",
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/.gradle/**",
+                    "**/.contextgraph/**",
+                    "**/target/**",
+                    "**/__pycache__/**"
+                ],
+                "ignoreSecrets": true,
+                "maxFileSizeBytes": 10485760,
+                "moduleRoots": [],
+                "watcher": {
+                    "enabled": false,
+                    "debounceMillis": 500,
+                    "fallbackIntervalMillis": 30000
+                }
+            }
+        }
+    ],
+    "agentRuns": [
+        {
+            "id": "b9298caa-8d36-48e2-abb7-4f204b1ee61a",
+            "questionId": "excalidraw-q1",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 216050,
+            "outputTokens": 2423,
+            "toolCallCount": 10,
+            "fileReadCount": 2,
+            "wallClockMillis": 33862,
+            "costUsd": 0.2713369,
+            "finalAnswer": "I now have enough to answer clearly.\n\n## Answer\n\nWhen a container (or any bindable element) is dragged, Excalidraw calls **`updateBoundElements`** (`packages/excalidraw/element/binding.ts:733`) once the container's position/size has changed. It walks all linear elements bound to that container via `boundElementsVisitor`, and for each bound arrow it invokes:\n\n**`updateBoundPoint`** (`packages/excalidraw/element/binding.ts:1189`, private/internal to the module) — this is the function that *computes* the new binding-aware endpoint. Given the linear element, which end (`startBinding`/`endBinding`), the binding info (focus/gap or fixed point), the newly-moved bindable element, and the elements map, it returns the new `LocalPoint` for that endpoint — handling both the elbow-arrow fixed-point case and the normal focus/gap-based case (via `determineFocusPoint`).\n\n`updateBoundElements` collects these computed points (via `bindableElementsVisitor`) into an `updates` array of `{ index, point }`, then calls:\n\n**`LinearElementEditor.movePoints`** (`packages/excalidraw/element/linearElementEditor.ts`) — this is the separate function that *applies* the computed point(s) to actually move the arrow, mutating the element's `points` (and applying any updated `startBinding`/`endBinding`).\n\nSo the flow is: `updateBoundElements` → `updateBoundPoint` (compute new endpoint) → `LinearElementEditor.movePoints` (apply the point and move the arrow).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 1,
+                "Bash": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "mcp__contextgraph__contextgraph_get_node": 2,
+                "Read": 2
+            }
+        },
+        {
+            "id": "bbbc364b-41c9-4656-9f6d-036572382a3c",
+            "questionId": "excalidraw-q1",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 130564,
+            "outputTokens": 1769,
+            "toolCallCount": 6,
+            "fileReadCount": 2,
+            "wallClockMillis": 27927,
+            "costUsd": 0.1403846,
+            "finalAnswer": "Confirmed. Here's the flow:\n\n**When you drag a container**, `dragElements.ts` calls `updateBoundElements()` (in `packages/excalidraw/element/binding.ts`) for the moved element, passing the drag delta info.\n\n`updateBoundElements` visits each bound linear (arrow) element via `boundElementsVisitor`, and for each bound arrow endpoint it calls:\n\n1. **`updateBoundPoint(linearElement, startOrEnd, binding, bindableElement, elementsMap)`** (`binding.ts:1189`) — this is the function that *computes* the new binding-aware endpoint. It handles both normal arrows (recalculating the point via focus/gap against the bindable element's edge, accounting for rotation) and elbow arrows (using the fixed-point ratio and rotating it around the container's midpoint). It returns a `LocalPoint | null`.\n\n2. **`LinearElementEditor.movePoints(element, updates, otherUpdates)`** (`linearElementEditor.ts:1256`) — this is the separate function that *applies* the computed point(s) to the arrow. It takes the `{ index, point }` updates gathered from `updateBoundPoint` calls, recomputes the arrow's points array (including the start-point/element.x,y offset hack) and mutates the element via `mutateElement`.\n\nSo the split is: `updateBoundPoint` computes where the endpoint should go given the new container geometry, and `LinearElementEditor.movePoints` is the separate function that actually mutates the arrow element to move it there (called at `binding.ts:838` inside `updateBoundElements`).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 3,
+                "Read": 2
+            }
+        },
+        {
+            "id": "eb8434b5-18eb-422b-ae15-4aef49cd4d6d",
+            "questionId": "excalidraw-q2",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 377343,
+            "outputTokens": 3536,
+            "toolCallCount": 16,
+            "fileReadCount": 4,
+            "wallClockMillis": 50834,
+            "costUsd": 0.2962093,
+            "finalAnswer": "I have enough detail now to give a complete answer.\n\n## How Excalidraw cleans up bindings on element deletion\n\n**Where it's triggered:** `Delete`/`Backspace` runs `actionDeleteSelected` (`packages/excalidraw/actions/actionDeleteSelected.tsx`). It marks the selected elements (and their frame children/bound labels) `isDeleted: true`, then calls:\n\n```ts\nfixBindingsAfterDeletion(nextElements, nextElements.filter((el) => el.isDeleted));\n```\n\n(A second call site exists in `App.tsx` for the case where an empty text element is discarded while editing.)\n\n**The cleanup function** — `fixBindingsAfterDeletion` in `packages/excalidraw/element/binding.ts` — takes the full scene element list plus the just-deleted elements, and for each deleted element runs two complementary passes:\n\n```ts\nexport const fixBindingsAfterDeletion = (sceneElements, deletedElements) => {\n  const elements = arrayToMap(sceneElements);\n  for (const element of deletedElements) {\n    BoundElement.unbindAffected(elements, element, mutateElement);\n    BindableElement.unbindAffected(elements, element, mutateElement);\n  }\n};\n```\n\nBindings in Excalidraw are bidirectional: a bindable shape keeps a `boundElements` array (listing ids/types of arrows and text bound to it), and a bound element keeps back-references (`containerId`, or an arrow's `startBinding.elementId`/`endBinding.elementId`, or `frameId`). Both directions need fixing depending on which side was deleted:\n\n- **`BoundElement.unbindAffected`** — treats the deleted element as a *bound* element (e.g. a deleted arrow or text label). It walks the bindable elements it pointed to (via `containerId`/`startBinding`/`endBinding`, using `bindableElementsVisitor`) and, for each still-alive one, removes the deleted element's id from that bindable element's `boundElements` array (via `newBoundElements`, which filters out matching ids).\n\n- **`BindableElement.unbindAffected`** — treats the deleted element as a *bindable* container/shape. It walks its `boundElements` (via `boundElementsVisitor`) and, for each still-alive bound element, nulls out the reference back to the deleted element (`containerId: null`, or `startBinding`/`endBinding: null`, depending on which property pointed at it).\n\nBoth helpers skip anything already deleted (`if (!x || x.isDeleted) return`), since dangling references between two elements that are both being deleted don't matter and undo/redo can restore them together.\n\nUpdates are applied via `mutateElement`, so this happens synchronously as part of the same delete action/undo entry — surviving elements end up with their `boundElements` arrays and `containerId`/`startBinding`/`endBinding` fields scrubbed of any id that no longer exists in the scene.\n\nThere's a mirror-image helper, `fixBindingsAfterDuplication`, and `rebindAffected` methods on both classes used when elements are restored (undo) or duplicated, which re-establish these same bidirectional links.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 4,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 3,
+                "Read": 4,
+                "Bash": 3
+            }
+        },
+        {
+            "id": "25bf7731-9f66-40a3-9973-740d41255d46",
+            "questionId": "excalidraw-q2",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 176394,
+            "outputTokens": 3430,
+            "toolCallCount": 12,
+            "fileReadCount": 4,
+            "wallClockMillis": 40339,
+            "costUsd": 0.1886801,
+            "finalAnswer": "Excalidraw handles this with a dedicated cleanup pass called right after elements are marked deleted, defined in `packages/excalidraw/element/binding.ts`.\n\n**Flow (e.g. pressing Delete/Backspace → `actionDeleteSelected`)**\n\n1. `deleteSelectedElements()` soft-deletes the selected elements (sets `isDeleted: true`, keeps them in the elements array for undo/history purposes).\n2. `actionDeleteSelected` then calls `fixBindingsAfterDeletion(nextElements, nextElements.filter(el => el.isDeleted))` (`actionDeleteSelected.tsx:275`). The same function is also called from `App.tsx` (~line 4923) when a text element ends up deleted after edit-finalization.\n\n**`fixBindingsAfterDeletion`** (`binding.ts:1519`) loops over every just-deleted element and calls two static cleanup routines on it:\n\n- `BoundElement.unbindAffected(elements, deletedElement, mutateElement)` — treats the deleted element as something that *pointed to* other elements (e.g. it was an arrow with `startBinding`/`endBinding`, or bound text with a `containerId`). It walks those referenced bindable elements via `bindableElementsVisitor`, and for each non-deleted one, removes the deleted element's id from that element's `boundElements` array via `newBoundElements`.\n\n- `BindableElement.unbindAffected(elements, deletedElement, mutateElement)` — treats the deleted element as something that *was pointed to* (e.g. a shape/container that had arrows or text bound to it). It walks its `boundElements` list via `boundElementsVisitor`, and for each non-deleted bound element found, nulls out whichever property referenced it (`containerId`, `startBinding`, or `endBinding`).\n\nBoth routines skip anything that's already `isDeleted` (no need to clean bindings pointing at/from other deleted elements), and apply their updates via `mutateElement`, so the fix-ups become part of the same scene update/undo step as the deletion itself.\n\nThe net effect: after a deletion, every *surviving* element's `boundElements` array and its `containerId`/`startBinding`/`endBinding`/`frameId` fields are guaranteed to only reference other elements that still exist and aren't deleted — dangling references in either direction are stripped in the same pass.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 7,
+                "Read": 4
+            }
+        },
+        {
+            "id": "319e7215-5595-4a74-bed8-396186dd6ea7",
+            "questionId": "excalidraw-q3",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 305891,
+            "outputTokens": 3015,
+            "toolCallCount": 12,
+            "fileReadCount": 3,
+            "wallClockMillis": 39602,
+            "costUsd": 0.31747559999999997,
+            "finalAnswer": "I now have a complete, evidence-backed trace of the render pipeline.\n\n## The trace\n\n**1. Component that invokes the static-scene render function**\n\n`StaticCanvas` (`packages/excalidraw/components/canvases/StaticCanvas.tsx:29`), a `React.memo`'d functional component, calls `renderStaticScene(...)` inside a `useEffect` that runs on every render/prop update (it's an \"always render\" effect, throttled via `isRenderThrottlingEnabled()`):\n\n```ts\nrenderStaticScene(\n  { canvas, rc: props.rc, scale: props.scale, elementsMap: props.elementsMap,\n    allElementsMap: props.allElementsMap, visibleElements: props.visibleElements,\n    appState: props.appState, renderConfig: props.renderConfig },\n  isRenderThrottlingEnabled(),\n);\n```\n\n`renderStaticScene` (exported wrapper in `packages/excalidraw/renderer/staticScene.ts:470-480`) throttles/dispatches to the actual work function `_renderStaticScene` (same file, lines 208-457), which clears the canvas, iterates `visibleElements`, and calls `renderElement(element, ...)` from `renderElement.ts` for each one.\n\n**2. Where the roughjs shape comes from**\n\nInside `renderElement.ts`, for drawable element types (`rectangle`, `diamond`, `ellipse`, `line`, `arrow`, `image`, `text`, `iframe`, `embeddable`), before drawing it calls:\n\n```ts\nShapeCache.generateElementShape(element, renderConfig);   // renderElement.ts:811\n```\n\n`ShapeCache` (`packages/excalidraw/scene/ShapeCache.ts`) is a static class wrapping a `WeakMap<ExcalidrawElement, ElementShape>` cache plus a single shared `RoughGenerator` instance (`ShapeCache.rg`). `generateElementShape`:\n- Checks the cache first (`ShapeCache.get(element)`) and returns the cached shape if present (skipping regeneration unless exporting, which forces a fresh shape).\n- On a cache miss, calls `_generateElementShape(element, ShapeCache.rg, renderConfig)` from `packages/excalidraw/scene/Shape.ts`, which switches on `element.type` and calls the appropriate `RoughGenerator` method (`generator.rectangle`, `generator.ellipse`, `generator.path`, `generator.line`, `generator.polygon`, etc.) — this is the actual roughjs shape-generation call.\n- Stores the resulting `Drawable`/shape in the `WeakMap` cache and returns it.\n\nLater, `drawElementOnCanvas` (`renderElement.ts:383`) draws the cached shape onto the canvas via the RoughCanvas instance: `rc.draw(ShapeCache.get(element)!)`.\n\n**Summary of the chain:**\n`StaticCanvas` (component) → `renderStaticScene` → `_renderStaticScene` → `renderElement` → `ShapeCache.generateElementShape` (cache lookup, or generate via `_generateElementShape` in `Shape.ts` using roughjs's `RoughGenerator`) → `drawElementOnCanvas` → `rc.draw(shape)`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 3,
+                "mcp__contextgraph__contextgraph_get_node": 1,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "Read": 3,
+                "Bash": 2
+            }
+        },
+        {
+            "id": "76034fd3-ea2b-4346-8877-4cd6db4b1c97",
+            "questionId": "excalidraw-q3",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 346743,
+            "outputTokens": 3406,
+            "toolCallCount": 15,
+            "fileReadCount": 5,
+            "wallClockMillis": 47863,
+            "costUsd": 0.24957639999999998,
+            "finalAnswer": "This confirms the full picture. I have everything needed to answer.\n\n## Trace\n\n**1. React component → `renderStaticScene`**\n\n`StaticCanvas` (`packages/excalidraw/components/canvases/StaticCanvas.tsx`) is the React component that owns the static (non-interactive) `<canvas>`. Inside its `useEffect`, on every render it calls:\n\n```ts\nrenderStaticScene({ canvas, rc: props.rc, scale, elementsMap, allElementsMap, visibleElements, appState, renderConfig }, isRenderThrottlingEnabled());\n```\n\n`renderStaticScene` (`packages/excalidraw/renderer/staticScene.ts:470`) either throttles via `renderStaticSceneThrottled` (rAF-throttled) or calls `_renderStaticScene` directly, which loops over `visibleElements` and, for each one, calls `renderElement(element, elementsMap, allElementsMap, rc, context, renderConfig, appState)` (defined in `packages/excalidraw/renderer/renderElement.ts:698`).\n\n**2. Where the roughjs shape comes from**\n\nInside `renderElement`, before drawing, it calls:\n\n```ts\nShapeCache.generateElementShape(element, renderConfig);\n```\n\n(`packages/excalidraw/scene/ShapeCache.ts:47`). `ShapeCache` is a `WeakMap<ExcalidrawElement, ElementShape>`-backed cache keyed by the element object itself:\n\n- If a shape is already cached for that element (and we're not exporting), it returns the cached `Drawable`/shape as-is — no regeneration.\n- Otherwise it calls `_generateElementShape(element, ShapeCache.rg, ...)` (`packages/excalidraw/scene/Shape.ts:306`), where `ShapeCache.rg` is a shared `RoughGenerator` instance (`new RoughGenerator()`). This function switches on `element.type` and calls the appropriate roughjs generator method — `generator.rectangle(...)`, `generator.ellipse(...)`, `generator.path(...)`, `generator.polygon(...)`, `generator.curve(...)`, `generator.line(...)`, etc. — to produce a roughjs `Drawable`, which is cached back into the `WeakMap` via `ShapeCache.set`.\n\n**3. Actually drawing it**\n\nLater in `renderElement`, `drawElementOnCanvas` (`renderElement.ts:383`) does the actual drawing by pulling the cached shape out again with `ShapeCache.get(element)` and handing it to the roughjs canvas instance: `rc.draw(ShapeCache.get(element)!)` (for rectangle/diamond/ellipse/iframe/embeddable), or iterating `.forEach(shape => rc.draw(shape))` for arrows/lines. `rc` is the `RoughCanvas` instance passed down as a prop, and it's this `rc.draw()` call that actually paints the roughjs-generated shape onto the 2D canvas context.\n\nSo: **`StaticCanvas.tsx`** invokes `renderStaticScene`, which per-element calls `renderElement`, which obtains the roughjs `Drawable` via `ShapeCache.generateElementShape` → `_generateElementShape` (in `scene/Shape.ts`, using a shared `RoughGenerator`) — generating it once and caching it in a `WeakMap` keyed on the element, reused on subsequent frames unless the element changes (or it's an export, which always regenerates) — and finally draws it with `rc.draw(...)`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 9,
+                "Read": 5
+            }
+        },
+        {
+            "id": "b86a2400-5508-4726-8fa0-7a8413143252",
+            "questionId": "excalidraw-q4",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 197917,
+            "outputTokens": 2610,
+            "toolCallCount": 11,
+            "fileReadCount": 4,
+            "wallClockMillis": 36114,
+            "costUsd": 0.1761143,
+            "finalAnswer": "I now have the full picture, confirmed directly in `excalidraw-app/collab/Collab.tsx` and `packages/excalidraw/data/reconcile.ts`.\n\n## How it works\n\n**1. Dispatch (`Collab.tsx:583-587`)**\n\nThe `client-broadcast` socket handler switches on `decryptedData.type`. For `WS_SUBTYPES.UPDATE`, it decrypts the payload's elements, reconciles them, and immediately applies the result to the local scene:\n\n```js\ncase WS_SUBTYPES.UPDATE:\n  this.handleRemoteSceneUpdate(\n    this._reconcileElements(decryptedData.payload.elements),\n  );\n  break;\n```\n\n**2. Reconciliation (`Collab._reconcileElements`, `Collab.tsx:733-754`)**\n\n- Pulls the local scene via `getSceneElementsIncludingDeleted()`.\n- Restores/normalizes the incoming raw elements with `restoreElements(remoteElements, null)`.\n- Calls `reconcileElements(localElements, restoredRemoteElements, appState)` (from `packages/excalidraw/data/reconcile.ts`).\n- Before updating the scene, it records the reconciled scene's version via `setLastBroadcastedOrReceivedSceneVersion` so this just-received update isn't immediately re-broadcast back out.\n\n**3. Applying to scene (`handleRemoteSceneUpdate`, `Collab.tsx:771-780`)**\n\nCalls `excalidrawAPI.updateScene({ elements, captureUpdate: CaptureUpdateAction.NEVER })` (so it doesn't get pushed onto the undo/redo history) and kicks off `loadImageFiles()` to fetch any new image files.\n\n**4. Conflict-resolution rule (`reconcileElements` / `shouldDiscardRemoteElement`, `reconcile.ts:19-40, 73-117`)**\n\nFor each remote element, look up the local element with the same id. The **remote** element is discarded (i.e., the **local** one wins) if any of:\n- The local element is currently being actively edited (`editingTextElement`, `resizingElement`, or `newElement` matches its id), **or**\n- `local.version > remote.version` (local is strictly newer), **or**\n- `local.version === remote.version && local.versionNonce < remote.versionNonce` (tie-break: lower `versionNonce` wins).\n\nOtherwise, the **remote** element wins and replaces the local one. Elements only present locally (not in the remote batch) are kept as-is. The merged set is then reordered by fractional index (`orderByFractionalIndex`) and de-duplicated (`syncInvalidIndices`) before being returned as the reconciled scene.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "mcp__contextgraph__contextgraph_get_node": 2,
+                "Read": 4
+            }
+        },
+        {
+            "id": "fe7e0871-2bac-4e2d-abc4-1afbbca1e80f",
+            "questionId": "excalidraw-q4",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 144460,
+            "outputTokens": 1950,
+            "toolCallCount": 8,
+            "fileReadCount": 4,
+            "wallClockMillis": 26814,
+            "costUsd": 0.109709,
+            "finalAnswer": "I have the full picture now.\n\n## Flow\n\n1. **`Collab.tsx` receives `WS_SUBTYPES.UPDATE`** (`excalidraw-app/collab/Collab.tsx:583-587`): the socket message handler decrypts the payload and calls `this._reconcileElements(decryptedData.payload.elements)`, then passes the result to `handleRemoteSceneUpdate`.\n\n2. **`_reconcileElements`** (`Collab.tsx:733-754`):\n   - Gets the current local elements (`getSceneElementsIncludingDeleted()`) and `appState`.\n   - Restores the raw remote elements (`restoreElements`).\n   - Calls the shared `reconcileElements(localElements, restoredRemoteElements, appState)` from `packages/excalidraw/data/reconcile.ts`.\n   - Updates `lastBroadcastedOrReceivedSceneVersion` to the reconciled version so the merge won't be immediately re-broadcast back to collaborators.\n\n3. **`handleRemoteSceneUpdate`** (`Collab.tsx:771-780`) applies the merged elements via `excalidrawAPI.updateScene({ elements, captureUpdate: CaptureUpdateAction.NEVER })` — i.e. it replaces the scene's element array with the reconciled one without pushing a new undo/redo history entry, then kicks off `loadImageFiles()`.\n\n## The merge algorithm (`reconcileElements`, `packages/excalidraw/data/reconcile.ts`)\n\nFor every remote element:\n- Look up the local element with the same `id`.\n- Call `shouldDiscardRemoteElement(appState, local, remote)` to decide the winner.\n- If the remote should be discarded, keep the **local** element; otherwise take the **remote** element.\n\nAny local elements not present among the remote ones are appended unchanged (nothing is deleted just because it wasn't in the remote payload). The combined list is then reordered by fractional index (`orderByFractionalIndex`) and de-duplicated indices are synced.\n\n## The conflict rule — `shouldDiscardRemoteElement` (lines 19-40)\n\nThe remote element is discarded (i.e., **local wins**) if the local element exists and any of:\n- it's currently being actively edited locally (`editingTextElement`, `resizingElement`, or `newElement` matches the id), or\n- `local.version > remote.version` (local is strictly newer), or\n- `local.version === remote.version && local.versionNonce < remote.versionNonce` — a deterministic tiebreaker when both sides edited at the same version: the element with the **lower `versionNonce`** wins.\n\nOtherwise (remote is newer, or ties with a higher/equal versionNonce per that rule, or there's no matching local element), the **remote** element replaces the local one.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 3,
+                "Read": 4
+            }
+        },
+        {
+            "id": "2c7788cb-aa7c-40aa-a5d9-415827da6b1b",
+            "questionId": "excalidraw-q5",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 609753,
+            "outputTokens": 4203,
+            "toolCallCount": 20,
+            "fileReadCount": 7,
+            "wallClockMillis": 64608,
+            "costUsd": 0.4381263999999999,
+            "finalAnswer": "I now have the complete chain. Here's the trace:\n\n**1. Browser event → React handler**\n`App.tsx:1558` — the root editor `<div>` has `onKeyDown={this.props.handleKeyboardGlobally ? undefined : this.onKeyDown}`. (If `handleKeyboardGlobally` is set instead, `App.tsx:2584` attaches `this.onKeyDown` directly to `document` via `addEventListener(document, EVENT.KEYDOWN, this.onKeyDown, false)`.)\n\n**2. `App.onKeyDown`** (`App.tsx:4045`, wrapped in `withBatchedUpdates`)\nAfter handling a few special-case keys (Escape/Enter for cropping, flowchart arrow-nav, etc.), it reaches:\n```ts\nif (this.actionManager.handleKeyDown(event)) {\n  return;\n}\n```\n(`App.tsx:4295`)\n\n**3. `ActionManager.handleKeyDown`** (`packages/excalidraw/actions/manager.tsx:83`)\nIterates all registered actions, filters to the one whose `action.keyTest(event, appState, elements, app)` returns true. For undo, that's `createUndoAction`'s `keyTest`:\n```ts\nkeyTest: (event) => event[KEYS.CTRL_OR_CMD] && matchKey(event, KEYS.Z) && !event.shiftKey,\n```\n(`actionHistory.tsx:63-64`). Once exactly one action matches, it calls `event.preventDefault()`/`stopPropagation()` and:\n```ts\nthis.updater(data[0].perform(elements, appState, value, this.app));\n```\n\n**4. `createUndoAction.perform`** (`actionHistory.tsx:51-88`, registered on `App` construction at `App.tsx:765-766` via `this.actionManager.registerAction(createUndoAction(this.history, this.store))`)\n```ts\nperform: (elements, appState, value, app) =>\n  executeHistoryAction(app, appState, () =>\n    history.undo(arrayToMap(elements) as SceneElementsMap, appState, store.snapshot),\n  ),\n```\n\n**5. `executeHistoryAction`** (`actionHistory.tsx:16`)\nGuards against undo happening mid-interaction (multi-element edit, resizing, editing text, dragging, flowchart-in-progress, etc.), then calls the passed `updater()` — i.e. `history.undo(...)` — and wraps the result into an `ActionResult`.\n\n**6. `History.undo`** (`history.ts:63-75`)\nDelegates to the private `perform` method, passing `() => History.pop(this.undoStack)` as the pop function and pushing the inverse entry onto `redoStack`.\n\n**7. `History.perform`** (`history.ts:91-134`) actually pops:\n```ts\nlet historyEntry = pop(); // -> History.pop(this.undoStack)\n```\n\n**8. `History.pop`** (`history.ts:136-148`) — the actual stack mutation:\n```ts\nprivate static pop(stack: HistoryStack): HistoryEntry | null {\n  if (!stack.length) return null;\n  const entry = stack.pop();\n  return entry !== undefined ? entry : null;\n}\n```\nThis is where the undo stack entry is actually removed. `perform` then applies the entry via `historyEntry.applyTo(...)`, pushes the inverse onto `redoStack` (`History.push`), loops if the change was invisible, and finally fires `onHistoryChangedEmitter` with a `HistoryChangedEvent` (which updates the undo/redo button disabled state via `useEmitter` in `createUndoAction`'s `PanelComponent`).\n\n**Full chain:** `App.tsx` root div `onKeyDown` (or document listener) → `App.onKeyDown` → `ActionManager.handleKeyDown` (matches `createUndoAction.keyTest`) → `action.perform` → `executeHistoryAction` → `History.undo` → `History.perform` → `History.pop(this.undoStack)`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 3,
+                "mcp__contextgraph__contextgraph_get_node": 3,
+                "Read": 7,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "mcp__contextgraph__contextgraph_expand_node": 1,
+                "Bash": 3
+            }
+        },
+        {
+            "id": "bf716cdf-ff2d-4f9e-812d-80f06ec06837",
+            "questionId": "excalidraw-q5",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 188559,
+            "outputTokens": 2677,
+            "toolCallCount": 9,
+            "fileReadCount": 4,
+            "wallClockMillis": 36305,
+            "costUsd": 0.15166599999999997,
+            "finalAnswer": "I have the complete chain now.\n\n## Call chain: Ctrl+Z → History.pop\n\n1. **`document` keydown listener** — `App.tsx:2584` registers `addEventListener(document, EVENT.KEYDOWN, this.onKeyDown, false)`, and the component's own `onKeyDown` prop (`App.tsx:1558`) also wires to `this.onKeyDown`.\n\n2. **`App.onKeyDown`** (`App.tsx:4045`, wrapped in `withBatchedUpdates`) — after handling other special cases (editor dialogs, page up/down, etc.), reaches `App.tsx:4295`:\n   ```ts\n   if (this.actionManager.handleKeyDown(event)) { return; }\n   ```\n\n3. **`ActionManager.handleKeyDown`** (`actions/manager.tsx:83`) — iterates all registered actions, filters to the one(s) whose `keyTest(event, ...)` matches. For Ctrl+Z (no shift), this matches the `undo` action's `keyTest` defined in `actionHistory.tsx:65-66`:\n   ```ts\n   keyTest: (event) => event[KEYS.CTRL_OR_CMD] && matchKey(event, KEYS.Z) && !event.shiftKey,\n   ```\n   It then calls `event.preventDefault()`/`stopPropagation()` and invokes `action.perform(elements, appState, value, this.app)` (`manager.tsx:122`), feeding the result into `this.updater(...)`.\n\n4. **`createUndoAction.perform`** (`actionHistory.tsx:57-64`) — calls `executeHistoryAction(app, appState, () => history.undo(arrayToMap(elements), appState, store.snapshot))`.\n\n5. **`executeHistoryAction`** (`actionHistory.tsx:16-47`) — guards against undo being triggered mid-interaction (multi-element edit, resizing, text editing, dragging, flowchart creation, etc.); if clear, calls the passed `updater()`, i.e. `history.undo(...)`.\n\n6. **`History.undo`** (`history.ts:63-75`) — calls the private `perform(elements, appState, snapshot, pop, push)` with `pop = () => History.pop(this.undoStack)` and `push` targeting the redo stack.\n\n7. **`History.perform`** (`history.ts:91-134`) — calls `pop()`, i.e. `History.pop(this.undoStack)`, which is where the actual pop happens:\n   ```ts\n   private static pop(stack: HistoryStack): HistoryEntry | null {\n     if (!stack.length) return null;\n     const entry = stack.pop();   // <-- entry actually removed from undo stack\n     ...\n   }\n   ```\n   The popped `HistoryEntry` is applied via `historyEntry.applyTo(...)` to produce next elements/appState, then pushed onto the redo stack (`History.push`), looping (popping further entries) if the applied change was not visible, until a visible change is found or the stack is exhausted. Finally it fires `onHistoryChangedEmitter` to update UI state (e.g. disabling the undo button when `isUndoStackEmpty`).\n\nSo the full path is:\n`document keydown` → `App.onKeyDown` → `ActionManager.handleKeyDown` (keyTest match) → `undo` action's `perform` → `executeHistoryAction` → `History.undo` → `History.perform` → `History.pop(undoStack)` (the actual `stack.pop()`).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 4,
+                "Read": 4
+            }
+        },
+        {
+            "id": "79e18b5b-6f5c-4722-b723-1171ebfba649",
+            "questionId": "excalidraw-q6",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 101540,
+            "outputTokens": 1257,
+            "toolCallCount": 7,
+            "fileReadCount": 4,
+            "wallClockMillis": 16693,
+            "costUsd": 0.11717269999999999,
+            "finalAnswer": "The root `package.json` (`excalidraw-monorepo`, private) declares these yarn workspaces:\n\n- `excalidraw-app`\n- `packages/excalidraw`\n- `packages/utils`\n- `packages/math`\n- `examples/*`\n\nPublished package names:\n\n- **`packages/excalidraw`** → npm name **`@excalidraw/excalidraw`** (v0.18.1)\n- **`packages/math`** → npm name **`@excalidraw/math`** (v0.1.0)\n- **`packages/utils`** → npm name **`@excalidraw/utils`** (v0.1.2)\n\n`@excalidraw/excalidraw`'s main entry point is **`./dist/prod/index.js`** (`\"main\"` field, also matching the `\"exports\"` production/default condition), with types at `./dist/types/excalidraw/index.d.ts`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 1,
+                "Bash": 1,
+                "Read": 4
+            }
+        },
+        {
+            "id": "9ac70a81-1c8b-48a6-ac96-3aa725f1dfd6",
+            "questionId": "excalidraw-q6",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 63079,
+            "outputTokens": 812,
+            "toolCallCount": 5,
+            "fileReadCount": 0,
+            "wallClockMillis": 12563,
+            "costUsd": 0.0409237,
+            "finalAnswer": "The monorepo (`excalidraw-monorepo`, root `package.json`) defines workspaces:\n\n- `excalidraw-app` — the demo/dev app (`excalidraw-app`, private, not published)\n- `packages/excalidraw` — published as **`@excalidraw/excalidraw`**\n- `packages/utils` — published as **`@excalidraw/utils`**\n- `packages/math` — published as **`@excalidraw/math`**\n- `examples/*` — example apps (`with-nextjs`, `with-script-in-browser`; private, not published)\n\n`@excalidraw/excalidraw`'s main entry point is `./dist/prod/index.js` (with `types` at `./dist/types/excalidraw/index.d.ts`), as declared in `packages/excalidraw/package.json`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 4
+            }
+        },
+        {
+            "id": "1a798146-e09d-4739-a666-0bf65b56ad23",
+            "questionId": "excalidraw-q7",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 127264,
+            "outputTokens": 1833,
+            "toolCallCount": 6,
+            "fileReadCount": 1,
+            "wallClockMillis": 25407,
+            "costUsd": 0.1321231,
+            "finalAnswer": "Found it. Now I have everything needed.\n\n## Answer\n\n**Variants of `ExcalidrawElement`** (`packages/excalidraw/element/types.ts:203-213`), a discriminated union tagged on the `type` field:\n\n```ts\nexport type ExcalidrawElement =\n  | ExcalidrawGenericElement   // itself = ExcalidrawSelectionElement | ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement\n  | ExcalidrawTextElement\n  | ExcalidrawLinearElement\n  | ExcalidrawArrowElement\n  | ExcalidrawFreeDrawElement\n  | ExcalidrawImageElement\n  | ExcalidrawFrameElement\n  | ExcalidrawMagicFrameElement\n  | ExcalidrawIframeElement\n  | ExcalidrawEmbeddableElement;\n```\n\nSo the flattened leaf variants (by their `type` literal) are: `selection`, `rectangle`, `diamond`, `ellipse`, `text`, `line`/`arrow`(linear elements), `arrow`, `freedraw`, `image`, `frame`, `magicframe`, `iframe`, `embeddable`.\n\n**Type-tag alias:** `ExcalidrawElementType`, defined as:\n```ts\nexport type ExcalidrawElementType = ExcalidrawElement[\"type\"];\n```\n(`types.ts:371`) — it indexes the union by its `type` property, producing the union of all the literal string tags (e.g. `\"rectangle\" | \"diamond\" | \"ellipse\" | ... `).\n\n**`boundElements` and `version` fields** (both defined on the shared `_ExcalidrawElementBase`, `types.ts:38-80`):\n- **`boundElements: readonly BoundElement[] | null`** — the list of *other* elements bound to this element (e.g. arrows or text labels attached to it). Each `BoundElement` is `{ id, type: \"arrow\" | \"text\" }`, referencing the id and type of the bound element.\n- **`version: number`** — an integer sequentially incremented on every change to the element, used to reconcile elements during collaboration or when saving to the server (compared alongside `versionNonce` when versions tie).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "Bash": 2,
+                "Read": 1
+            }
+        },
+        {
+            "id": "bdcdf7e1-738b-4a40-ba86-17f7feccc5c1",
+            "questionId": "excalidraw-q7",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 84099,
+            "outputTokens": 1078,
+            "toolCallCount": 4,
+            "fileReadCount": 1,
+            "wallClockMillis": 15584,
+            "costUsd": 0.0824554,
+            "finalAnswer": "I found everything needed in `packages/excalidraw/element/types.ts`.\n\n**Variants of the `ExcalidrawElement` union** (line 203-213):\n- `ExcalidrawGenericElement` (itself a union of `ExcalidrawSelectionElement`, `ExcalidrawRectangleElement`, `ExcalidrawDiamondElement`, `ExcalidrawEllipseElement`)\n- `ExcalidrawTextElement`\n- `ExcalidrawLinearElement`\n- `ExcalidrawArrowElement`\n- `ExcalidrawFreeDrawElement`\n- `ExcalidrawImageElement`\n- `ExcalidrawFrameElement`\n- `ExcalidrawMagicFrameElement`\n- `ExcalidrawIframeElement`\n- `ExcalidrawEmbeddableElement`\n\n**Type alias deriving the literal type tags:** `ExcalidrawElementType` (line 371), defined as `ExcalidrawElement[\"type\"]` — indexing the union by its `type` property to produce the union of all literal string tags (e.g. `\"selection\" | \"rectangle\" | \"diamond\" | \"ellipse\" | \"text\" | \"line\" | \"arrow\" | \"freedraw\" | \"image\" | \"frame\" | \"magicframe\" | \"iframe\" | \"embeddable\"`).\n\n**`boundElements` and `version` fields** (defined on `_ExcalidrawElementBase`, lines 56-58 and 73-74):\n- `version: number` — an integer sequentially incremented on each change to the element, used to reconcile elements during collaboration or when saving to a server.\n- `boundElements: readonly BoundElement[] | null` — the list of *other* elements that are bound to this element (each entry just an `{ id, type }` pair where `type` is `\"arrow\" | \"text\"`), e.g. text labels bound to a container shape or arrows bound to a shape they connect to.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 2,
+                "Read": 1
+            }
+        },
+        {
+            "id": "6041be26-f17f-4063-b33a-661c6b146001",
+            "questionId": "excalidraw-q8",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 171456,
+            "outputTokens": 1995,
+            "toolCallCount": 9,
+            "fileReadCount": 1,
+            "wallClockMillis": 27705,
+            "costUsd": 0.1236128,
+            "finalAnswer": "All keys are defined in one place: `excalidraw-app/app_constants.ts:38-43`, in the `STORAGE_KEYS` object:\n\n```ts\nexport const STORAGE_KEYS = {\n  LOCAL_STORAGE_ELEMENTS: \"excalidraw\",\n  LOCAL_STORAGE_APP_STATE: \"excalidraw-state\",\n  LOCAL_STORAGE_COLLAB: \"excalidraw-collab\",\n  LOCAL_STORAGE_THEME: \"excalidraw-theme\",\n  LOCAL_STORAGE_DEBUG: \"excalidraw-debug\",\n  ...\n  __LEGACY_LOCAL_STORAGE_LIBRARY: \"excalidraw-library\",\n```\n\nUsage:\n- **Scene elements** → `\"excalidraw\"` (`STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS`) — read/written in `excalidraw-app/data/localStorage.ts` (`importFromLocalStorage`, `getElementsStorageSize`).\n- **App state** → `\"excalidraw-state\"` (`STORAGE_KEYS.LOCAL_STORAGE_APP_STATE`) — same file, `importFromLocalStorage`/`getTotalStorageSize`.\n- **Collaboration data** (username) → `\"excalidraw-collab\"` (`STORAGE_KEYS.LOCAL_STORAGE_COLLAB`) — `saveUsernameToLocalStorage`/`importUsernameFromLocalStorage` in `excalidraw-app/data/localStorage.ts`.\n- **Theme** → `\"excalidraw-theme\"` (`STORAGE_KEYS.LOCAL_STORAGE_THEME`) — used in `excalidraw-app/useHandleAppTheme.ts` (lines 14 and 57).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 2,
+                "mcp__contextgraph__contextgraph_explore": 1,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "Bash": 3,
+                "Read": 1
+            }
+        },
+        {
+            "id": "17cb0115-8bd1-416b-9700-db11d9187514",
+            "questionId": "excalidraw-q8",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 66567,
+            "outputTokens": 1316,
+            "toolCallCount": 6,
+            "fileReadCount": 2,
+            "wallClockMillis": 16393,
+            "costUsd": 0.06528300000000001,
+            "finalAnswer": "Found it directly in `excalidraw-app/app_constants.ts`.\n\nAll keys are defined in the `STORAGE_KEYS` object in `excalidraw-app/app_constants.ts:38-51`:\n\n- **Scene elements**: `\"excalidraw\"` — `STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS`\n- **App state**: `\"excalidraw-state\"` — `STORAGE_KEYS.LOCAL_STORAGE_APP_STATE`\n- **Collaboration data** (username): `\"excalidraw-collab\"` — `STORAGE_KEYS.LOCAL_STORAGE_COLLAB`\n- **Theme**: `\"excalidraw-theme\"` — `STORAGE_KEYS.LOCAL_STORAGE_THEME`\n\n(There are also two related keys defined alongside them: `LOCAL_STORAGE_DEBUG` = `\"excalidraw-debug\"`, and `IDB_LIBRARY`/`__LEGACY_LOCAL_STORAGE_LIBRARY` = `\"excalidraw-library\"`.)\n\nThese constants are consumed at:\n- `excalidraw-app/data/localStorage.ts` — reads/writes `LOCAL_STORAGE_ELEMENTS`, `LOCAL_STORAGE_APP_STATE`, `LOCAL_STORAGE_COLLAB`\n- `excalidraw-app/useHandleAppTheme.ts` — reads/writes `LOCAL_STORAGE_THEME`",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 2,
+                "Bash": 2,
+                "Read": 2
+            }
+        },
+        {
+            "id": "06123ec5-d8db-4649-8a36-5ef151dc2ccc",
+            "questionId": "excalidraw-q9",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 260203,
+            "outputTokens": 1705,
+            "toolCallCount": 9,
+            "fileReadCount": 1,
+            "wallClockMillis": 26137,
+            "costUsd": 0.24465910000000002,
+            "finalAnswer": "Found the definitions in `packages/excalidraw/constants.ts:204-230`.\n\n**`IMAGE_MIME_TYPES` (lines 204–214):**\n- `svg` → `\"image/svg+xml\"`\n- `png` → `\"image/png\"`\n- `jpg` → `\"image/jpeg\"`\n\n(also `gif` → `\"image/gif\"`, `webp` → `\"image/webp\"`, `bmp` → `\"image/bmp\"`, `ico` → `\"image/x-icon\"`, `avif` → `\"image/avif\"`, `jfif` → `\"image/jfif\"`)\n\n**Relationship to `MIME_TYPES` (lines 216–230):** `MIME_TYPES` is the general-purpose constant covering non-image types (`text`, `html`, `json`, `excalidraw`, `excalidrawlib`, `binary`, plus the special `excalidraw.svg`/`excalidraw.png` for image-encoded scene data). It spreads `IMAGE_MIME_TYPES` into itself (`...IMAGE_MIME_TYPES`), so every entry from `IMAGE_MIME_TYPES` (svg, png, jpg, gif, webp, bmp, ico, avif, jfif) is also directly accessible on `MIME_TYPES` (e.g. `MIME_TYPES.png === IMAGE_MIME_TYPES.png`). `IMAGE_MIME_TYPES` is essentially a subset/building block that gets merged into the broader `MIME_TYPES` object, and is also reused separately (e.g. `Object.values(IMAGE_MIME_TYPES)` in building `ALLOWED_PASTE_MIME_TYPES`).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 2,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "mcp__contextgraph__contextgraph_get_node": 1,
+                "Bash": 1,
+                "Read": 1
+            }
+        },
+        {
+            "id": "d94bfab2-a8a5-4a8b-a854-33f9cac79310",
+            "questionId": "excalidraw-q9",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 63658,
+            "outputTokens": 990,
+            "toolCallCount": 4,
+            "fileReadCount": 1,
+            "wallClockMillis": 14508,
+            "costUsd": 0.045051999999999995,
+            "finalAnswer": "In `packages/excalidraw/constants.ts:204-214`:\n\n- `IMAGE_MIME_TYPES.svg` → `\"image/svg+xml\"`\n- `IMAGE_MIME_TYPES.png` → `\"image/png\"`\n- `IMAGE_MIME_TYPES.jpg` → `\"image/jpeg\"`\n\n`MIME_TYPES` (constants.ts:216-230) is the general-purpose constant covering text, html, json, excalidraw's own formats, and binary data. It spreads `...IMAGE_MIME_TYPES` into itself, so all the image entries (svg, png, jpg, gif, webp, bmp, ico, avif, jfif) become part of `MIME_TYPES` as well — `IMAGE_MIME_TYPES` is a subset/superset merged in, not a separate incompatible type. Note `MIME_TYPES` also separately defines `\"excalidraw.svg\"` and `\"excalidraw.png\"` (both mapping to the same `image/svg+xml`/`image/png` values) for Excalidraw's own image-encoded scene data, distinct from the plain `svg`/`png` keys inherited from `IMAGE_MIME_TYPES`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 2,
+                "Read": 1
+            }
+        }
+    ],
+    "judgeScores": [
+        {
+            "id": "b9298caa-8d36-48e2-abb7-4f204b1ee61a:claude-opus-5",
+            "runId": "b9298caa-8d36-48e2-abb7-4f204b1ee61a",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q1-f1",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q1-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q1-f3",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q1-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q1-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q1-f6",
+                    "hit": false
+                }
+            ],
+            "accuracyScore": 0.3333333333333333
+        },
+        {
+            "id": "bbbc364b-41c9-4656-9f6d-036572382a3c:claude-opus-5",
+            "runId": "bbbc364b-41c9-4656-9f6d-036572382a3c",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q1-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q1-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q1-f3",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q1-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q1-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q1-f6",
+                    "hit": false
+                }
+            ],
+            "accuracyScore": 0.5
+        },
+        {
+            "id": "eb8434b5-18eb-422b-ae15-4aef49cd4d6d:claude-opus-5",
+            "runId": "eb8434b5-18eb-422b-ae15-4aef49cd4d6d",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "25bf7731-9f66-40a3-9973-740d41255d46:claude-opus-5",
+            "runId": "25bf7731-9f66-40a3-9973-740d41255d46",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q2-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "319e7215-5595-4a74-bed8-396186dd6ea7:claude-opus-5",
+            "runId": "319e7215-5595-4a74-bed8-396186dd6ea7",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8333333333333334
+        },
+        {
+            "id": "76034fd3-ea2b-4346-8877-4cd6db4b1c97:claude-opus-5",
+            "runId": "76034fd3-ea2b-4346-8877-4cd6db4b1c97",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "b86a2400-5508-4726-8fa0-7a8413143252:claude-opus-5",
+            "runId": "b86a2400-5508-4726-8fa0-7a8413143252",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q4-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q4-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q4-f3",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q4-f4",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q4-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q4-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.6666666666666666
+        },
+        {
+            "id": "fe7e0871-2bac-4e2d-abc4-1afbbca1e80f:claude-opus-5",
+            "runId": "fe7e0871-2bac-4e2d-abc4-1afbbca1e80f",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q4-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q4-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q4-f3",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q4-f4",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q4-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q4-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.6666666666666666
+        },
+        {
+            "id": "2c7788cb-aa7c-40aa-a5d9-415827da6b1b:claude-opus-5",
+            "runId": "2c7788cb-aa7c-40aa-a5d9-415827da6b1b",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q5-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "bf716cdf-ff2d-4f9e-812d-80f06ec06837:claude-opus-5",
+            "runId": "bf716cdf-ff2d-4f9e-812d-80f06ec06837",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q5-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q5-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "79e18b5b-6f5c-4722-b723-1171ebfba649:claude-opus-5",
+            "runId": "79e18b5b-6f5c-4722-b723-1171ebfba649",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q6-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "9ac70a81-1c8b-48a6-ac96-3aa725f1dfd6:claude-opus-5",
+            "runId": "9ac70a81-1c8b-48a6-ac96-3aa725f1dfd6",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q6-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q6-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "1a798146-e09d-4739-a666-0bf65b56ad23:claude-opus-5",
+            "runId": "1a798146-e09d-4739-a666-0bf65b56ad23",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q7-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q7-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q7-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q7-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "bdcdf7e1-738b-4a40-ba86-17f7feccc5c1:claude-opus-5",
+            "runId": "bdcdf7e1-738b-4a40-ba86-17f7feccc5c1",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q7-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q7-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q7-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q7-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "6041be26-f17f-4063-b33a-661c6b146001:claude-opus-5",
+            "runId": "6041be26-f17f-4063-b33a-661c6b146001",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q8-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q8-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q8-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q8-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "17cb0115-8bd1-416b-9700-db11d9187514:claude-opus-5",
+            "runId": "17cb0115-8bd1-416b-9700-db11d9187514",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q8-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q8-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q8-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q8-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "06123ec5-d8db-4649-8a36-5ef151dc2ccc:claude-opus-5",
+            "runId": "06123ec5-d8db-4649-8a36-5ef151dc2ccc",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q9-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q9-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q9-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q9-f4",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q9-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8
+        },
+        {
+            "id": "d94bfab2-a8a5-4a8b-a854-33f9cac79310:claude-opus-5",
+            "runId": "d94bfab2-a8a5-4a8b-a854-33f9cac79310",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "excalidraw-q9-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q9-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q9-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "excalidraw-q9-f4",
+                    "hit": false
+                },
+                {
+                    "factId": "excalidraw-q9-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8
+        }
+    ],
+    "summary": {
+        "perQuestionArm": [
+            {
+                "questionId": "excalidraw-q1",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 216050.0,
+                        "min": 216050.0,
+                        "max": 216050.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 2423.0,
+                        "min": 2423.0,
+                        "max": 2423.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 218473.0,
+                        "min": 218473.0,
+                        "max": 218473.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 10.0,
+                        "min": 10.0,
+                        "max": 10.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 33862.0,
+                        "min": 33862.0,
+                        "max": 33862.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.2713369,
+                        "min": 0.2713369,
+                        "max": 0.2713369,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.3333333333333333,
+                        "min": 0.3333333333333333,
+                        "max": 0.3333333333333333,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q1",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 130564.0,
+                        "min": 130564.0,
+                        "max": 130564.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1769.0,
+                        "min": 1769.0,
+                        "max": 1769.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 132333.0,
+                        "min": 132333.0,
+                        "max": 132333.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 27927.0,
+                        "min": 27927.0,
+                        "max": 27927.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1403846,
+                        "min": 0.1403846,
+                        "max": 0.1403846,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.5,
+                        "min": 0.5,
+                        "max": 0.5,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q2",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 377343.0,
+                        "min": 377343.0,
+                        "max": 377343.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3536.0,
+                        "min": 3536.0,
+                        "max": 3536.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 380879.0,
+                        "min": 380879.0,
+                        "max": 380879.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 16.0,
+                        "min": 16.0,
+                        "max": 16.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 50834.0,
+                        "min": 50834.0,
+                        "max": 50834.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.2962093,
+                        "min": 0.2962093,
+                        "max": 0.2962093,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q2",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 176394.0,
+                        "min": 176394.0,
+                        "max": 176394.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3430.0,
+                        "min": 3430.0,
+                        "max": 3430.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 179824.0,
+                        "min": 179824.0,
+                        "max": 179824.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 12.0,
+                        "min": 12.0,
+                        "max": 12.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 40339.0,
+                        "min": 40339.0,
+                        "max": 40339.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1886801,
+                        "min": 0.1886801,
+                        "max": 0.1886801,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q3",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 305891.0,
+                        "min": 305891.0,
+                        "max": 305891.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3015.0,
+                        "min": 3015.0,
+                        "max": 3015.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 308906.0,
+                        "min": 308906.0,
+                        "max": 308906.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 12.0,
+                        "min": 12.0,
+                        "max": 12.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 3.0,
+                        "max": 3.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 39602.0,
+                        "min": 39602.0,
+                        "max": 39602.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.31747559999999997,
+                        "min": 0.31747559999999997,
+                        "max": 0.31747559999999997,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8333333333333334,
+                        "max": 0.8333333333333334,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q3",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 346743.0,
+                        "min": 346743.0,
+                        "max": 346743.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3406.0,
+                        "min": 3406.0,
+                        "max": 3406.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 350149.0,
+                        "min": 350149.0,
+                        "max": 350149.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 15.0,
+                        "min": 15.0,
+                        "max": 15.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 5.0,
+                        "min": 5.0,
+                        "max": 5.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 47863.0,
+                        "min": 47863.0,
+                        "max": 47863.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.24957639999999998,
+                        "min": 0.24957639999999998,
+                        "max": 0.24957639999999998,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q4",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 197917.0,
+                        "min": 197917.0,
+                        "max": 197917.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 2610.0,
+                        "min": 2610.0,
+                        "max": 2610.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 200527.0,
+                        "min": 200527.0,
+                        "max": 200527.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 36114.0,
+                        "min": 36114.0,
+                        "max": 36114.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1761143,
+                        "min": 0.1761143,
+                        "max": 0.1761143,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.6666666666666666,
+                        "min": 0.6666666666666666,
+                        "max": 0.6666666666666666,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q4",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 144460.0,
+                        "min": 144460.0,
+                        "max": 144460.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1950.0,
+                        "min": 1950.0,
+                        "max": 1950.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 146410.0,
+                        "min": 146410.0,
+                        "max": 146410.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 8.0,
+                        "min": 8.0,
+                        "max": 8.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 26814.0,
+                        "min": 26814.0,
+                        "max": 26814.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.109709,
+                        "min": 0.109709,
+                        "max": 0.109709,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.6666666666666666,
+                        "min": 0.6666666666666666,
+                        "max": 0.6666666666666666,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q5",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 609753.0,
+                        "min": 609753.0,
+                        "max": 609753.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 4203.0,
+                        "min": 4203.0,
+                        "max": 4203.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 613956.0,
+                        "min": 613956.0,
+                        "max": 613956.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 20.0,
+                        "min": 20.0,
+                        "max": 20.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 7.0,
+                        "min": 7.0,
+                        "max": 7.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 64608.0,
+                        "min": 64608.0,
+                        "max": 64608.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.4381263999999999,
+                        "min": 0.4381263999999999,
+                        "max": 0.4381263999999999,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q5",
+                "repoId": "excalidraw",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 188559.0,
+                        "min": 188559.0,
+                        "max": 188559.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 2677.0,
+                        "min": 2677.0,
+                        "max": 2677.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 191236.0,
+                        "min": 191236.0,
+                        "max": 191236.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 36305.0,
+                        "min": 36305.0,
+                        "max": 36305.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.15166599999999997,
+                        "min": 0.15166599999999997,
+                        "max": 0.15166599999999997,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q6",
+                "repoId": "excalidraw",
+                "category": "NEUTRAL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 101540.0,
+                        "min": 101540.0,
+                        "max": 101540.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1257.0,
+                        "min": 1257.0,
+                        "max": 1257.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 102797.0,
+                        "min": 102797.0,
+                        "max": 102797.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 7.0,
+                        "min": 7.0,
+                        "max": 7.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16693.0,
+                        "min": 16693.0,
+                        "max": 16693.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.11717269999999999,
+                        "min": 0.11717269999999999,
+                        "max": 0.11717269999999999,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q6",
+                "repoId": "excalidraw",
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 63079.0,
+                        "min": 63079.0,
+                        "max": 63079.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 812.0,
+                        "min": 812.0,
+                        "max": 812.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 63891.0,
+                        "min": 63891.0,
+                        "max": 63891.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 5.0,
+                        "min": 5.0,
+                        "max": 5.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 12563.0,
+                        "min": 12563.0,
+                        "max": 12563.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0409237,
+                        "min": 0.0409237,
+                        "max": 0.0409237,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q7",
+                "repoId": "excalidraw",
+                "category": "NEUTRAL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 127264.0,
+                        "min": 127264.0,
+                        "max": 127264.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1833.0,
+                        "min": 1833.0,
+                        "max": 1833.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 129097.0,
+                        "min": 129097.0,
+                        "max": 129097.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 25407.0,
+                        "min": 25407.0,
+                        "max": 25407.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1321231,
+                        "min": 0.1321231,
+                        "max": 0.1321231,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q7",
+                "repoId": "excalidraw",
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 84099.0,
+                        "min": 84099.0,
+                        "max": 84099.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1078.0,
+                        "min": 1078.0,
+                        "max": 1078.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 85177.0,
+                        "min": 85177.0,
+                        "max": 85177.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 15584.0,
+                        "min": 15584.0,
+                        "max": 15584.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0824554,
+                        "min": 0.0824554,
+                        "max": 0.0824554,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q8",
+                "repoId": "excalidraw",
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 171456.0,
+                        "min": 171456.0,
+                        "max": 171456.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1995.0,
+                        "min": 1995.0,
+                        "max": 1995.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 173451.0,
+                        "min": 173451.0,
+                        "max": 173451.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 27705.0,
+                        "min": 27705.0,
+                        "max": 27705.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1236128,
+                        "min": 0.1236128,
+                        "max": 0.1236128,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q8",
+                "repoId": "excalidraw",
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 66567.0,
+                        "min": 66567.0,
+                        "max": 66567.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1316.0,
+                        "min": 1316.0,
+                        "max": 1316.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 67883.0,
+                        "min": 67883.0,
+                        "max": 67883.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16393.0,
+                        "min": 16393.0,
+                        "max": 16393.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.06528300000000001,
+                        "min": 0.06528300000000001,
+                        "max": 0.06528300000000001,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q9",
+                "repoId": "excalidraw",
+                "category": "NEUTRAL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 260203.0,
+                        "min": 260203.0,
+                        "max": 260203.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1705.0,
+                        "min": 1705.0,
+                        "max": 1705.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 261908.0,
+                        "min": 261908.0,
+                        "max": 261908.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 26137.0,
+                        "min": 26137.0,
+                        "max": 26137.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.24465910000000002,
+                        "min": 0.24465910000000002,
+                        "max": 0.24465910000000002,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8,
+                        "min": 0.8,
+                        "max": 0.8,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "excalidraw-q9",
+                "repoId": "excalidraw",
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 63658.0,
+                        "min": 63658.0,
+                        "max": 63658.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 990.0,
+                        "min": 990.0,
+                        "max": 990.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 64648.0,
+                        "min": 64648.0,
+                        "max": 64648.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 14508.0,
+                        "min": 14508.0,
+                        "max": 14508.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.045051999999999995,
+                        "min": 0.045051999999999995,
+                        "max": 0.045051999999999995,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8,
+                        "min": 0.8,
+                        "max": 0.8,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "perRepoArm": [
+            {
+                "repoId": "excalidraw",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 9,
+                    "includedRuns": 9,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 216050.0,
+                        "min": 101540.0,
+                        "max": 609753.0,
+                        "sampleSize": 9
+                    },
+                    "outputTokens": {
+                        "median": 2423.0,
+                        "min": 1257.0,
+                        "max": 4203.0,
+                        "sampleSize": 9
+                    },
+                    "totalTokens": {
+                        "median": 218473.0,
+                        "min": 102797.0,
+                        "max": 613956.0,
+                        "sampleSize": 9
+                    },
+                    "toolCallCount": {
+                        "median": 10.0,
+                        "min": 6.0,
+                        "max": 20.0,
+                        "sampleSize": 9
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 1.0,
+                        "max": 7.0,
+                        "sampleSize": 9
+                    },
+                    "wallClockMillis": {
+                        "median": 33862.0,
+                        "min": 16693.0,
+                        "max": 64608.0,
+                        "sampleSize": 9
+                    },
+                    "costUsd": {
+                        "median": 0.24465910000000002,
+                        "min": 0.11717269999999999,
+                        "max": 0.4381263999999999,
+                        "sampleSize": 9
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.3333333333333333,
+                        "max": 1.0,
+                        "sampleSize": 9
+                    }
+                }
+            },
+            {
+                "repoId": "excalidraw",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 9,
+                    "includedRuns": 9,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 130564.0,
+                        "min": 63079.0,
+                        "max": 346743.0,
+                        "sampleSize": 9
+                    },
+                    "outputTokens": {
+                        "median": 1769.0,
+                        "min": 812.0,
+                        "max": 3430.0,
+                        "sampleSize": 9
+                    },
+                    "totalTokens": {
+                        "median": 132333.0,
+                        "min": 63891.0,
+                        "max": 350149.0,
+                        "sampleSize": 9
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 4.0,
+                        "max": 15.0,
+                        "sampleSize": 9
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 0.0,
+                        "max": 5.0,
+                        "sampleSize": 9
+                    },
+                    "wallClockMillis": {
+                        "median": 26814.0,
+                        "min": 12563.0,
+                        "max": 47863.0,
+                        "sampleSize": 9
+                    },
+                    "costUsd": {
+                        "median": 0.109709,
+                        "min": 0.0409237,
+                        "max": 0.24957639999999998,
+                        "sampleSize": 9
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.5,
+                        "max": 1.0,
+                        "sampleSize": 9
+                    }
+                }
+            }
+        ],
+        "perCategoryArm": [
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 5,
+                    "includedRuns": 5,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 305891.0,
+                        "min": 197917.0,
+                        "max": 609753.0,
+                        "sampleSize": 5
+                    },
+                    "outputTokens": {
+                        "median": 3015.0,
+                        "min": 2423.0,
+                        "max": 4203.0,
+                        "sampleSize": 5
+                    },
+                    "totalTokens": {
+                        "median": 308906.0,
+                        "min": 200527.0,
+                        "max": 613956.0,
+                        "sampleSize": 5
+                    },
+                    "toolCallCount": {
+                        "median": 12.0,
+                        "min": 10.0,
+                        "max": 20.0,
+                        "sampleSize": 5
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 2.0,
+                        "max": 7.0,
+                        "sampleSize": 5
+                    },
+                    "wallClockMillis": {
+                        "median": 39602.0,
+                        "min": 33862.0,
+                        "max": 64608.0,
+                        "sampleSize": 5
+                    },
+                    "costUsd": {
+                        "median": 0.2962093,
+                        "min": 0.1761143,
+                        "max": 0.4381263999999999,
+                        "sampleSize": 5
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.3333333333333333,
+                        "max": 1.0,
+                        "sampleSize": 5
+                    }
+                }
+            },
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 5,
+                    "includedRuns": 5,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 176394.0,
+                        "min": 130564.0,
+                        "max": 346743.0,
+                        "sampleSize": 5
+                    },
+                    "outputTokens": {
+                        "median": 2677.0,
+                        "min": 1769.0,
+                        "max": 3430.0,
+                        "sampleSize": 5
+                    },
+                    "totalTokens": {
+                        "median": 179824.0,
+                        "min": 132333.0,
+                        "max": 350149.0,
+                        "sampleSize": 5
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 6.0,
+                        "max": 15.0,
+                        "sampleSize": 5
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 2.0,
+                        "max": 5.0,
+                        "sampleSize": 5
+                    },
+                    "wallClockMillis": {
+                        "median": 36305.0,
+                        "min": 26814.0,
+                        "max": 47863.0,
+                        "sampleSize": 5
+                    },
+                    "costUsd": {
+                        "median": 0.15166599999999997,
+                        "min": 0.109709,
+                        "max": 0.24957639999999998,
+                        "sampleSize": 5
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.5,
+                        "max": 1.0,
+                        "sampleSize": 5
+                    }
+                }
+            },
+            {
+                "category": "NEUTRAL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 127264.0,
+                        "min": 101540.0,
+                        "max": 260203.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 1705.0,
+                        "min": 1257.0,
+                        "max": 1833.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 129097.0,
+                        "min": 102797.0,
+                        "max": 261908.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 7.0,
+                        "min": 6.0,
+                        "max": 9.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 25407.0,
+                        "min": 16693.0,
+                        "max": 26137.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.1321231,
+                        "min": 0.11717269999999999,
+                        "max": 0.24465910000000002,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 63658.0,
+                        "min": 63079.0,
+                        "max": 84099.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 990.0,
+                        "min": 812.0,
+                        "max": 1078.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 64648.0,
+                        "min": 63891.0,
+                        "max": 85177.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 5.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 14508.0,
+                        "min": 12563.0,
+                        "max": 15584.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": {
+                        "median": 0.045051999999999995,
+                        "min": 0.0409237,
+                        "max": 0.0824554,
+                        "sampleSize": 3
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 171456.0,
+                        "min": 171456.0,
+                        "max": 171456.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1995.0,
+                        "min": 1995.0,
+                        "max": 1995.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 173451.0,
+                        "min": 173451.0,
+                        "max": 173451.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 27705.0,
+                        "min": 27705.0,
+                        "max": 27705.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1236128,
+                        "min": 0.1236128,
+                        "max": 0.1236128,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 66567.0,
+                        "min": 66567.0,
+                        "max": 66567.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1316.0,
+                        "min": 1316.0,
+                        "max": 1316.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 67883.0,
+                        "min": 67883.0,
+                        "max": 67883.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16393.0,
+                        "min": 16393.0,
+                        "max": 16393.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.06528300000000001,
+                        "min": 0.06528300000000001,
+                        "max": 0.06528300000000001,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "headline": [
+            {
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 8,
+                    "includedRuns": 8,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 238126.5,
+                        "min": 101540.0,
+                        "max": 609753.0,
+                        "sampleSize": 8
+                    },
+                    "outputTokens": {
+                        "median": 2516.5,
+                        "min": 1257.0,
+                        "max": 4203.0,
+                        "sampleSize": 8
+                    },
+                    "totalTokens": {
+                        "median": 240190.5,
+                        "min": 102797.0,
+                        "max": 613956.0,
+                        "sampleSize": 8
+                    },
+                    "toolCallCount": {
+                        "median": 10.5,
+                        "min": 6.0,
+                        "max": 20.0,
+                        "sampleSize": 8
+                    },
+                    "fileReadCount": {
+                        "median": 3.5,
+                        "min": 1.0,
+                        "max": 7.0,
+                        "sampleSize": 8
+                    },
+                    "wallClockMillis": {
+                        "median": 34988.0,
+                        "min": 16693.0,
+                        "max": 64608.0,
+                        "sampleSize": 8
+                    },
+                    "costUsd": {
+                        "median": 0.257998,
+                        "min": 0.11717269999999999,
+                        "max": 0.4381263999999999,
+                        "sampleSize": 8
+                    },
+                    "accuracyScore": {
+                        "median": 0.9166666666666667,
+                        "min": 0.3333333333333333,
+                        "max": 1.0,
+                        "sampleSize": 8
+                    }
+                }
+            },
+            {
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 8,
+                    "includedRuns": 8,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 137512.0,
+                        "min": 63079.0,
+                        "max": 346743.0,
+                        "sampleSize": 8
+                    },
+                    "outputTokens": {
+                        "median": 1859.5,
+                        "min": 812.0,
+                        "max": 3430.0,
+                        "sampleSize": 8
+                    },
+                    "totalTokens": {
+                        "median": 139371.5,
+                        "min": 63891.0,
+                        "max": 350149.0,
+                        "sampleSize": 8
+                    },
+                    "toolCallCount": {
+                        "median": 7.0,
+                        "min": 4.0,
+                        "max": 15.0,
+                        "sampleSize": 8
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 0.0,
+                        "max": 5.0,
+                        "sampleSize": 8
+                    },
+                    "wallClockMillis": {
+                        "median": 27370.5,
+                        "min": 12563.0,
+                        "max": 47863.0,
+                        "sampleSize": 8
+                    },
+                    "costUsd": {
+                        "median": 0.1250468,
+                        "min": 0.0409237,
+                        "max": 0.24957639999999998,
+                        "sampleSize": 8
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.5,
+                        "max": 1.0,
+                        "sampleSize": 8
+                    }
+                }
+            }
+        ],
+        "negativeControl": [
+            {
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 171456.0,
+                        "min": 171456.0,
+                        "max": 171456.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1995.0,
+                        "min": 1995.0,
+                        "max": 1995.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 173451.0,
+                        "min": 173451.0,
+                        "max": 173451.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 27705.0,
+                        "min": 27705.0,
+                        "max": 27705.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.1236128,
+                        "min": 0.1236128,
+                        "max": 0.1236128,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 66567.0,
+                        "min": 66567.0,
+                        "max": 66567.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1316.0,
+                        "min": 1316.0,
+                        "max": 1316.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 67883.0,
+                        "min": 67883.0,
+                        "max": 67883.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 6.0,
+                        "min": 6.0,
+                        "max": 6.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16393.0,
+                        "min": 16393.0,
+                        "max": 16393.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.06528300000000001,
+                        "min": 0.06528300000000001,
+                        "max": 0.06528300000000001,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "breakEvenByRepo": [
+            {
+                "repoId": "excalidraw",
+                "result": {
+                    "type": "io.contextgraph.benchmark.model.BreakEvenResult.NotAmortizing",
+                    "ingestCostUsd": 0.0,
+                    "savingPerQuestionUsd": -0.13495010000000002
+                }
+            }
+        ]
+    },
+    "failedRunCount": 0,
+    "agentClientKind": "REAL",
+    "judgingComplete": true,
+    "failedJudgeCount": 0,
+    "measurement": "FORCED",
+    "agentBackend": "claude-code"
+}

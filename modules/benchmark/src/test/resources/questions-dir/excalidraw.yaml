@@ -1,0 +1,15 @@
+questions:
+  - id: excalidraw-q1
+    repoId: excalidraw
+    text: "Which files call renderScene?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: excalidraw-q1-f1
+        statement: "App.tsx calls renderScene"
+        evidence: "src/App.tsx:120"
+      - id: excalidraw-q1-f2
+        statement: "Renderer.ts defines renderScene"
+        evidence: "src/Renderer.ts:42"
+      - id: excalidraw-q1-f3
+        statement: "Scene.ts imports renderScene"
+        evidence: "src/Scene.ts:8"

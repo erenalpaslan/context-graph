@@ -1,0 +1,282 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-1787001062279",
+    "profile": "SMOKE",
+    "generatedAt": "2026-08-17T21:11:05.156788Z",
+    "config": {
+        "toolCallCeiling": 40,
+        "repeatsPerArm": 1,
+        "models": {
+            "agentModel": "claude-sonnet-5",
+            "judgeModel": "claude-sonnet-5"
+        }
+    },
+    "corpusRepos": [
+        {
+            "id": "gin",
+            "name": "gin",
+            "url": "https://github.com/gin-gonic/gin.git",
+            "pinnedTag": "v1.12.0",
+            "pinnedSha": "73726dc606796a025971fe451f0aa6f1b9b847f6",
+            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/with",
+            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/without"
+        }
+    ],
+    "questions": [
+        {
+            "id": "gin-q1",
+            "repoId": "gin",
+            "text": "How does a request travel from Engine.ServeHTTP through the middleware/handler chain to a route's final handler, and what role does Context.Next() play in driving that flow?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q1-f1",
+                    "statement": "Engine.ServeHTTP calls engine.handleHTTPRequest(c) to begin routing the incoming request.",
+                    "evidence": "gin.go:672"
+                },
+                {
+                    "id": "gin-q1-f2",
+                    "statement": "Once c.handlers has been set to the matched route's HandlersChain (gin-q1-f6), handleHTTPRequest calls c.Next() to execute it.",
+                    "evidence": "gin.go:722"
+                },
+                {
+                    "id": "gin-q1-f3",
+                    "statement": "Context.Next()'s loop body invokes c.handlers[c.index](c) — this is the mechanism that actually runs the middleware/handler chain.",
+                    "evidence": "context.go:192"
+                },
+                {
+                    "id": "gin-q1-f4",
+                    "statement": "RouterGroup.combineHandlers appends a route's own handlers after the group's already-copied middleware (gin-q2-f4) via copy(mergedHandlers[len(group.Handlers):], handlers), producing the single HandlersChain that Next() (gin-q1-f3) later iterates.",
+                    "evidence": "routergroup.go:246"
+                },
+                {
+                    "id": "gin-q1-f5",
+                    "statement": "handleHTTPRequest looks up the request path in the method's radix tree via root.getValue(rPath, c.params, c.skippedNodes, unescape).",
+                    "evidence": "gin.go:715"
+                },
+                {
+                    "id": "gin-q1-f6",
+                    "statement": "When that lookup finds a match, handleHTTPRequest assigns c.handlers = value.handlers — the HandlersChain combineHandlers built at registration time (gin-q1-f4) becomes the exact chain Next() executes at request time.",
+                    "evidence": "gin.go:720"
+                }
+            ]
+        },
+        {
+            "id": "gin-q2",
+            "repoId": "gin",
+            "text": "Why does middleware attached globally via Engine.Use still run on a request that hits the 404 (no matching route) fallback path, and what recomputes the fallback handler chain to include it?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q2-f1",
+                    "statement": "Engine.Use calls engine.RouterGroup.Use(middleware...) to append the given middleware to the engine's own accumulated Handlers list.",
+                    "evidence": "gin.go:341"
+                },
+                {
+                    "id": "gin-q2-f2",
+                    "statement": "Engine.Use calls engine.rebuild404Handlers() immediately after appending the middleware (gin-q2-f1), so attaching global middleware after NoRoute was already configured still refreshes the 404 fallback chain.",
+                    "evidence": "gin.go:342"
+                },
+                {
+                    "id": "gin-q2-f3",
+                    "statement": "rebuild404Handlers recomputes engine.allNoRoute as engine.combineHandlers(engine.noRoute) — combineHandlers here is the method Engine inherits from its embedded RouterGroup.",
+                    "evidence": "gin.go:357"
+                },
+                {
+                    "id": "gin-q2-f4",
+                    "statement": "combineHandlers copies the RouterGroup's own accumulated Handlers (the global middleware list Engine.Use appends to) to the front of the merged chain via copy(mergedHandlers, group.Handlers) — this is the specific step that puts global middleware into engine.allNoRoute.",
+                    "evidence": "routergroup.go:245"
+                },
+                {
+                    "id": "gin-q2-f5",
+                    "statement": "When handleHTTPRequest finds no matching route, it sets c.handlers = engine.allNoRoute — the global-middleware-plus-noRoute chain computed above (gin-q2-f3, gin-q2-f4) — immediately before the serveError call examined in gin-q2-f6.",
+                    "evidence": "gin.go:758"
+                },
+                {
+                    "id": "gin-q2-f6",
+                    "statement": "serveError calls c.Next() — the same Next() whose loop over c.handlers (established in gin-q1-f3) executes the handler chain — which is why middleware attached globally via Use() (e.g. Logger/Recovery) still runs on a request that never matched a registered route.",
+                    "evidence": "gin.go:766"
+                }
+            ]
+        },
+        {
+            "id": "gin-q3",
+            "repoId": "gin",
+            "text": "How does registering a route with RouterGroup.GET travel through RouterGroup into Engine.addRoute and the per-method radix tree, and how does Engine.Routes() read the registered routes back — including which handler in each node's stored chain it reports?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q3-f1",
+                    "statement": "RouterGroup.GET is a shortcut that calls group.handle(http.MethodGet, relativePath, handlers).",
+                    "evidence": "routergroup.go:117"
+                },
+                {
+                    "id": "gin-q3-f2",
+                    "statement": "RouterGroup.handle calls group.engine.addRoute(httpMethod, absolutePath, handlers), handing the merged handlers and absolute path off to the Engine's route tree.",
+                    "evidence": "routergroup.go:89"
+                },
+                {
+                    "id": "gin-q3-f3",
+                    "statement": "Engine.addRoute's route-registration step is calling root.addRoute(path, handlers), which inserts the new route into the per-method radix tree in engine.trees.",
+                    "evidence": "gin.go:377"
+                },
+                {
+                    "id": "gin-q3-f4",
+                    "statement": "node.addRoute in tree.go is the function that actually inserts the path and its handlers into the radix tree used for request matching.",
+                    "evidence": "tree.go:135"
+                },
+                {
+                    "id": "gin-q3-f5",
+                    "statement": "Engine.Routes() walks engine.trees via the iterate() helper to read back every registered method/path/handler as RouteInfo.",
+                    "evidence": "gin.go:392"
+                },
+                {
+                    "id": "gin-q3-f6",
+                    "statement": "iterate(), the recursive helper Engine.Routes() drives, reads each route's reported Handler via root.handlers.Last() — the handler chain stored on that radix-tree node by node.addRoute/insertChild at registration time, not anything a text search on the identifier addRoute would show on its own.",
+                    "evidence": "gin.go:400"
+                }
+            ]
+        }
+    ],
+    "ingestRecords": [
+        {
+            "repoId": "gin",
+            "durationMillis": 687,
+            "tokensUsed": 0,
+            "costUsd": 0.0,
+            "config": {
+                "litellm": {
+                    "baseUrl": "http://localhost:4000",
+                    "model": "gpt-4o",
+                    "rateLimitPerMinute": 10,
+                    "enabled": false,
+                    "timeoutSeconds": 30
+                },
+                "includePatterns": [
+                    "**/*"
+                ],
+                "excludePatterns": [
+                    "**/.git/**",
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/.gradle/**",
+                    "**/.contextgraph/**",
+                    "**/target/**",
+                    "**/__pycache__/**"
+                ],
+                "ignoreSecrets": true,
+                "maxFileSizeBytes": 10485760,
+                "moduleRoots": [],
+                "watcher": {
+                    "enabled": false,
+                    "debounceMillis": 500,
+                    "fallbackIntervalMillis": 30000
+                }
+            }
+        }
+    ],
+    "agentRuns": [
+        {
+            "id": "dacd9e75-50b9-49f2-ab38-ee1e2e2dfaa9",
+            "questionId": "gin-q1",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "toolCallCount": 0,
+            "fileReadCount": 0,
+            "wallClockMillis": 516,
+            "costUsd": 0.0,
+            "finalAnswer": "",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "4c644c23-e647-4057-85d4-b91d25930dfe",
+            "questionId": "gin-q1",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "toolCallCount": 0,
+            "fileReadCount": 0,
+            "wallClockMillis": 272,
+            "costUsd": 0.0,
+            "finalAnswer": "",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "0c4cbb66-5650-4641-b87a-1682fb2a67de",
+            "questionId": "gin-q2",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "toolCallCount": 0,
+            "fileReadCount": 0,
+            "wallClockMillis": 249,
+            "costUsd": 0.0,
+            "finalAnswer": "",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "dc690b38-84ff-4267-9966-abb25fefc5f7",
+            "questionId": "gin-q2",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "toolCallCount": 0,
+            "fileReadCount": 0,
+            "wallClockMillis": 243,
+            "costUsd": 0.0,
+            "finalAnswer": "",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "4316042c-048c-479a-b055-a70e21ff98a3",
+            "questionId": "gin-q3",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "toolCallCount": 0,
+            "fileReadCount": 0,
+            "wallClockMillis": 252,
+            "costUsd": 0.0,
+            "finalAnswer": "",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "b45a4bbf-eb7c-4246-809f-715ee4fbdd29",
+            "questionId": "gin-q3",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "toolCallCount": 0,
+            "fileReadCount": 0,
+            "wallClockMillis": 257,
+            "costUsd": 0.0,
+            "finalAnswer": "",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        }
+    ],
+    "judgeScores": [],
+    "summary": null,
+    "failedRunCount": 0,
+    "agentClientKind": "REAL",
+    "judgingComplete": false,
+    "failedJudgeCount": null
+}
