@@ -191,15 +191,25 @@ class ExpandCommand : CliktCommand("expand") {
     override fun help(context: Context) = "BFS neighborhood expansion from a node"
     private val nodeId by argument().help("Node ID to expand")
     private val depth by option("--depth", help = "BFS depth").int().default(2)
+    private val limit by option("--limit", help = "Max neighbours to print").int().default(50)
 
     override fun run() {
         val storage = openReadStorage()
         val engine = QueryEngine(storage)
-        val bundle = engine.expandNode(nodeId, depth)
-        echo("Expanded $nodeId to ${bundle.nodes.size} nodes, ${bundle.edges.size} edges (depth=$depth)")
-        bundle.nodes.take(30).forEach { node ->
+        val bundle = engine.expandNode(nodeId, depth, maxNodes = limit)
+        echo("Expanded $nodeId to ${bundle.totalNodeCount} nodes, ${bundle.edges.size} edges (depth=$depth)")
+        // id and location, not just the label: neighbours of one method are routinely a dozen
+        // methods sharing a name, and a list of bare labels can neither be read nor followed up.
+        bundle.nodes.take(limit).forEach { node ->
             echo("  [${NodeType.stringify(node.type)}] ${node.label}")
+            echo("    id=${node.id.value}")
+            storage.getProvenance(node.id.value).firstOrNull()?.let { p ->
+                val lines = listOfNotNull(p.lineStart, p.lineEnd).distinct().joinToString("-")
+                echo("    at ${p.path}${if (lines.isEmpty()) "" else ":$lines"}")
+            }
         }
+        val omitted = bundle.totalNodeCount - minOf(limit, bundle.nodes.size)
+        if (omitted > 0) echo("  ... $omitted more not shown -- raise --limit to see the rest")
     }
 }
 

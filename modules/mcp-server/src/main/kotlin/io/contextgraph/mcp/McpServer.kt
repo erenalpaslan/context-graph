@@ -7,6 +7,7 @@ import io.contextgraph.core.NodeType
 import io.contextgraph.graph.GraphAlgorithms
 import io.contextgraph.ingest.ReindexPrimitive
 import io.contextgraph.ingest.describe.LiteLlmModuleEmbedder
+import io.contextgraph.query.ContextBundler
 import io.contextgraph.query.QueryEngine
 import io.contextgraph.report.ReportGenerator
 import io.contextgraph.storage.SqliteStorageAdapter
@@ -39,6 +40,16 @@ import kotlinx.serialization.json.putJsonObject
 import java.nio.file.Path
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * How many neighbours `expand_node` and `impact_analysis` render before saying the rest were
+ * omitted.
+ *
+ * Set to [ContextBundler.DEFAULT_MAX_NODES] so the two caps coincide instead of compounding: the
+ * query layer keeps 50 and the rendering layer used to keep 30 of those, so a 74-caller answer
+ * arrived as 30 with nothing anywhere saying that 44 were gone. One number, reported.
+ */
+private const val DEFAULT_NEIGHBOUR_LIMIT = ContextBundler.DEFAULT_MAX_NODES
 
 class ContextGraphMcpServer(
     private val dbPath: Path,
@@ -183,8 +194,10 @@ class ContextGraphMcpServer(
             val limit = request.arguments["limit"]?.jsonPrimitive?.content?.toIntOrNull() ?: 20
             val types = typesStr?.split(",")?.mapNotNull { NodeType.fromStringOrNull(it.trim()) } ?: emptyList()
             val result = queryEngine.search(query, types, minConf, limit)
+            // Search already named the id; the location is what turns a hit into somewhere to
+            // look, and it costs one indexed lookup per row.
             val text = result.nodes.joinToString("\n") { node ->
-                "[${NodeType.stringify(node.type)}] ${node.label} (id=${node.id.value}, confidence=${node.confidence})"
+                "${renderNode(node)}\n  confidence=${node.confidence}"
             }.ifEmpty { "No nodes found" }
             CallToolResult(content = listOf(TextContent(text)), isError = false)
         }
@@ -217,11 +230,17 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.expand_node",
-            "BFS neighborhood expansion from a node. Secondary tool -- prefer 'contextgraph.explore' for most questions.",
+            "BFS neighborhood expansion from a node. Each result carries its node id and its " +
+                "file:line location. Secondary tool -- prefer 'contextgraph.explore' for most " +
+                "questions, and 'contextgraph.impact_analysis' to list callers of one symbol.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID to expand") }
                     putJsonObject("depth") { put("type", "number"); put("description", "BFS depth (default 2)") }
+                    putJsonObject("limit") {
+                        put("type", "number")
+                        put("description", "Max nodes to render (default $DEFAULT_NEIGHBOUR_LIMIT)")
+                    }
                 },
                 listOf("nodeId")
             )
@@ -229,9 +248,11 @@ class ContextGraphMcpServer(
             val nodeId = request.arguments["nodeId"]?.jsonPrimitive?.content
                 ?: return@addTool errorResult("Missing 'nodeId'")
             val depth = request.arguments["depth"]?.jsonPrimitive?.content?.toIntOrNull() ?: 2
-            val bundle = queryEngine.expandNode(nodeId, depth)
+            val limit = request.arguments["limit"]?.jsonPrimitive?.content?.toIntOrNull()
+                ?: DEFAULT_NEIGHBOUR_LIMIT
+            val bundle = queryEngine.expandNode(nodeId, depth, maxNodes = limit)
             val text = "Found ${bundle.nodes.size} nodes, ${bundle.edges.size} edges\n" +
-                bundle.nodes.take(30).joinToString("\n") { "[${NodeType.stringify(it.type)}] ${it.label}" }
+                renderNodes(bundle.nodes, limit)
             CallToolResult(content = listOf(TextContent(text)), isError = false)
         }
 
@@ -251,8 +272,10 @@ class ContextGraphMcpServer(
             val toId = request.arguments["toId"]?.jsonPrimitive?.content
                 ?: return@addTool errorResult("Missing 'toId'")
             val path = queryEngine.findPath(fromId, toId)
+            // A path of bare labels reads fine and cannot be followed: two steps named `getId`
+            // give the reader no way to tell which type each belongs to, let alone open either.
             val text = if (path.isEmpty()) "No path found"
-            else path.joinToString(" → ") { "${it.label} [${NodeType.stringify(it.type)}]" }
+            else path.joinToString("\n  ↓\n") { renderNode(it) }
             CallToolResult(content = listOf(TextContent(text)), isError = false)
         }
 
@@ -276,17 +299,30 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.impact_analysis",
-            "What depends on this node (reverse dependency analysis). Secondary tool -- 'contextgraph.explore' includes a confidence-aware blast radius per matched symbol.",
+            "Every node that points AT this one -- its direct dependents, and for a method its " +
+                "resolved call sites, each with its node id and file:line location. This is the " +
+                "tool for 'what calls X' / 'what breaks if I change X': calls are resolved by " +
+                "declaring type, so unrelated same-named methods are excluded, which a text " +
+                "search cannot do. Direct dependents only -- call it again on a result to go " +
+                "another hop out.",
             Tool.Input(
-                buildJsonObject { putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") } },
+                buildJsonObject {
+                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") }
+                    putJsonObject("limit") {
+                        put("type", "number")
+                        put("description", "Max dependents to render (default $DEFAULT_NEIGHBOUR_LIMIT)")
+                    }
+                },
                 listOf("nodeId")
             )
         ) { request ->
             val nodeId = request.arguments["nodeId"]?.jsonPrimitive?.content
                 ?: return@addTool errorResult("Missing 'nodeId'")
-            val bundle = queryEngine.impactAnalysis(nodeId)
-            val text = "Impact: ${bundle.nodes.size} dependent nodes\n" +
-                bundle.nodes.take(20).joinToString("\n") { "[${NodeType.stringify(it.type)}] ${it.label}" }
+            val limit = request.arguments["limit"]?.jsonPrimitive?.content?.toIntOrNull()
+                ?: DEFAULT_NEIGHBOUR_LIMIT
+            val bundle = queryEngine.impactAnalysis(nodeId, limit)
+            val text = "Impact: ${bundle.totalNodeCount} dependent node(s)\n" +
+                renderNodes(bundle.nodes, limit, bundle.totalNodeCount)
             CallToolResult(content = listOf(TextContent(text)), isError = false)
         }
 
@@ -322,8 +358,8 @@ class ContextGraphMcpServer(
             val bundle = queryEngine.buildContext(task, depth)
             val text = buildString {
                 appendLine("Context for: $task")
-                appendLine("Nodes (${bundle.nodes.size}):")
-                bundle.nodes.take(20).forEach { appendLine("  [${NodeType.stringify(it.type)}] ${it.label}") }
+                appendLine("Nodes (${bundle.totalNodeCount}):")
+                appendLine(renderNodes(bundle.nodes, DEFAULT_NEIGHBOUR_LIMIT, bundle.totalNodeCount))
                 if (bundle.edges.isNotEmpty()) appendLine("Edges: ${bundle.edges.size}")
             }
             CallToolResult(content = listOf(TextContent(text)), isError = false)
@@ -453,6 +489,66 @@ class ContextGraphMcpServer(
                 )))
             )
         }
+    }
+
+    /**
+     * One node, rendered so the agent can act on it without guessing: the id it would pass back
+     * into any other tool, and the file and line span it was extracted from.
+     *
+     * The label alone used to be the whole output of the neighbourhood tools, and a benchmark on
+     * Keycloak showed exactly what that costs. Asked for every caller of one overloaded builder
+     * method, `expand_node` replied with fifteen consecutive lines reading `[Method]
+     * getConfigMetadata` -- indistinguishable from one another, attached to no file, useless as
+     * an answer and useless as a next step. The graph held the path and the line span the whole
+     * time; only this rendering dropped them. The agent did the sensible thing and went back to
+     * grep, and the measured result was a graph that "did not help".
+     *
+     * Location comes from [io.contextgraph.core.Provenance], not from parsing [NodeId]. A code
+     * symbol's id does begin with its path, but a `Concept`, a `Requirement` or a file node each
+     * spell theirs differently, so id-parsing would work on exactly the nodes that need it least
+     * and silently mislead on the rest. Provenance also carries the line span, which no id does.
+     */
+    private fun renderNode(node: io.contextgraph.core.GraphNode): String {
+        val where = storage.getProvenance(node.id.value).firstOrNull()?.let { p ->
+            val lines = listOfNotNull(p.lineStart, p.lineEnd).distinct().joinToString("-")
+            if (lines.isEmpty()) p.path else "${p.path}:$lines"
+        }
+        return buildString {
+            append("[${NodeType.stringify(node.type)}] ${node.label}")
+            append("\n  id=${node.id.value}")
+            if (where != null) append("\n  at $where")
+        }
+    }
+
+    /**
+     * Renders at most [limit] nodes and *says so* when it renders fewer than it was given.
+     *
+     * The tools used to `take(30)` under a header that reported the full count, so an answer cut
+     * to 30 of 74 read exactly like a complete one. For a question of the form "find every X"
+     * that is worse than returning nothing: the agent has no way to know it is holding a
+     * fragment, so it stops looking.
+     */
+    private fun renderNodes(
+        nodes: List<io.contextgraph.core.GraphNode>,
+        limit: Int,
+        /**
+         * How many matched in total. Differs from `nodes.size` when the query layer already capped
+         * before this saw the list -- which is the case that most needs saying out loud, since by
+         * then the evidence of truncation is gone from the list itself.
+         */
+        totalCount: Int = nodes.size
+    ): String {
+        val shown = nodes.take(limit)
+        val omitted = totalCount - shown.size
+        return buildString {
+            shown.forEach { appendLine(renderNode(it)) }
+            if (omitted > 0) {
+                append(
+                    "... $omitted more not shown (showing ${shown.size} of $totalCount) -- " +
+                        "raise 'limit' to see the rest. This list is INCOMPLETE."
+                )
+            }
+        }.trimEnd()
     }
 
     private fun errorResult(message: String) = CallToolResult(

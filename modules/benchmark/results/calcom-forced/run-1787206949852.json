@@ -1,0 +1,2551 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-1787206949852",
+    "profile": "FULL",
+    "generatedAt": "2026-08-20T06:37:48.622574Z",
+    "config": {
+        "toolCallCeiling": 40,
+        "repeatsPerArm": 1,
+        "models": {
+            "agentModel": "claude-sonnet-5",
+            "judgeModel": "claude-opus-5"
+        },
+        "maxBudgetUsdPerRun": null
+    },
+    "corpusRepos": [
+        {
+            "id": "calcom",
+            "name": "cal.com",
+            "url": "https://github.com/calcom/cal.com.git",
+            "pinnedTag": "v6.2.0",
+            "pinnedSha": "1c193cca8682b33b9866c792186033f7ef886682",
+            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/calcom/with",
+            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/calcom/without"
+        }
+    ],
+    "questions": [
+        {
+            "id": "calcom-q1",
+            "repoId": "calcom",
+            "text": "When a new attendee tries to add themselves as a seat to an existing seated booking whose seat capacity is already full, what happens: which condition triggers the rejection, what HTTP status and error code are returned, and where in the schema/migration history did the underlying seatsPerTimeSlot column originate?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "calcom-q1-f1",
+                    "statement": "EventType.seatsPerTimeSlot is declared as an optional Int column (`seatsPerTimeSlot Int?`) on the EventType model in the Prisma schema.",
+                    "evidence": "packages/prisma/schema.prisma:222"
+                },
+                {
+                    "id": "calcom-q1-f2",
+                    "statement": "Prisma migration 20220413173832_add_seats_to_event_type_model adds the seatsPerTimeSlot column to the EventType table (`ALTER TABLE \"EventType\" ADD COLUMN \"seatsPerTimeSlot\" INTEGER;`).",
+                    "evidence": "packages/prisma/migrations/20220413173832_add_seats_to_event_type_model/migration.sql:2"
+                },
+                {
+                    "id": "calcom-q1-f3",
+                    "statement": "In addSeatToBooking, the seat limit is enforced only when seatsPerTimeSlot > 0, and it rejects the new seat once the current seat count has reached or exceeded that limit (`input.seatsPerTimeSlot > 0 && input.seatsPerTimeSlot <= currentSeatCount`).",
+                    "evidence": "packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:77"
+                },
+                {
+                    "id": "calcom-q1-f4",
+                    "statement": "The HttpError thrown when that seat-limit condition is true carries statusCode 409 (`statusCode: 409,`).",
+                    "evidence": "packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:79"
+                },
+                {
+                    "id": "calcom-q1-f5",
+                    "statement": "That same HttpError's message field is ErrorCode.BookingSeatsFull (`message: ErrorCode.BookingSeatsFull,`).",
+                    "evidence": "packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:80"
+                },
+                {
+                    "id": "calcom-q1-f6",
+                    "statement": "ErrorCode.BookingSeatsFull is defined as the string literal \"booking_seats_full_error\".",
+                    "evidence": "packages/lib/errorCodes.ts:22"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q2",
+            "repoId": "calcom",
+            "text": "How does cal.com let a webhook subscriber verify that a received payload is authentic, from the database column that stores the per-webhook secret, through the code that signs outgoing payloads, to the documented verification steps?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "calcom-q2-f1",
+                    "statement": "Webhook.secret is declared as an optional String column (`secret String?`) on the Webhook model in the Prisma schema.",
+                    "evidence": "packages/prisma/schema.prisma:1189"
+                },
+                {
+                    "id": "calcom-q2-f2",
+                    "statement": "Prisma migration 20220614090326_add_webhook_secret adds the secret column to the Webhook table (`ALTER TABLE \"Webhook\" ADD COLUMN \"secret\" TEXT;`).",
+                    "evidence": "packages/prisma/migrations/20220614090326_add_webhook_secret/migration.sql:2"
+                },
+                {
+                    "id": "calcom-q2-f3",
+                    "statement": "When a secret is configured, createWebhookSignature computes the payload signature as an HMAC-SHA256 hex digest of the body using that secret (`createHmac(\"sha256\", params.secret).update(...).digest(\"hex\")`).",
+                    "evidence": "packages/features/webhooks/lib/sendPayload.ts:322"
+                },
+                {
+                    "id": "calcom-q2-f4",
+                    "statement": "The computed signature is sent to the subscriber URL in the `X-Cal-Signature-256` request header when the webhook payload is dispatched.",
+                    "evidence": "packages/features/webhooks/lib/sendPayload.ts:340"
+                },
+                {
+                    "id": "calcom-q2-f5",
+                    "statement": "The docs' payload-verification steps instruct subscribers to compare the hash they compute against the hash received in the webhook's `x-cal-signature-256` header, to confirm the payload wasn't tampered with.",
+                    "evidence": "docs/developing/guides/automation/webhooks.mdx:1675"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q3",
+            "repoId": "calcom",
+            "text": "cal.com's self-hosting license-key doc (in docs/) describes needing a purchased License Key but never names the environment variable for it. Within cal.com's docs/ directory specifically, which doc does explicitly name that environment variable, what is its name, which function reads it directly off process.env, which service factory calls that function to obtain the license key, and what condition causes that factory to fall back to a no-op license implementation?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "calcom-q3-f1",
+                    "statement": "The self-hosting license-key doc states that self-hosting Cal.com under the Commercial License requires purchasing a License Key, without naming the environment variable that carries it.",
+                    "evidence": "docs/self-hosting/license-key.mdx:6"
+                },
+                {
+                    "id": "calcom-q3-f2",
+                    "statement": "Within cal.com's docs/ directory, the local-API-setup developer doc is the only one that explicitly names CALCOM_LICENSE_KEY as the environment variable to set in the root .env file to supply the license key (presented there as a staging key for local API development). CALCOM_LICENSE_KEY is also named in several top-level README.md files elsewhere in the repo (e.g. the project root README.md, and the v1/v2 API and organizations package READMEs) — the uniqueness claim here is scoped to docs/ only, not repo-wide.",
+                    "evidence": "docs/developing/guides/api/how-to-setup-api-in-a-local-instance.mdx:12"
+                },
+                {
+                    "id": "calcom-q3-f3",
+                    "statement": "getDeploymentKey's first step is checking whether the CALCOM_LICENSE_KEY environment variable is set, via `if (process.env.CALCOM_LICENSE_KEY)`.",
+                    "evidence": "packages/features/ee/deployment/lib/getDeploymentKey.ts:8"
+                },
+                {
+                    "id": "calcom-q3-f4",
+                    "statement": "LicenseKeyService's static factory method create() calls getDeploymentKey(deploymentRepo) to obtain the license key it will use (`const licenseKey = await getDeploymentKey(deploymentRepo);`) — this is the caller edge from the service back to the function that reads process.env.",
+                    "evidence": "packages/features/ee/common/server/LicenseKeyService.ts:38"
+                },
+                {
+                    "id": "calcom-q3-f5",
+                    "statement": "LicenseKeyService.create computes its `useNoop` flag as `!licenseKey || process.env.NEXT_PUBLIC_IS_E2E === \"1\"`.",
+                    "evidence": "packages/features/ee/common/server/LicenseKeyService.ts:40"
+                },
+                {
+                    "id": "calcom-q3-f6",
+                    "statement": "LicenseKeyService.create's return statement is the fallback itself: `return !useNoop ? new LicenseKeyService(licenseKey, signatureToken) : new NoopLicenseKeyService();` — when useNoop is true, it returns a NoopLicenseKeyService instead of a real one.",
+                    "evidence": "packages/features/ee/common/server/LicenseKeyService.ts:41"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q4",
+            "repoId": "calcom",
+            "text": "Trace how EventType.requiresConfirmation flows from the Prisma schema into booking-creation code: which function first reads that field off the event type (before any threshold/free-email override is applied), what does the function that computes isConfirmedByDefault actually check to decide it, which webhook event fires instead of BOOKING_CREATED when that decision leaves the booking PENDING, and does the developer docs' example payload for that alternate webhook event corroborate the PENDING/requires-confirmation state?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "calcom-q4-f1",
+                    "statement": "EventType.requiresConfirmation is declared as a non-optional Boolean column defaulting to false (`requiresConfirmation Boolean @default(false)`) on the EventType model in the Prisma schema.",
+                    "evidence": "packages/prisma/schema.prisma:205"
+                },
+                {
+                    "id": "calcom-q4-f2",
+                    "statement": "Prisma migration 20210717120159_booking_confirmation adds the requiresConfirmation column to the EventType table (`ALTER TABLE \"EventType\" ADD COLUMN     \"requiresConfirmation\" BOOLEAN NOT NULL DEFAULT false;`).",
+                    "evidence": "packages/prisma/migrations/20210717120159_booking_confirmation/migration.sql:6"
+                },
+                {
+                    "id": "calcom-q4-f3",
+                    "statement": "determineRequiresConfirmation's underlying implementation first assigns `requiresConfirmation` straight from `eventType?.requiresConfirmation`, before any requiresConfirmationForFreeEmail or requiresConfirmationThreshold override is considered.",
+                    "evidence": "packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts:54"
+                },
+                {
+                    "id": "calcom-q4-f4",
+                    "statement": "determineIsConfirmedByDefault computes isConfirmedByDefault as `(!requiresConfirmation && price === 0) || userReschedulingIsOwner` — a booking is confirmed by default only if it didn't require confirmation and is free, or the rescheduling user is the event's owner.",
+                    "evidence": "packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts:92"
+                },
+                {
+                    "id": "calcom-q4-f5",
+                    "statement": "RegularBookingService queues a BOOKING_REQUESTED webhook via a call to `deps.webhookProducer.queueBookingRequestedWebhook`, inside the branch that runs once the booking has ended up with status PENDING (the pending-status guard and this call are a few lines apart, inside the same try block; the call's argument object is multi-line and not itself quoted here).",
+                    "evidence": "packages/features/bookings/lib/service/RegularBookingService.ts:2796"
+                },
+                {
+                    "id": "calcom-q4-f6",
+                    "statement": "The developer docs' example payload for the BOOKING_REQUESTED webhook event shows `\"requiresConfirmation\": true,`, corroborating that this webhook corresponds to the requires-confirmation/PENDING code path rather than the BOOKING_CREATED path.",
+                    "evidence": "docs/developing/guides/automation/webhooks.mdx:585"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q5",
+            "repoId": "calcom",
+            "text": "Trace how cal.com's private-link (HashedLink) feature enforces usage-based expiration alongside its older time-based expiry: which HashedLink column did the migration add to cap the number of uses, and what is its default; what is the exact boundary condition isUsageBasedExpired uses to decide a link's uses are exhausted; does validateHashedLinkData check time-based or usage-based expiration first; what error code identifies an expired/exhausted private link; and does the v2 API's documented request schema for creating a private link corroborate that same default of 1?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "calcom-q5-f1",
+                    "statement": "HashedLink.maxUsageCount is declared as a non-optional Int column defaulting to 1 (`maxUsageCount Int @default(1)`) on the HashedLink model in the Prisma schema.",
+                    "evidence": "packages/prisma/schema.prisma:1252"
+                },
+                {
+                    "id": "calcom-q5-f2",
+                    "statement": "Prisma migration 20250707145503_add_private_links_expiration_capability adds the maxUsageCount column to the HashedLink table with that same default of 1 (`ADD COLUMN \"maxUsageCount\" INTEGER NOT NULL DEFAULT 1,`).",
+                    "evidence": "packages/prisma/migrations/20250707145503_add_private_links_expiration_capability/migration.sql:3"
+                },
+                {
+                    "id": "calcom-q5-f3",
+                    "statement": "validateHashedLinkData checks time-based expiration first, before it ever reaches the usage-based check later in the same function, via `if (isTimeBasedExpired(linkData.expiresAt, linkData.eventType))`.",
+                    "evidence": "packages/lib/hashedLinksUtils.ts:104"
+                },
+                {
+                    "id": "calcom-q5-f4",
+                    "statement": "isUsageBasedExpired's exhaustion boundary is `usageCount >= maxUsageCount` — a link is considered exhausted once its usage count reaches, not merely exceeds, the configured max.",
+                    "evidence": "packages/lib/hashedLinksUtils.ts:95"
+                },
+                {
+                    "id": "calcom-q5-f5",
+                    "statement": "ErrorCode.PrivateLinkExpired, the error thrown for both an expired-by-time and an exhausted-by-usage private link, is defined as the string literal `private_link_expired`.",
+                    "evidence": "packages/lib/errorCodes.ts:39"
+                },
+                {
+                    "id": "calcom-q5-f6",
+                    "statement": "The v2 API's documented CreatePrivateLinkInput.maxUsageCount schema corroborates the same default of 1, describing the field as `Maximum number of times the link can be used. If omitted and expiresAt is not provided, defaults to 1 (one time use).`",
+                    "evidence": "docs/api-reference/v2/openapi.json:26492"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q6",
+            "repoId": "calcom",
+            "text": "In the same EventType Prisma schema field block that runs from seatsPerTimeSlot through schedulingType, several Boolean fields control what slot/seat information is displayed to the booker — distinct from the two Boolean fields in that same block that instead disable a booking action (disableCancelling, disableRescheduling — out of scope here) and the one Int field that sets a notice period (minimumRescheduleNotice — also out of scope). Name every one of those display-control Boolean fields — i.e. every Boolean field in that block whose name does not start with `disable` — and give each one's exact type and default value.",
+            "category": "NEUTRAL",
+            "goldFacts": [
+                {
+                    "id": "calcom-q6-f1",
+                    "statement": "EventType.onlyShowFirstAvailableSlot is a non-optional Boolean column defaulting to false (`onlyShowFirstAvailableSlot Boolean @default(false)`).",
+                    "evidence": "packages/prisma/schema.prisma:223"
+                },
+                {
+                    "id": "calcom-q6-f2",
+                    "statement": "EventType.showOptimizedSlots is an optional Boolean column defaulting to false (`showOptimizedSlots Boolean? @default(false)`).",
+                    "evidence": "packages/prisma/schema.prisma:224"
+                },
+                {
+                    "id": "calcom-q6-f3",
+                    "statement": "EventType.seatsShowAttendees is an optional Boolean column defaulting to false (`seatsShowAttendees Boolean? @default(false)`).",
+                    "evidence": "packages/prisma/schema.prisma:229"
+                },
+                {
+                    "id": "calcom-q6-f4",
+                    "statement": "EventType.seatsShowAvailabilityCount is an optional Boolean column defaulting to true (`seatsShowAvailabilityCount Boolean? @default(true)`).",
+                    "evidence": "packages/prisma/schema.prisma:230"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q7",
+            "repoId": "calcom",
+            "text": "According to cal.com's self-hosting database-migrations documentation, what causes Prisma's P3005 'schema is not empty' error, and what two remedies does the doc give: one to mark existing migrations as applied, and one to fully reset a local Postgres migration history?",
+            "category": "NEUTRAL",
+            "goldFacts": [
+                {
+                    "id": "calcom-q7-f1",
+                    "statement": "The doc explains that Prisma tracks applied migrations in a `_prisma_migrations` table, and that a mismatch between the local migrations history and the actual database state causes Prisma to throw an error.",
+                    "evidence": "docs/self-hosting/database-migrations.mdx:36"
+                },
+                {
+                    "id": "calcom-q7-f2",
+                    "statement": "The doc's example names that error as code P3005 (`Error: P3005`).",
+                    "evidence": "docs/self-hosting/database-migrations.mdx:39"
+                },
+                {
+                    "id": "calcom-q7-f3",
+                    "statement": "The doc gives `yarn prisma migrate resolve --applied migration_name` as the command to run to resolve that error.",
+                    "evidence": "docs/self-hosting/database-migrations.mdx:49"
+                },
+                {
+                    "id": "calcom-q7-f4",
+                    "statement": "To reset a local Postgres migration history entirely, the doc instructs running `DELETE FROM \"_prisma_migrations\";` directly against the database.",
+                    "evidence": "docs/self-hosting/database-migrations.mdx:61"
+                }
+            ]
+        },
+        {
+            "id": "calcom-q8",
+            "repoId": "calcom",
+            "text": "In packages/features/bookings/lib/handleCancelBooking.ts, what are the exact literal error messages returned by the early validation checks that run before any calendar/payment side effects — for an already-cancelled booking, a booking with no associated user record, a missing required cancellation reason, and a booking whose end time has already passed?",
+            "category": "NEGATIVE_CONTROL",
+            "goldFacts": [
+                {
+                    "id": "calcom-q8-f1",
+                    "statement": "When the booking's status is already CANCELLED, handleCancelBooking's rejection message is the exact literal string \"This booking has already been cancelled.\"",
+                    "evidence": "packages/features/bookings/lib/handleCancelBooking.ts:200"
+                },
+                {
+                    "id": "calcom-q8-f2",
+                    "statement": "When the booking has no associated userId or user, handleCancelBooking throws an HttpError with statusCode 400 and the exact message \"User not found\" (both on the same line: `throw new HttpError({ statusCode: 400, message: \"User not found\" });`).",
+                    "evidence": "packages/features/bookings/lib/handleCancelBooking.ts:205"
+                },
+                {
+                    "id": "calcom-q8-f3",
+                    "statement": "When a cancellation reason is required but missing, handleCancelBooking's rejection message is the exact literal string \"Cancellation reason is required\".",
+                    "evidence": "packages/features/bookings/lib/handleCancelBooking.ts:226"
+                },
+                {
+                    "id": "calcom-q8-f4",
+                    "statement": "When the booking's end time is already in the past, handleCancelBooking's rejection message is the exact literal string \"Cannot cancel a booking that has already ended\".",
+                    "evidence": "packages/features/bookings/lib/handleCancelBooking.ts:233"
+                }
+            ]
+        }
+    ],
+    "ingestRecords": [
+        {
+            "repoId": "calcom",
+            "durationMillis": 149790,
+            "tokensUsed": 0,
+            "costUsd": 0.0,
+            "config": {
+                "litellm": {
+                    "baseUrl": "http://localhost:4000",
+                    "model": "gpt-4o",
+                    "rateLimitPerMinute": 10,
+                    "enabled": false,
+                    "timeoutSeconds": 30
+                },
+                "includePatterns": [
+                    "**/*"
+                ],
+                "excludePatterns": [
+                    "**/.git/**",
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/.gradle/**",
+                    "**/.contextgraph/**",
+                    "**/target/**",
+                    "**/__pycache__/**"
+                ],
+                "ignoreSecrets": true,
+                "maxFileSizeBytes": 10485760,
+                "moduleRoots": [],
+                "watcher": {
+                    "enabled": false,
+                    "debounceMillis": 500,
+                    "fallbackIntervalMillis": 30000
+                }
+            }
+        }
+    ],
+    "agentRuns": [
+        {
+            "id": "a18757c8-dd8c-4ce1-be42-89801e42e6a9",
+            "questionId": "calcom-q1",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 325892,
+            "outputTokens": 3182,
+            "toolCallCount": 12,
+            "fileReadCount": 2,
+            "wallClockMillis": 49602,
+            "costUsd": 0.27377640000000003,
+            "finalAnswer": "This is a shallow/squashed clone (single commit history), so git blame can't give the original authorship date — but the migration folder name itself encodes it.\n\nI now have enough to answer fully.\n\n## What happens\n\nWhen a new attendee tries to join a seated booking that's already at capacity, the rejection happens in `addSeatToBooking()` in `packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:47-82`.\n\n**The flow:**\n1. `handleSeats()` (in the new-booking handler) detects an existing `ACCEPTED` booking for that event/time slot and calls `createNewSeat()`.\n2. `createNewSeat()` calls `addSeatToBooking()`, which runs inside a Prisma `$transaction` that does `SELECT id FROM \"Booking\" WHERE uid = ... FOR UPDATE` (row lock) and re-reads the current attendee/seat count fresh, to avoid a TOCTOU race between concurrent seat requests.\n3. **The triggering condition** (line 77):\n   ```ts\n   const currentSeatCount = freshBooking.attendees.filter((attendee) => !!attendee.bookingSeat).length;\n   if (input.seatsPerTimeSlot > 0 && input.seatsPerTimeSlot <= currentSeatCount) {\n     throw new HttpError({ statusCode: 409, message: ErrorCode.BookingSeatsFull });\n   }\n   ```\n   If `seatsPerTimeSlot` is set (>0) and the current number of taken seats is already `>=` that limit, it rejects.\n\n**Response returned:**\n- HTTP status: **409 Conflict**\n- Error code: `ErrorCode.BookingSeatsFull`, whose string value (defined in `packages/lib/errorCodes.ts`) is `\"booking_seats_full_error\"`.\n\n(Note: if `seatsPerTimeSlot` is falsy/0, the check is skipped entirely — matching original pre-transaction behavior.)\n\n## Where `seatsPerTimeSlot` originated\n\nThe column is defined in `packages/prisma/schema.prisma:222` as `seatsPerTimeSlot Int?` on the `EventType` model, and it was first introduced by the migration:\n\n`packages/prisma/migrations/20220413173832_add_seats_to_event_type_model/migration.sql`:\n```sql\nALTER TABLE \"EventType\" ADD COLUMN \"seatsPerTimeSlot\" INTEGER;\n```\n\nThe migration folder's timestamp prefix (`20220413173832`) indicates it was created **2022-04-13**, as part of the initial \"seats\" feature addition to the `EventType` model. (This repo checkout has a squashed/shallow git history — a single commit — so `git log`/`blame` can't independently confirm the original commit date beyond what's encoded in the migration folder name.)",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "Bash": 7,
+                "Read": 2
+            }
+        },
+        {
+            "id": "e3f3f069-adb8-46db-b098-340ebff78ea5",
+            "questionId": "calcom-q1",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 248286,
+            "outputTokens": 2698,
+            "toolCallCount": 11,
+            "fileReadCount": 1,
+            "wallClockMillis": 38626,
+            "costUsd": 0.2016199,
+            "finalAnswer": "I now have everything needed to answer.\n\n## What happens\n\nWhen a new attendee tries to add themselves as a seat to a booking that's already at capacity, the request is handled by `createNewSeat` → `addSeatToBooking` in `packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:47-119`.\n\nInside a Prisma transaction, it row-locks the booking (`SELECT ... FOR UPDATE`), re-reads the current attendee/seat count, then applies the triggering condition:\n\n```ts\nif (input.seatsPerTimeSlot > 0 && input.seatsPerTimeSlot <= currentSeatCount) {\n  throw new HttpError({\n    statusCode: 409,\n    message: ErrorCode.BookingSeatsFull,\n  });\n}\n```\n(`createNewSeat.ts:77-82`)\n\n- **Trigger condition**: `seatsPerTimeSlot` is set (>0) and the number of existing attendees with a `bookingSeat` (`currentSeatCount`) has reached or exceeded that limit.\n- **HTTP status**: `409 Conflict`\n- **Error code**: `ErrorCode.BookingSeatsFull` = `\"booking_seats_full_error\"` (`packages/lib/errorCodes.ts:22`)\n\nThe row-lock (`FOR UPDATE`) plus fresh in-transaction read exists specifically to prevent a TOCTOU race where two concurrent seat-add requests could both pass a stale check and overfill the slot.\n\n## Origin of `seatsPerTimeSlot`\n\nThe column is defined in `packages/prisma/schema.prisma:222` as `seatsPerTimeSlot Int?` on the `EventType` model (nullable — null/0 means seats are disabled, matching the `> 0` guard above). It was introduced by the migration:\n\n- `packages/prisma/migrations/20220413173832_add_seats_to_event_type_model/migration.sql`:\n  ```sql\n  ALTER TABLE \"EventType\" ADD COLUMN \"seatsPerTimeSlot\" INTEGER;\n  ```\n\nThat's the only migration touching this column — it has remained an unaltered nullable `Int` on `EventType` since its introduction.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 9,
+                "Read": 1
+            }
+        },
+        {
+            "id": "ba6c809e-edc3-4ed4-92df-b92922efe044",
+            "questionId": "calcom-q2",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 240528,
+            "outputTokens": 3178,
+            "toolCallCount": 13,
+            "fileReadCount": 2,
+            "wallClockMillis": 45081,
+            "costUsd": 0.2086739,
+            "finalAnswer": "I have enough to give a complete, accurate answer now.\n\n## How Cal.com signs webhooks and lets subscribers verify them\n\n**1. Database column — the secret is stored plaintext in `Webhook.secret`**\n\n`packages/prisma/schema.prisma:1189` — the `Webhook` model has an optional `secret String?` column, set per-webhook when the user configures the webhook (alongside `subscriberUrl`, `eventTriggers`, etc.):\n\n```prisma\nmodel Webhook {\n  id             String   @id @unique\n  ...\n  secret         String?\n  ...\n}\n```\n\n**2. Signing outgoing payloads — `createWebhookSignature`**\n\n`packages/features/webhooks/lib/sendPayload.ts:320-323`:\n\n```ts\nexport const createWebhookSignature = (params: { secret?: string | null; body: string }) =>\n  params.secret\n    ? createHmac(\"sha256\", params.secret).update(`${params.body}`).digest(\"hex\")\n    : \"no-secret-provided\";\n```\n\nThis is called by the internal `_sendPayload` helper (line 336-345), which attaches the resulting HMAC-SHA256 hex digest to the outgoing request as the `X-Cal-Signature-256` header:\n\n```ts\nconst response = await fetch(subscriberUrl, {\n  method: \"POST\",\n  headers: {\n    \"Content-Type\": contentType,\n    \"X-Cal-Signature-256\": createWebhookSignature({ secret: secretKey, body }),\n    \"X-Cal-Webhook-Version\": version,\n  },\n  redirect: \"manual\",\n  body,\n});\n```\n\nThe `secretKey` passed in is the raw value from the webhook's `secret` DB column, and `body` is the exact serialized JSON (or templated) string sent as the request body — the same bytes the subscriber will receive.\n\n**3. Documented verification steps for subscribers**\n\n`docs/developing/guides/automation/webhooks.mdx` (section \"Verifying the authenticity of the received payload\") documents this exact flow:\n1. Add a secret key to your webhook configuration.\n2. Wait for the webhook to fire.\n3. Create an HMAC using that secret key, updated with the received payload body, to generate a SHA-256 hash.\n4. Compare that hash to the value in the `X-Cal-Signature-256` header — a mismatch means the payload was tampered with and shouldn't be trusted.\n\nThe API v2 skill reference (`agents/skills/calcom-api/references/webhooks.md`, \"Signature Verification\" section) gives a concrete Node.js example that mirrors the server-side logic exactly (HMAC-SHA256 over the raw payload string, keyed by the shared secret, compared to the header value) — confirming end-to-end symmetry between signer and verifier: both sides use `createHmac('sha256', secret).update(body).digest('hex')` on the identical body string.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 2,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "mcp__contextgraph__contextgraph_get_node": 1,
+                "Bash": 4,
+                "Read": 2
+            }
+        },
+        {
+            "id": "5c28811f-b5a8-48b2-b082-a5323372ca72",
+            "questionId": "calcom-q2",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 238691,
+            "outputTokens": 3351,
+            "toolCallCount": 10,
+            "fileReadCount": 4,
+            "wallClockMillis": 45942,
+            "costUsd": 0.2523911,
+            "finalAnswer": "The webhooks.md file under `agents/skills/calcom-api/references/` is the documented verification guide. I now have the full picture.\n\n## How Cal.com enables webhook payload verification\n\n**1. Database column — the per-webhook secret**\n\n`packages/prisma/schema.prisma:1189` — the `Webhook` model has an optional `secret String?` column, set per-webhook when a user creates/edits a webhook subscription (id, subscriberUrl, secret, etc. all live on this row).\n\n**2. Signing outgoing payloads**\n\nThere are two call paths that both sign the JSON/templated body with HMAC-SHA256 using that `secret`:\n\n- `packages/features/webhooks/lib/sendPayload.ts:320-323` — `createWebhookSignature({ secret, body })`:\n  ```ts\n  createHmac(\"sha256\", params.secret).update(`${params.body}`).digest(\"hex\")\n  ```\n  (falls back to the literal string `\"no-secret-provided\"` if no secret is set). This is called in `_sendPayload` (line 340) and attached as the `X-Cal-Signature-256` header, alongside `X-Cal-Webhook-Version`.\n\n- `packages/features/webhooks/lib/service/WebhookService.ts:94-96` — the newer service-based sender does the same inline: `createHmac(\"sha256\", subscriber.secret).update(body).digest(\"hex\")`, also set on `X-Cal-Signature-256` (line 102). The `secret` value used here (`subscriber.secret`) is the `Webhook.secret` DB column, passed through from the webhook repository/subscriber object.\n\nIn both implementations the header value is the **raw hex digest** — there is no `sha256=` prefix in the actual code.\n\n**3. Documented verification steps**\n\n`agents/skills/calcom-api/references/webhooks.md` (section \"Signature Verification\", lines 165–202) documents how a subscriber should verify a payload: read the `X-Cal-Signature-256` header, recompute an HMAC-SHA256 of the raw request body using the shared `secret`, and compare it to the header. It gives a Node.js example using `crypto.createHmac('sha256', secret).update(payload).digest('hex')`.\n\nNote: the doc example computes the expected value as `sha256=${expectedSignature}` and compares it against the header as if it were prefixed, but the actual signing code (`sendPayload.ts`/`WebhookService.ts`) sends only the bare hex digest with no `sha256=` prefix — so a subscriber following the doc's comparison literally would need to drop that prefix (compare against the raw digest, not `sha256=<digest>`) for verification to actually succeed against real Cal.com webhooks.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 5,
+                "Read": 4
+            }
+        },
+        {
+            "id": "fc5f28a1-8c58-4404-8095-e42dd291fb77",
+            "questionId": "calcom-q3",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 275507,
+            "outputTokens": 2473,
+            "toolCallCount": 11,
+            "fileReadCount": 3,
+            "wallClockMillis": 33940,
+            "costUsd": 0.28613839999999996,
+            "finalAnswer": "I now have everything needed to answer.\n\n## Answer\n\n- **Doc that explicitly names the env var:** `docs/developing/guides/api/how-to-setup-api-in-a-local-instance.mdx` — it says \"Add a staging license key that goes in as value for `CALCOM_LICENSE_KEY` in your root `.env` file.\" (The self-hosting doc, `docs/self-hosting/license-key.mdx`, only tells you to purchase a key and gives a dev license value, but never names the variable.)\n\n- **Env var name:** `CALCOM_LICENSE_KEY`\n\n- **Function that reads it directly off `process.env`:** `getDeploymentKey()` in `packages/features/ee/deployment/lib/getDeploymentKey.ts`:\n```ts\nexport async function getDeploymentKey(deploymentRepo: IDeploymentRepository): Promise<string> {\n  if (process.env.CALCOM_LICENSE_KEY) {\n    return process.env.CALCOM_LICENSE_KEY;\n  }\n  const licenseKey = await deploymentRepo.getLicenseKeyWithId(1);\n  return licenseKey || \"\";\n}\n```\n\n- **Service factory that calls it:** `LicenseKeyService.create()` in `packages/features/ee/common/server/LicenseKeyService.ts`, which calls `await getDeploymentKey(deploymentRepo)` to obtain the license key.\n\n- **Fallback condition to the no-op implementation:** In `LicenseKeyService.create()`:\n```ts\nconst useNoop = !licenseKey || process.env.NEXT_PUBLIC_IS_E2E === \"1\";\nreturn !useNoop ? new LicenseKeyService(licenseKey, signatureToken) : new NoopLicenseKeyService();\n```\nIt falls back to `NoopLicenseKeyService` when either no license key was resolved (empty/falsy `licenseKey`, i.e. `CALCOM_LICENSE_KEY` unset and no key in the `Deployment` DB table) **or** `NEXT_PUBLIC_IS_E2E === \"1\"` (E2E test mode).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 2,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "Read": 3,
+                "Bash": 2
+            }
+        },
+        {
+            "id": "d6eb2bab-b34d-4199-a0a7-bad7f1ae2061",
+            "questionId": "calcom-q3",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 120612,
+            "outputTokens": 1697,
+            "toolCallCount": 8,
+            "fileReadCount": 2,
+            "wallClockMillis": 24101,
+            "costUsd": 0.0958924,
+            "finalAnswer": "I have all the pieces needed to answer.\n\n## Answer\n\n- **Doc that names the env var**: `docs/developing/guides/api/how-to-setup-api-in-a-local-instance.mdx` (the general `docs/self-hosting/license-key.mdx` page never names it, but this local-API-setup doc does, line 12: \"Add a staging license key that goes in as value for `CALCOM_LICENSE_KEY` in your root `.env` file.\")\n\n- **Environment variable name**: `CALCOM_LICENSE_KEY`\n\n- **Function that reads it directly off `process.env`**: `getDeploymentKey()` in `packages/features/ee/deployment/lib/getDeploymentKey.ts` — it checks `process.env.CALCOM_LICENSE_KEY` first, falling back to the deployment repository's stored key if unset.\n\n- **Service factory that calls it**: `LicenseKeyService.create()` (static factory method) in `packages/features/ee/common/server/LicenseKeyService.ts`, which awaits `getDeploymentKey(deploymentRepo)` to obtain the license key.\n\n- **Fallback condition to no-op**: In that same factory, `useNoop = !licenseKey || process.env.NEXT_PUBLIC_IS_E2E === \"1\"`. So it falls back to `NoopLicenseKeyService` when there's no license key (empty/falsy) **or** when running in E2E test mode (`NEXT_PUBLIC_IS_E2E === \"1\"`).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 5,
+                "Read": 2
+            }
+        },
+        {
+            "id": "fd9a225d-6fdc-431f-a6da-40b4f2cd02d0",
+            "questionId": "calcom-q4",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 601348,
+            "outputTokens": 5811,
+            "toolCallCount": 20,
+            "fileReadCount": 4,
+            "wallClockMillis": 77267,
+            "costUsd": 0.4174077999999999,
+            "finalAnswer": "Confirmed. Here's the full trace:\n\n## The flow\n\n**1. Prisma schema** — `packages/prisma/schema.prisma:205` defines `EventType.requiresConfirmation Boolean @default(false)` (alongside sibling fields `requiresConfirmationWillBlockSlot` and `requiresConfirmationForFreeEmail`).\n\n**2. First read, before any override** — `_determineRequiresConfirmation` (exported as `determineRequiresConfirmation`) in `packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts:54`:\n```ts\nlet requiresConfirmation = eventType?.requiresConfirmation;\n```\nThis is the raw field value, read *before* the free-email check (`requiresConfirmationForFreeEmail` → `checkIfFreeEmailDomain`, lines 58–60) and the threshold override (`requiresConfirmationThreshold` from metadata, lines 62–67), either of which can flip it.\n\n**3. `determineIsConfirmedByDefault`** (same file, lines 87–93) computes the final flag purely from three already-resolved inputs — it does not touch `eventType` directly:\n```ts\nfunction determineIsConfirmedByDefault(requiresConfirmation, price, userReschedulingIsOwner) {\n  return (!requiresConfirmation && price === 0) || userReschedulingIsOwner;\n}\n```\nSo a booking is confirmed by default only if (a) `requiresConfirmation` is false *and* the event is free, **or** (b) the person rescheduling is the booking's original organizer.\n\n**4. Booking status** — `createBooking.ts:245` sets `status: isConfirmedByDefault ? BookingStatus.ACCEPTED : BookingStatus.PENDING`.\n\n**5. Webhook divergence** — in `RegularBookingService.ts`, the `BOOKING_CREATED`/`BOOKING_RESCHEDULED` trigger (line 1659–1667, fired via `handleWebhookTrigger` at line 2761) is only reached inside the `if (isConfirmedByDefault)` block starting at line 2693. When `isConfirmedByDefault` is false and the booking is `PENDING`, line 2794 instead queues:\n```ts\nif (booking && booking.status === BookingStatus.PENDING && !isDryRun) {\n  await deps.webhookProducer.queueBookingRequestedWebhook({ ... });\n}\n```\ni.e. **`BOOKING_REQUESTED`** fires instead of `BOOKING_CREATED`.\n\n**6. Docs corroboration** — `docs/developing/guides/automation/webhooks.mdx`, the `BOOKING_REQUESTED` accordion example payload, includes both `\"requiresConfirmation\": true` and `\"status\": \"PENDING\"`, matching this code path exactly.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "Bash": 11,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "Read": 4
+            }
+        },
+        {
+            "id": "c626c22c-eab9-4856-871e-64a9af099c81",
+            "questionId": "calcom-q4",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 283926,
+            "outputTokens": 3731,
+            "toolCallCount": 11,
+            "fileReadCount": 3,
+            "wallClockMillis": 49079,
+            "costUsd": 0.2487583,
+            "finalAnswer": "This confirms it — the example payload includes `\"requiresConfirmation\": true` and `\"status\": \"PENDING\"`, matching the code path exactly.\n\n## Trace summary\n\n**1. First read of `EventType.requiresConfirmation` (before threshold/free-email override):**\n`packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts:54`, inside `_determineRequiresConfirmation()`:\n```ts\nlet requiresConfirmation = eventType?.requiresConfirmation;\n```\nThis raw Prisma-schema value (`schema.prisma:205`, `requiresConfirmation Boolean @default(false)`) is read first. Only afterward does the function apply the `requiresConfirmationForFreeEmail` override (line 58-60, calls `checkIfFreeEmailDomain`) and the `requiresConfirmationThreshold` override from `eventType.metadata` (lines 62-67, which can flip it back to `false` if the booking is far enough in the future).\n\n**2. `isConfirmedByDefault` computation:**\n`getRequiresConfirmationFlags()` calls `determineIsConfirmedByDefault(requiresConfirmation, price, userReschedulingIsOwner)`:\n```ts\nreturn (!requiresConfirmation && price === 0) || userReschedulingIsOwner;\n```\nSo a booking is confirmed by default only if it doesn't require confirmation **and** costs nothing, OR if the organizer is rescheduling their own booking (which always bypasses confirmation).\n\n**3. Alternate webhook when the booking stays PENDING:**\nIn `RegularBookingService.ts`, when `isConfirmedByDefault` is false the created booking has `status: BookingStatus.PENDING`. After the booking record is updated (line 2794), the code fires **`BOOKING_REQUESTED`** instead of `BOOKING_CREATED`:\n```ts\nif (booking && booking.status === BookingStatus.PENDING && !isDryRun) {\n  await deps.webhookProducer.queueBookingRequestedWebhook({ ... });\n}\n```\n(`BOOKING_CREATED`/`BOOKING_RESCHEDULED` webhooks are only sent in the `if (isConfirmedByDefault)` branch above it.)\n\n**4. Docs corroboration:**\n`docs/developing/guides/automation/webhooks.mdx` (line 474 accordion for `BOOKING_REQUESTED`) shows an example payload with `\"requiresConfirmation\": true` and `\"status\": \"PENDING\"` — yes, it corroborates the PENDING/requires-confirmation state exactly as the code implies.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 7,
+                "Read": 3
+            }
+        },
+        {
+            "id": "2536b8d9-9cf0-4c33-be8a-c887b0506957",
+            "questionId": "calcom-q5",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 327453,
+            "outputTokens": 3654,
+            "toolCallCount": 16,
+            "fileReadCount": 1,
+            "wallClockMillis": 48365,
+            "costUsd": 0.220637,
+            "finalAnswer": "This confirms the v2 API's OpenAPI/Swagger schema documents `default: 1` for `maxUsageCount` on `CreatePrivateLinkInput`, matching the Prisma migration default. I have everything needed.\n\n## Summary\n\n**Migration column:** `packages/prisma/migrations/20250707145503_add_private_links_expiration_capability/migration.sql` adds three columns to `HashedLink`: `expiresAt` (nullable timestamp), `usageCount` (INTEGER NOT NULL DEFAULT 0), and — the usage-cap column — **`maxUsageCount` INTEGER NOT NULL DEFAULT 1**.\n\n**Boundary condition** (`packages/lib/hashedLinksUtils.ts:93-96`):\n```ts\nexport function isUsageBasedExpired(usageCount: number, maxUsageCount?: number | null): boolean {\n  if (!maxUsageCount || maxUsageCount <= 0) return false;\n  return usageCount >= maxUsageCount;\n}\n```\nA link is considered usage-exhausted when `usageCount >= maxUsageCount` (i.e., once the count of uses reaches the cap, not merely when it would exceed it — so with the default `maxUsageCount = 1`, the link expires right after its first use).\n\n**Order of checks in `validateHashedLinkData`** (same file, lines 103-111): time-based expiration (`isTimeBasedExpired`) is checked **first**, and only if that passes does it check `isUsageBasedExpired`. (Note: the separate helper `isLinkExpired`, used by `filterActiveLinks`, actually short-circuits differently — if `expiresAt` is set it *only* checks time, otherwise it falls back to usage — but `validateHashedLinkData` itself always checks time first, then usage.)\n\n**Error code:** `ErrorCode.PrivateLinkExpired` (`packages/lib/errorCodes.ts:39`), value `\"private_link_expired\"`, thrown for both the time-based and usage-based cases.\n\n**v2 API schema corroboration:** Yes. `packages/platform/types/event-types/inputs/private-link.input.ts` defines `CreatePrivateLinkInput.maxUsageCount` with Swagger metadata `default: 1`, and its description states: *\"If omitted and expiresAt is not provided, defaults to 1 (one time use).\"* This matches the Prisma migration's `DEFAULT 1`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 2,
+                "mcp__contextgraph__contextgraph_explore": 2,
+                "mcp__contextgraph__contextgraph_search_nodes": 2,
+                "Bash": 9,
+                "Read": 1
+            }
+        },
+        {
+            "id": "b6804cf9-fb64-4e7e-bf97-930023ca9cd3",
+            "questionId": "calcom-q5",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 132568,
+            "outputTokens": 2963,
+            "toolCallCount": 11,
+            "fileReadCount": 3,
+            "wallClockMillis": 33572,
+            "costUsd": 0.13001569999999998,
+            "finalAnswer": "I have everything needed to answer.\n\n## Trace: HashedLink usage-based expiration\n\n**Migration column & default**\nMigration `20250707145503_add_private_links_expiration_capability` (`packages/prisma/migrations/.../migration.sql`) adds three columns to `HashedLink`, including `maxUsageCount INTEGER NOT NULL DEFAULT 1`. The Prisma schema mirrors this: `maxUsageCount Int @default(1)` (`packages/prisma/schema.prisma:1252`), alongside `usageCount Int @default(0)` and the older `expiresAt DateTime?` (time-based expiry).\n\n**`isUsageBasedExpired` boundary condition**\nIn `packages/lib/hashedLinksUtils.ts:93-96`:\n```ts\nexport function isUsageBasedExpired(usageCount: number, maxUsageCount?: number | null): boolean {\n  if (!maxUsageCount || maxUsageCount <= 0) return false;\n  return usageCount >= maxUsageCount;\n}\n```\nThe link is considered exhausted when `usageCount >= maxUsageCount` (i.e. once usage count reaches the cap, not only when it exceeds it) — the boundary is inclusive (`>=`), not strictly `>`.\n\n**Order of checks in `validateHashedLinkData`**\n`packages/lib/hashedLinksUtils.ts:103-111` checks **time-based expiration first**:\n```ts\nexport function validateHashedLinkData(linkData: HashedLinkData): void {\n  if (isTimeBasedExpired(linkData.expiresAt, linkData.eventType)) {\n    throw new Error(ErrorCode.PrivateLinkExpired);\n  }\n  if (isUsageBasedExpired(linkData.usageCount, linkData.maxUsageCount)) {\n    throw new Error(ErrorCode.PrivateLinkExpired);\n  }\n}\n```\n`isTimeBasedExpired` runs before `isUsageBasedExpired`.\n\n**Error code**\nBoth branches throw `ErrorCode.PrivateLinkExpired`, defined in `packages/lib/errorCodes.ts:39` as:\n```ts\nPrivateLinkExpired = \"private_link_expired\",\n```\nThis single code identifies both an expired (time-based) and an exhausted (usage-based) private link — the two cases aren't distinguished by error code.\n\n**v2 API schema corroboration**\n`packages/platform/types/event-types/inputs/private-link.input.ts` (`CreatePrivateLinkInput.maxUsageCount`) documents:\n> \"Maximum number of times the link can be used. If omitted and expiresAt is not provided, defaults to 1 (one time use).\"\nwith Swagger metadata `default: 1, minimum: 1`. This matches the Prisma/migration default of `1`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 7,
+                "Read": 3
+            }
+        },
+        {
+            "id": "1d2bec92-e208-4cc9-b6b4-1fbd26bb0b79",
+            "questionId": "calcom-q6",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 47882,
+            "outputTokens": 674,
+            "toolCallCount": 2,
+            "fileReadCount": 1,
+            "wallClockMillis": 11413,
+            "costUsd": 0.034447399999999996,
+            "finalAnswer": "The block from `seatsPerTimeSlot` through `schedulingType` in `packages/prisma/schema.prisma` (lines 222–231) contains these display-control Boolean fields (name doesn't start with `disable`):\n\n| Field | Type | Default |\n|---|---|---|\n| `onlyShowFirstAvailableSlot` | `Boolean` | `false` |\n| `showOptimizedSlots` | `Boolean?` | `false` |\n| `seatsShowAttendees` | `Boolean?` | `false` |\n| `seatsShowAvailabilityCount` | `Boolean?` | `true` |",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "Bash": 1,
+                "Read": 1
+            }
+        },
+        {
+            "id": "5a1f4c1d-a52e-4ffb-83ac-92065eab19da",
+            "questionId": "calcom-q7",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 47873,
+            "outputTokens": 686,
+            "toolCallCount": 2,
+            "fileReadCount": 1,
+            "wallClockMillis": 10790,
+            "costUsd": 0.0362951,
+            "finalAnswer": "**Cause of P3005:** Prisma tracks applied migrations in a `_prisma_migrations` table. If your local migrations state doesn't match what's actually in the target database (i.e., the schema already has data/tables but Prisma doesn't know which migrations were applied), Prisma throws `P3005: The database schema for 'localhost:5432' is not empty.`\n\n**Two remedies given in `docs/self-hosting/database-migrations.mdx`:**\n\n1. **Mark existing migrations as applied:** For each migration already applied to the database, run:\n   ```\n   yarn prisma migrate resolve --applied migration_name\n   ```\n\n2. **Fully reset local Postgres migration history:** Delete Prisma's migration tracking table, then re-apply/re-index all migrations:\n   ```sql\n   DELETE FROM \"_prisma_migrations\";\n   ```\n   ```\n   ls -1a prisma/migrations/ | grep 2021 | xargs -I{} prisma migrate resolve --applied {}\n   ```",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "Bash": 1,
+                "Read": 1
+            }
+        },
+        {
+            "id": "9ee2662b-3f9b-4d61-8f62-4f8379e2d7eb",
+            "questionId": "calcom-q8",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 93761,
+            "outputTokens": 843,
+            "toolCallCount": 5,
+            "fileReadCount": 1,
+            "wallClockMillis": 16076,
+            "costUsd": 0.0778047,
+            "finalAnswer": "The exact literal error messages, in order of the checks:\n\n1. **Already-cancelled booking**: `\"This booking has already been cancelled.\"` (statusCode: 400)\n2. **No associated user record**: `\"User not found\"` (statusCode: 400)\n3. **Missing required cancellation reason**: `\"Cancellation reason is required\"` (statusCode: 400)\n4. **End time already passed**: `\"Cannot cancel a booking that has already ended\"` (statusCode: 400)\n\nThese all throw `HttpError` and occur in `handleCancelBooking.ts` around lines 197–235, before any calendar/payment side effects run.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 2,
+                "mcp__contextgraph__contextgraph_explore": 1,
+                "Read": 1
+            }
+        },
+        {
+            "id": "ba93354a-9ec0-49c5-94e2-edaacae8370e",
+            "questionId": "calcom-q8",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 75077,
+            "outputTokens": 887,
+            "toolCallCount": 4,
+            "fileReadCount": 1,
+            "wallClockMillis": 15199,
+            "costUsd": 0.0701986,
+            "finalAnswer": "The four early-validation error messages in `handleCancelBooking.ts` are:\n\n1. **Already-cancelled booking**: `\"This booking has already been cancelled.\"` (line 200)\n2. **No associated user record**: `\"User not found\"` (line 205)\n3. **Missing required cancellation reason**: `\"Cancellation reason is required\"` (line 226)\n4. **Booking end time already passed**: `\"Cannot cancel a booking that has already ended\"` (line 233)\n\nAll are thrown as `HttpError` with `statusCode: 400`.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0,
+            "toolNameCounts": {
+                "ToolSearch": 1,
+                "Bash": 2,
+                "Read": 1
+            }
+        }
+    ],
+    "judgeScores": [
+        {
+            "id": "a18757c8-dd8c-4ce1-be42-89801e42e6a9:claude-opus-5",
+            "runId": "a18757c8-dd8c-4ce1-be42-89801e42e6a9",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q1-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "e3f3f069-adb8-46db-b098-340ebff78ea5:claude-opus-5",
+            "runId": "e3f3f069-adb8-46db-b098-340ebff78ea5",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q1-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q1-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "ba6c809e-edc3-4ed4-92df-b92922efe044:claude-opus-5",
+            "runId": "ba6c809e-edc3-4ed4-92df-b92922efe044",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q2-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "calcom-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q2-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8
+        },
+        {
+            "id": "5c28811f-b5a8-48b2-b082-a5323372ca72:claude-opus-5",
+            "runId": "5c28811f-b5a8-48b2-b082-a5323372ca72",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q2-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "calcom-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q2-f5",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8
+        },
+        {
+            "id": "fc5f28a1-8c58-4404-8095-e42dd291fb77:claude-opus-5",
+            "runId": "fc5f28a1-8c58-4404-8095-e42dd291fb77",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "d6eb2bab-b34d-4199-a0a7-bad7f1ae2061:claude-opus-5",
+            "runId": "d6eb2bab-b34d-4199-a0a7-bad7f1ae2061",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q3-f1",
+                    "hit": false
+                },
+                {
+                    "factId": "calcom-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8333333333333334
+        },
+        {
+            "id": "fd9a225d-6fdc-431f-a6da-40b4f2cd02d0:claude-opus-5",
+            "runId": "fd9a225d-6fdc-431f-a6da-40b4f2cd02d0",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q4-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "calcom-q4-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8333333333333334
+        },
+        {
+            "id": "c626c22c-eab9-4856-871e-64a9af099c81:claude-opus-5",
+            "runId": "c626c22c-eab9-4856-871e-64a9af099c81",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q4-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "calcom-q4-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q4-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8333333333333334
+        },
+        {
+            "id": "2536b8d9-9cf0-4c33-be8a-c887b0506957:claude-opus-5",
+            "runId": "2536b8d9-9cf0-4c33-be8a-c887b0506957",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q5-f1",
+                    "hit": false
+                },
+                {
+                    "factId": "calcom-q5-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 0.8333333333333334
+        },
+        {
+            "id": "b6804cf9-fb64-4e7e-bf97-930023ca9cd3:claude-opus-5",
+            "runId": "b6804cf9-fb64-4e7e-bf97-930023ca9cd3",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q5-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q5-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "1d2bec92-e208-4cc9-b6b4-1fbd26bb0b79:claude-opus-5",
+            "runId": "1d2bec92-e208-4cc9-b6b4-1fbd26bb0b79",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q6-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q6-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q6-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q6-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "5a1f4c1d-a52e-4ffb-83ac-92065eab19da:claude-opus-5",
+            "runId": "5a1f4c1d-a52e-4ffb-83ac-92065eab19da",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q7-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q7-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q7-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q7-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "9ee2662b-3f9b-4d61-8f62-4f8379e2d7eb:claude-opus-5",
+            "runId": "9ee2662b-3f9b-4d61-8f62-4f8379e2d7eb",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q8-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q8-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q8-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q8-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "ba93354a-9ec0-49c5-94e2-edaacae8370e:claude-opus-5",
+            "runId": "ba93354a-9ec0-49c5-94e2-edaacae8370e",
+            "judgeModel": "claude-opus-5",
+            "factScores": [
+                {
+                    "factId": "calcom-q8-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q8-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q8-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "calcom-q8-f4",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        }
+    ],
+    "summary": {
+        "perQuestionArm": [
+            {
+                "questionId": "calcom-q1",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 325892.0,
+                        "min": 325892.0,
+                        "max": 325892.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3182.0,
+                        "min": 3182.0,
+                        "max": 3182.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 329074.0,
+                        "min": 329074.0,
+                        "max": 329074.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 12.0,
+                        "min": 12.0,
+                        "max": 12.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 49602.0,
+                        "min": 49602.0,
+                        "max": 49602.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.27377640000000003,
+                        "min": 0.27377640000000003,
+                        "max": 0.27377640000000003,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q1",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 248286.0,
+                        "min": 248286.0,
+                        "max": 248286.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 2698.0,
+                        "min": 2698.0,
+                        "max": 2698.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 250984.0,
+                        "min": 250984.0,
+                        "max": 250984.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 38626.0,
+                        "min": 38626.0,
+                        "max": 38626.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.2016199,
+                        "min": 0.2016199,
+                        "max": 0.2016199,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q2",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 240528.0,
+                        "min": 240528.0,
+                        "max": 240528.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3178.0,
+                        "min": 3178.0,
+                        "max": 3178.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 243706.0,
+                        "min": 243706.0,
+                        "max": 243706.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 13.0,
+                        "min": 13.0,
+                        "max": 13.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 45081.0,
+                        "min": 45081.0,
+                        "max": 45081.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.2086739,
+                        "min": 0.2086739,
+                        "max": 0.2086739,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8,
+                        "min": 0.8,
+                        "max": 0.8,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q2",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 238691.0,
+                        "min": 238691.0,
+                        "max": 238691.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3351.0,
+                        "min": 3351.0,
+                        "max": 3351.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 242042.0,
+                        "min": 242042.0,
+                        "max": 242042.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 10.0,
+                        "min": 10.0,
+                        "max": 10.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 45942.0,
+                        "min": 45942.0,
+                        "max": 45942.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.2523911,
+                        "min": 0.2523911,
+                        "max": 0.2523911,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8,
+                        "min": 0.8,
+                        "max": 0.8,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q3",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 275507.0,
+                        "min": 275507.0,
+                        "max": 275507.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 2473.0,
+                        "min": 2473.0,
+                        "max": 2473.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 277980.0,
+                        "min": 277980.0,
+                        "max": 277980.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 3.0,
+                        "max": 3.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 33940.0,
+                        "min": 33940.0,
+                        "max": 33940.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.28613839999999996,
+                        "min": 0.28613839999999996,
+                        "max": 0.28613839999999996,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q3",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 120612.0,
+                        "min": 120612.0,
+                        "max": 120612.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1697.0,
+                        "min": 1697.0,
+                        "max": 1697.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 122309.0,
+                        "min": 122309.0,
+                        "max": 122309.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 8.0,
+                        "min": 8.0,
+                        "max": 8.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 24101.0,
+                        "min": 24101.0,
+                        "max": 24101.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0958924,
+                        "min": 0.0958924,
+                        "max": 0.0958924,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8333333333333334,
+                        "max": 0.8333333333333334,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q4",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 601348.0,
+                        "min": 601348.0,
+                        "max": 601348.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 5811.0,
+                        "min": 5811.0,
+                        "max": 5811.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 607159.0,
+                        "min": 607159.0,
+                        "max": 607159.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 20.0,
+                        "min": 20.0,
+                        "max": 20.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 77267.0,
+                        "min": 77267.0,
+                        "max": 77267.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.4174077999999999,
+                        "min": 0.4174077999999999,
+                        "max": 0.4174077999999999,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8333333333333334,
+                        "max": 0.8333333333333334,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q4",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 283926.0,
+                        "min": 283926.0,
+                        "max": 283926.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3731.0,
+                        "min": 3731.0,
+                        "max": 3731.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 287657.0,
+                        "min": 287657.0,
+                        "max": 287657.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 3.0,
+                        "max": 3.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 49079.0,
+                        "min": 49079.0,
+                        "max": 49079.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.2487583,
+                        "min": 0.2487583,
+                        "max": 0.2487583,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8333333333333334,
+                        "max": 0.8333333333333334,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q5",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 327453.0,
+                        "min": 327453.0,
+                        "max": 327453.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 3654.0,
+                        "min": 3654.0,
+                        "max": 3654.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 331107.0,
+                        "min": 331107.0,
+                        "max": 331107.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 16.0,
+                        "min": 16.0,
+                        "max": 16.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 48365.0,
+                        "min": 48365.0,
+                        "max": 48365.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.220637,
+                        "min": 0.220637,
+                        "max": 0.220637,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8333333333333334,
+                        "max": 0.8333333333333334,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q5",
+                "repoId": "calcom",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 132568.0,
+                        "min": 132568.0,
+                        "max": 132568.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 2963.0,
+                        "min": 2963.0,
+                        "max": 2963.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 135531.0,
+                        "min": 135531.0,
+                        "max": 135531.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 3.0,
+                        "max": 3.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 33572.0,
+                        "min": 33572.0,
+                        "max": 33572.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.13001569999999998,
+                        "min": 0.13001569999999998,
+                        "max": 0.13001569999999998,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q6",
+                "repoId": "calcom",
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47882.0,
+                        "min": 47882.0,
+                        "max": 47882.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 674.0,
+                        "min": 674.0,
+                        "max": 674.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 48556.0,
+                        "min": 48556.0,
+                        "max": 48556.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 11413.0,
+                        "min": 11413.0,
+                        "max": 11413.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.034447399999999996,
+                        "min": 0.034447399999999996,
+                        "max": 0.034447399999999996,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q7",
+                "repoId": "calcom",
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47873.0,
+                        "min": 47873.0,
+                        "max": 47873.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 686.0,
+                        "min": 686.0,
+                        "max": 686.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 48559.0,
+                        "min": 48559.0,
+                        "max": 48559.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 10790.0,
+                        "min": 10790.0,
+                        "max": 10790.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0362951,
+                        "min": 0.0362951,
+                        "max": 0.0362951,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q8",
+                "repoId": "calcom",
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 93761.0,
+                        "min": 93761.0,
+                        "max": 93761.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 843.0,
+                        "min": 843.0,
+                        "max": 843.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 94604.0,
+                        "min": 94604.0,
+                        "max": 94604.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 5.0,
+                        "min": 5.0,
+                        "max": 5.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16076.0,
+                        "min": 16076.0,
+                        "max": 16076.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0778047,
+                        "min": 0.0778047,
+                        "max": 0.0778047,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "calcom-q8",
+                "repoId": "calcom",
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 75077.0,
+                        "min": 75077.0,
+                        "max": 75077.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 887.0,
+                        "min": 887.0,
+                        "max": 887.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 75964.0,
+                        "min": 75964.0,
+                        "max": 75964.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 15199.0,
+                        "min": 15199.0,
+                        "max": 15199.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0701986,
+                        "min": 0.0701986,
+                        "max": 0.0701986,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "perRepoArm": [
+            {
+                "repoId": "calcom",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 6,
+                    "includedRuns": 6,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 300699.5,
+                        "min": 93761.0,
+                        "max": 601348.0,
+                        "sampleSize": 6
+                    },
+                    "outputTokens": {
+                        "median": 3180.0,
+                        "min": 843.0,
+                        "max": 5811.0,
+                        "sampleSize": 6
+                    },
+                    "totalTokens": {
+                        "median": 303527.0,
+                        "min": 94604.0,
+                        "max": 607159.0,
+                        "sampleSize": 6
+                    },
+                    "toolCallCount": {
+                        "median": 12.5,
+                        "min": 5.0,
+                        "max": 20.0,
+                        "sampleSize": 6
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 6
+                    },
+                    "wallClockMillis": {
+                        "median": 46723.0,
+                        "min": 16076.0,
+                        "max": 77267.0,
+                        "sampleSize": 6
+                    },
+                    "costUsd": {
+                        "median": 0.2472067,
+                        "min": 0.0778047,
+                        "max": 0.4174077999999999,
+                        "sampleSize": 6
+                    },
+                    "accuracyScore": {
+                        "median": 0.9166666666666667,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 6
+                    }
+                }
+            },
+            {
+                "repoId": "calcom",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 8,
+                    "includedRuns": 8,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 126590.0,
+                        "min": 47873.0,
+                        "max": 283926.0,
+                        "sampleSize": 8
+                    },
+                    "outputTokens": {
+                        "median": 2197.5,
+                        "min": 674.0,
+                        "max": 3731.0,
+                        "sampleSize": 8
+                    },
+                    "totalTokens": {
+                        "median": 128920.0,
+                        "min": 48556.0,
+                        "max": 287657.0,
+                        "sampleSize": 8
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 2.0,
+                        "max": 11.0,
+                        "sampleSize": 8
+                    },
+                    "fileReadCount": {
+                        "median": 1.5,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 8
+                    },
+                    "wallClockMillis": {
+                        "median": 28836.5,
+                        "min": 10790.0,
+                        "max": 49079.0,
+                        "sampleSize": 8
+                    },
+                    "costUsd": {
+                        "median": 0.11295405,
+                        "min": 0.034447399999999996,
+                        "max": 0.2523911,
+                        "sampleSize": 8
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 8
+                    }
+                }
+            }
+        ],
+        "perCategoryArm": [
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 5,
+                    "includedRuns": 5,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 325892.0,
+                        "min": 240528.0,
+                        "max": 601348.0,
+                        "sampleSize": 5
+                    },
+                    "outputTokens": {
+                        "median": 3182.0,
+                        "min": 2473.0,
+                        "max": 5811.0,
+                        "sampleSize": 5
+                    },
+                    "totalTokens": {
+                        "median": 329074.0,
+                        "min": 243706.0,
+                        "max": 607159.0,
+                        "sampleSize": 5
+                    },
+                    "toolCallCount": {
+                        "median": 13.0,
+                        "min": 11.0,
+                        "max": 20.0,
+                        "sampleSize": 5
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 5
+                    },
+                    "wallClockMillis": {
+                        "median": 48365.0,
+                        "min": 33940.0,
+                        "max": 77267.0,
+                        "sampleSize": 5
+                    },
+                    "costUsd": {
+                        "median": 0.27377640000000003,
+                        "min": 0.2086739,
+                        "max": 0.4174077999999999,
+                        "sampleSize": 5
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 5
+                    }
+                }
+            },
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 5,
+                    "includedRuns": 5,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 238691.0,
+                        "min": 120612.0,
+                        "max": 283926.0,
+                        "sampleSize": 5
+                    },
+                    "outputTokens": {
+                        "median": 2963.0,
+                        "min": 1697.0,
+                        "max": 3731.0,
+                        "sampleSize": 5
+                    },
+                    "totalTokens": {
+                        "median": 242042.0,
+                        "min": 122309.0,
+                        "max": 287657.0,
+                        "sampleSize": 5
+                    },
+                    "toolCallCount": {
+                        "median": 11.0,
+                        "min": 8.0,
+                        "max": 11.0,
+                        "sampleSize": 5
+                    },
+                    "fileReadCount": {
+                        "median": 3.0,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 5
+                    },
+                    "wallClockMillis": {
+                        "median": 38626.0,
+                        "min": 24101.0,
+                        "max": 49079.0,
+                        "sampleSize": 5
+                    },
+                    "costUsd": {
+                        "median": 0.2016199,
+                        "min": 0.0958924,
+                        "max": 0.2523911,
+                        "sampleSize": 5
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 5
+                    }
+                }
+            },
+            {
+                "category": "NEUTRAL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 2,
+                    "includedRuns": 2,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47877.5,
+                        "min": 47873.0,
+                        "max": 47882.0,
+                        "sampleSize": 2
+                    },
+                    "outputTokens": {
+                        "median": 680.0,
+                        "min": 674.0,
+                        "max": 686.0,
+                        "sampleSize": 2
+                    },
+                    "totalTokens": {
+                        "median": 48557.5,
+                        "min": 48556.0,
+                        "max": 48559.0,
+                        "sampleSize": 2
+                    },
+                    "toolCallCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 2
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 2
+                    },
+                    "wallClockMillis": {
+                        "median": 11101.5,
+                        "min": 10790.0,
+                        "max": 11413.0,
+                        "sampleSize": 2
+                    },
+                    "costUsd": {
+                        "median": 0.03537124999999999,
+                        "min": 0.034447399999999996,
+                        "max": 0.0362951,
+                        "sampleSize": 2
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 2
+                    }
+                }
+            },
+            {
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 93761.0,
+                        "min": 93761.0,
+                        "max": 93761.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 843.0,
+                        "min": 843.0,
+                        "max": 843.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 94604.0,
+                        "min": 94604.0,
+                        "max": 94604.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 5.0,
+                        "min": 5.0,
+                        "max": 5.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16076.0,
+                        "min": 16076.0,
+                        "max": 16076.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0778047,
+                        "min": 0.0778047,
+                        "max": 0.0778047,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "category": "NEGATIVE_CONTROL",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 75077.0,
+                        "min": 75077.0,
+                        "max": 75077.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 887.0,
+                        "min": 887.0,
+                        "max": 887.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 75964.0,
+                        "min": 75964.0,
+                        "max": 75964.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 15199.0,
+                        "min": 15199.0,
+                        "max": 15199.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0701986,
+                        "min": 0.0701986,
+                        "max": 0.0701986,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "headline": [
+            {
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 5,
+                    "includedRuns": 5,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 325892.0,
+                        "min": 240528.0,
+                        "max": 601348.0,
+                        "sampleSize": 5
+                    },
+                    "outputTokens": {
+                        "median": 3182.0,
+                        "min": 2473.0,
+                        "max": 5811.0,
+                        "sampleSize": 5
+                    },
+                    "totalTokens": {
+                        "median": 329074.0,
+                        "min": 243706.0,
+                        "max": 607159.0,
+                        "sampleSize": 5
+                    },
+                    "toolCallCount": {
+                        "median": 13.0,
+                        "min": 11.0,
+                        "max": 20.0,
+                        "sampleSize": 5
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 5
+                    },
+                    "wallClockMillis": {
+                        "median": 48365.0,
+                        "min": 33940.0,
+                        "max": 77267.0,
+                        "sampleSize": 5
+                    },
+                    "costUsd": {
+                        "median": 0.27377640000000003,
+                        "min": 0.2086739,
+                        "max": 0.4174077999999999,
+                        "sampleSize": 5
+                    },
+                    "accuracyScore": {
+                        "median": 0.8333333333333334,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 5
+                    }
+                }
+            },
+            {
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 7,
+                    "includedRuns": 7,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 132568.0,
+                        "min": 47873.0,
+                        "max": 283926.0,
+                        "sampleSize": 7
+                    },
+                    "outputTokens": {
+                        "median": 2698.0,
+                        "min": 674.0,
+                        "max": 3731.0,
+                        "sampleSize": 7
+                    },
+                    "totalTokens": {
+                        "median": 135531.0,
+                        "min": 48556.0,
+                        "max": 287657.0,
+                        "sampleSize": 7
+                    },
+                    "toolCallCount": {
+                        "median": 10.0,
+                        "min": 2.0,
+                        "max": 11.0,
+                        "sampleSize": 7
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "sampleSize": 7
+                    },
+                    "wallClockMillis": {
+                        "median": 33572.0,
+                        "min": 10790.0,
+                        "max": 49079.0,
+                        "sampleSize": 7
+                    },
+                    "costUsd": {
+                        "median": 0.13001569999999998,
+                        "min": 0.034447399999999996,
+                        "max": 0.2523911,
+                        "sampleSize": 7
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.8,
+                        "max": 1.0,
+                        "sampleSize": 7
+                    }
+                }
+            }
+        ],
+        "negativeControl": [
+            {
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 93761.0,
+                        "min": 93761.0,
+                        "max": 93761.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 843.0,
+                        "min": 843.0,
+                        "max": 843.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 94604.0,
+                        "min": 94604.0,
+                        "max": 94604.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 5.0,
+                        "min": 5.0,
+                        "max": 5.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 16076.0,
+                        "min": 16076.0,
+                        "max": 16076.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0778047,
+                        "min": 0.0778047,
+                        "max": 0.0778047,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 75077.0,
+                        "min": 75077.0,
+                        "max": 75077.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 887.0,
+                        "min": 887.0,
+                        "max": 887.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 75964.0,
+                        "min": 75964.0,
+                        "max": 75964.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 4.0,
+                        "min": 4.0,
+                        "max": 4.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 15199.0,
+                        "min": 15199.0,
+                        "max": 15199.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": {
+                        "median": 0.0701986,
+                        "min": 0.0701986,
+                        "max": 0.0701986,
+                        "sampleSize": 1
+                    },
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "breakEvenByRepo": [
+            {
+                "repoId": "calcom",
+                "result": {
+                    "type": "io.contextgraph.benchmark.model.BreakEvenResult.NotAmortizing",
+                    "ingestCostUsd": 0.0,
+                    "savingPerQuestionUsd": -0.13425265
+                }
+            }
+        ]
+    },
+    "failedRunCount": 2,
+    "agentClientKind": "REAL",
+    "judgingComplete": true,
+    "failedJudgeCount": 0,
+    "measurement": "FORCED",
+    "agentBackend": "claude-code"
+}

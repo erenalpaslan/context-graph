@@ -1,0 +1,14 @@
+-- The declared type of a call's receiver, when pass 1 could read it off a declaration.
+--
+-- Resolution is otherwise name-only -- local scope, file imports, same directory, repo-wide
+-- unique name -- and that ceiling is reachable by measurement: `getId` is declared on 1001
+-- types in Keycloak, so "who calls UserSessionModel.getId" cannot be answered by name at all.
+-- Every candidate is equally plausible, the count blows past the ambiguity cap, and the call
+-- resolves to nothing. Knowing that the receiver was declared `UserSessionModel` narrows those
+-- 1001 to one.
+--
+-- Nullable because it genuinely is unknown for most receivers a first pass can see: a chained
+-- call's receiver is another call's return value, and inferring that needs the very symbol
+-- table this column exists to help build. NULL means "no hint", and resolution then behaves
+-- exactly as it did before this column existed.
+ALTER TABLE unresolved_references ADD COLUMN receiver_type TEXT;

@@ -101,4 +101,38 @@ class FileDiscoveryTest : FunSpec({
 
         found shouldContainExactlyInAnyOrder listOf("README.md")
     }
+
+    test("source files are indexed however they are named, including 'password' and 'secret'") {
+        val root = tempRepo()
+        root.resolve("src").createDirectories()
+        // Real Keycloak filenames. Matching `.*password.*` against a bare filename dropped 227 of
+        // its 8,145 Java files -- silently, at discovery, so nothing downstream could report a gap.
+        root.resolve("src/Argon2PasswordHashProvider.java").writeText("class Argon2PasswordHashProvider {}")
+        root.resolve("src/ClientCredentialsGrantType.java").writeText("class ClientCredentialsGrantType {}")
+        root.resolve("src/ClientIdAndSecretAuthenticator.java").writeText("class ClientIdAndSecretAuthenticator {}")
+        root.resolve("src/PasswordPolicy.kt").writeText("class PasswordPolicy")
+
+        val found = discoverRelativePaths(root)
+
+        found shouldContainExactlyInAnyOrder listOf(
+            "src/Argon2PasswordHashProvider.java",
+            "src/ClientCredentialsGrantType.java",
+            "src/ClientIdAndSecretAuthenticator.java",
+            "src/PasswordPolicy.kt"
+        )
+    }
+
+    test("actual credential files are still excluded, whatever the exemption above allows") {
+        val root = tempRepo()
+        root.resolve(".env").writeText("API_KEY=live")
+        root.resolve("server.pem").writeText("-----BEGIN PRIVATE KEY-----")
+        root.resolve("tls.key").writeText("-----BEGIN PRIVATE KEY-----")
+        // Not source code, so the name-substring rule still applies to it.
+        root.resolve("passwords.txt").writeText("hunter2")
+        root.resolve("Main.kt").writeText("fun main() {}")
+
+        val found = discoverRelativePaths(root)
+
+        found shouldContainExactlyInAnyOrder listOf("Main.kt")
+    }
 })

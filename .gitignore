@@ -53,3 +53,29 @@ secrets/
 
 # Agent team workspace
 agent-team/
+
+# Benchmark corpus (modules/benchmark): pinned OSS repo clones and their two
+# working copies (WITH/WITHOUT ContextGraph indexing, AC-1a). Reproducible
+# from pinned tag/SHA in the result JSON; never checked in.
+# Local developer secrets (benchmark API keys). Read by config/Secrets.kt as the
+# fallback when the environment variable is unset. Never commit this — see
+# local.properties.example for the expected keys.
+local.properties
+
+# Unanchored on purpose. prepare-corpus now resolves --corpus-root against the
+# repo root (see RepoRoot.kt), so the corpus lands here and nowhere else — but a
+# relative default once materialised a second 1.1 GB corpus under
+# modules/benchmark/ when launched from Gradle's JavaExec working dir. This
+# pattern is the backstop: whatever launches it, a corpus never gets committed.
+**/.benchmark-corpus/
+
+# LiteLLM proxy the benchmark installs and runs for its own judge (task 17,
+# modules/benchmark/.../proxy/LiteLlmProxyManager.kt): a gitignored venv, the
+# generated config.yaml (env-var indirection only, never a literal key), and
+# the proxy's own log, all under <repo-root>/.benchmark-litellm/. Unanchored
+# for the same reason as .benchmark-corpus above.
+**/.benchmark-litellm/
+
+# Repo-local install of third-party graph tools used as benchmark positive controls.
+# Kept inside the repo so nothing is written to the developer machine globally.
+.benchmark-tools/

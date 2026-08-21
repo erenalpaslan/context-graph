@@ -1,0 +1,1103 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-1787067740711",
+    "profile": "SMOKE",
+    "generatedAt": "2026-08-18T15:59:34.305807Z",
+    "config": {
+        "toolCallCeiling": 40,
+        "repeatsPerArm": 1,
+        "models": {
+            "agentModel": "gpt-4.1",
+            "judgeModel": "gpt-4.1"
+        }
+    },
+    "corpusRepos": [
+        {
+            "id": "gin",
+            "name": "gin",
+            "url": "https://github.com/gin-gonic/gin.git",
+            "pinnedTag": "v1.12.0",
+            "pinnedSha": "73726dc606796a025971fe451f0aa6f1b9b847f6",
+            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/with",
+            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/gin/without"
+        }
+    ],
+    "questions": [
+        {
+            "id": "gin-q1",
+            "repoId": "gin",
+            "text": "How does a request travel from Engine.ServeHTTP through the middleware/handler chain to a route's final handler, and what role does Context.Next() play in driving that flow?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q1-f1",
+                    "statement": "Engine.ServeHTTP calls engine.handleHTTPRequest(c) to begin routing the incoming request.",
+                    "evidence": "gin.go:672"
+                },
+                {
+                    "id": "gin-q1-f2",
+                    "statement": "Once c.handlers has been set to the matched route's HandlersChain (gin-q1-f6), handleHTTPRequest calls c.Next() to execute it.",
+                    "evidence": "gin.go:722"
+                },
+                {
+                    "id": "gin-q1-f3",
+                    "statement": "Context.Next()'s loop body invokes c.handlers[c.index](c) — this is the mechanism that actually runs the middleware/handler chain.",
+                    "evidence": "context.go:192"
+                },
+                {
+                    "id": "gin-q1-f4",
+                    "statement": "RouterGroup.combineHandlers appends a route's own handlers after the group's already-copied middleware (gin-q2-f4) via copy(mergedHandlers[len(group.Handlers):], handlers), producing the single HandlersChain that Next() (gin-q1-f3) later iterates.",
+                    "evidence": "routergroup.go:246"
+                },
+                {
+                    "id": "gin-q1-f5",
+                    "statement": "handleHTTPRequest looks up the request path in the method's radix tree via root.getValue(rPath, c.params, c.skippedNodes, unescape).",
+                    "evidence": "gin.go:715"
+                },
+                {
+                    "id": "gin-q1-f6",
+                    "statement": "When that lookup finds a match, handleHTTPRequest assigns c.handlers = value.handlers — the HandlersChain combineHandlers built at registration time (gin-q1-f4) becomes the exact chain Next() executes at request time.",
+                    "evidence": "gin.go:720"
+                }
+            ]
+        },
+        {
+            "id": "gin-q2",
+            "repoId": "gin",
+            "text": "Why does middleware attached globally via Engine.Use still run on a request that hits the 404 (no matching route) fallback path, and what recomputes the fallback handler chain to include it?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q2-f1",
+                    "statement": "Engine.Use calls engine.RouterGroup.Use(middleware...) to append the given middleware to the engine's own accumulated Handlers list.",
+                    "evidence": "gin.go:341"
+                },
+                {
+                    "id": "gin-q2-f2",
+                    "statement": "Engine.Use calls engine.rebuild404Handlers() immediately after appending the middleware (gin-q2-f1), so attaching global middleware after NoRoute was already configured still refreshes the 404 fallback chain.",
+                    "evidence": "gin.go:342"
+                },
+                {
+                    "id": "gin-q2-f3",
+                    "statement": "rebuild404Handlers recomputes engine.allNoRoute as engine.combineHandlers(engine.noRoute) — combineHandlers here is the method Engine inherits from its embedded RouterGroup.",
+                    "evidence": "gin.go:357"
+                },
+                {
+                    "id": "gin-q2-f4",
+                    "statement": "combineHandlers copies the RouterGroup's own accumulated Handlers (the global middleware list Engine.Use appends to) to the front of the merged chain via copy(mergedHandlers, group.Handlers) — this is the specific step that puts global middleware into engine.allNoRoute.",
+                    "evidence": "routergroup.go:245"
+                },
+                {
+                    "id": "gin-q2-f5",
+                    "statement": "When handleHTTPRequest finds no matching route, it sets c.handlers = engine.allNoRoute — the global-middleware-plus-noRoute chain computed above (gin-q2-f3, gin-q2-f4) — immediately before the serveError call examined in gin-q2-f6.",
+                    "evidence": "gin.go:758"
+                },
+                {
+                    "id": "gin-q2-f6",
+                    "statement": "serveError calls c.Next() — the same Next() whose loop over c.handlers (established in gin-q1-f3) executes the handler chain — which is why middleware attached globally via Use() (e.g. Logger/Recovery) still runs on a request that never matched a registered route.",
+                    "evidence": "gin.go:766"
+                }
+            ]
+        },
+        {
+            "id": "gin-q3",
+            "repoId": "gin",
+            "text": "How does registering a route with RouterGroup.GET travel through RouterGroup into Engine.addRoute and the per-method radix tree, and how does Engine.Routes() read the registered routes back — including which handler in each node's stored chain it reports?",
+            "category": "GRAPH_HEAVY",
+            "goldFacts": [
+                {
+                    "id": "gin-q3-f1",
+                    "statement": "RouterGroup.GET is a shortcut that calls group.handle(http.MethodGet, relativePath, handlers).",
+                    "evidence": "routergroup.go:117"
+                },
+                {
+                    "id": "gin-q3-f2",
+                    "statement": "RouterGroup.handle calls group.engine.addRoute(httpMethod, absolutePath, handlers), handing the merged handlers and absolute path off to the Engine's route tree.",
+                    "evidence": "routergroup.go:89"
+                },
+                {
+                    "id": "gin-q3-f3",
+                    "statement": "Engine.addRoute's route-registration step is calling root.addRoute(path, handlers), which inserts the new route into the per-method radix tree in engine.trees.",
+                    "evidence": "gin.go:377"
+                },
+                {
+                    "id": "gin-q3-f4",
+                    "statement": "node.addRoute in tree.go is the function that actually inserts the path and its handlers into the radix tree used for request matching.",
+                    "evidence": "tree.go:135"
+                },
+                {
+                    "id": "gin-q3-f5",
+                    "statement": "Engine.Routes() walks engine.trees via the iterate() helper to read back every registered method/path/handler as RouteInfo.",
+                    "evidence": "gin.go:392"
+                },
+                {
+                    "id": "gin-q3-f6",
+                    "statement": "iterate(), the recursive helper Engine.Routes() drives, reads each route's reported Handler via root.handlers.Last() — the handler chain stored on that radix-tree node by node.addRoute/insertChild at registration time, not anything a text search on the identifier addRoute would show on its own.",
+                    "evidence": "gin.go:400"
+                }
+            ]
+        }
+    ],
+    "ingestRecords": [
+        {
+            "repoId": "gin",
+            "durationMillis": 662,
+            "tokensUsed": 0,
+            "costUsd": 0.0,
+            "config": {
+                "litellm": {
+                    "baseUrl": "http://localhost:4000",
+                    "model": "gpt-4o",
+                    "rateLimitPerMinute": 10,
+                    "enabled": false,
+                    "timeoutSeconds": 30
+                },
+                "includePatterns": [
+                    "**/*"
+                ],
+                "excludePatterns": [
+                    "**/.git/**",
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/.gradle/**",
+                    "**/.contextgraph/**",
+                    "**/target/**",
+                    "**/__pycache__/**"
+                ],
+                "ignoreSecrets": true,
+                "maxFileSizeBytes": 10485760,
+                "moduleRoots": [],
+                "watcher": {
+                    "enabled": false,
+                    "debounceMillis": 500,
+                    "fallbackIntervalMillis": 30000
+                }
+            }
+        }
+    ],
+    "agentRuns": [
+        {
+            "id": "6baac58e-f752-4db5-80ab-979f2359b8c1",
+            "questionId": "gin-q1",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 2310,
+            "outputTokens": 260,
+            "toolCallCount": 1,
+            "fileReadCount": 0,
+            "wallClockMillis": 5420,
+            "costUsd": null,
+            "finalAnswer": "When a request enters Engine.ServeHTTP, it is first wrapped in a Context object. The Engine gathers all the global and route-specific middleware handlers, along with the final route handler, into a handler chain (an array or slice of handler functions).\n\nThe request is then processed by iterating through this chain. Each middleware (and the final handler) receives the Context and may perform actions such as logging, authentication, or modifying the request/response.\n\nInside each middleware, calling Context.Next() is what advances the flow to the next handler in the chain. If a middleware does not call Context.Next(), the chain is not continued and the rest of the handlers are skipped. This mechanism allows middleware to either \"wrap around\" the subsequent handlers or to short-circuit the request (e.g., for early termination or error handling).\n\nIn summary, Context.Next() drives the execution forward through the chain, ensuring that each handler is invoked in order. The flow concludes at the route's final handler (unless a middleware ends the request early by not calling Next()).",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "d86e233b-a1e9-4163-be2a-d71bb9ab627f",
+            "questionId": "gin-q1",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 175560,
+            "outputTokens": 968,
+            "toolCallCount": 40,
+            "fileReadCount": 11,
+            "wallClockMillis": 293160,
+            "costUsd": null,
+            "finalAnswer": "",
+            "hitCeiling": true,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "107f907b-88ea-41ea-b64c-1a706b6bee71",
+            "questionId": "gin-q2",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 53392,
+            "outputTokens": 648,
+            "toolCallCount": 9,
+            "fileReadCount": 2,
+            "wallClockMillis": 113464,
+            "costUsd": null,
+            "finalAnswer": "Middleware attached globally via `Engine.Use` runs even on 404 (no matching route) fallback requests because Gin explicitly maintains a special handler chain for 404 scenarios (`allNoRoute`). \n\nHere's how it works:\n- When you call `Engine.Use(middleware)`, Gin adds the middleware to the engine's global middleware slice (`RouterGroup.Handlers`). \n- It then calls `engine.rebuild404Handlers()` (see `func (engine *Engine) Use...` in `gin.go`), which rebuilds the `allNoRoute` chain by prepending all current global middleware to the 404 handlers you registered (if any), using `combineHandlers`.\n- In the main request logic (`handleHTTPRequest` in `gin.go`), if no route matches, Gin sets `c.handlers = engine.allNoRoute`, causing the global middleware (and 404 handlers) to execute on 404 responses.\n\nTherefore, the recomputation of the fallback handler chain (to include global middleware) happens in the `rebuild404Handlers` method, which is automatically called from `Engine.Use`, `Engine.NoRoute`, and otherwise whenever middleware or 404 handlers are added.\n\n**Summary:**  \nGlobal middleware runs for 404s because Gin maintains a combined middleware+404 handler chain (`allNoRoute`), which is rebuilt (to include new middleware) by `rebuild404Handlers` every time you use `.Use` or `.NoRoute`. This ensures global middleware always runs, even for fallback (404) requests.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "8ad0bc20-ff01-4fa6-90d9-26bf5cc0230d",
+            "questionId": "gin-q2",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 90020,
+            "outputTokens": 1089,
+            "toolCallCount": 20,
+            "fileReadCount": 9,
+            "wallClockMillis": 178969,
+            "costUsd": null,
+            "finalAnswer": "**Answer:**\n\nMiddleware attached globally via `Engine.Use` continues to run even for requests that result in a 404 (no matching route), because the chain of handlers for the 404 fallback (`NoRoute`) is explicitly rebuilt every time new global middleware is added.\n\n### Details:\n\n1. **How is the handler chain for 404 computed?**\n\n   - The 404 handler chain is managed by the `engine.allNoRoute` field.\n   - Every time you call `Engine.Use(...)`, it triggers `engine.rebuild404Handlers()`.\n   - This method sets `engine.allNoRoute = engine.combineHandlers(engine.noRoute)`.\n   - `combineHandlers` prepends all middleware attached to the root `RouterGroup` (`engine.RouterGroup.Handlers`) to the `engine.noRoute` handler chain.\n\n2. **What recomputes the fallback (404) handler chain to include new middleware?**\n\n   - The relevant code in `gin.go`:\n     ```go\n     func (engine *Engine) Use(middleware ...HandlerFunc) IRoutes {\n         engine.RouterGroup.Use(middleware...)\n         engine.rebuild404Handlers()\n         engine.rebuild405Handlers()\n         return engine\n     }\n\n     func (engine *Engine) rebuild404Handlers() {\n         engine.allNoRoute = engine.combineHandlers(engine.noRoute)\n     }\n     ```\n   - That means **every time you add global middleware via `Use`**, the 404 handler chain is recomputed, so all global middleware is always included in the chain used for 404 requests.\n\n3. **How is the 404 handler chain actually invoked?**\n   - In the main request handling function (search for setting `c.handlers`), if no route matches, `c.handlers = engine.allNoRoute`.\n   - Then standard handler chain execution runs, which includes all middleware + `NoRoute` handlers.\n\n### Summary\n\n**Global middleware runs for 404s because the fallback handler chain is rebuilt and includes it every time you use `Engine.Use`. This is handled by `engine.rebuild404Handlers()`, which calls `combineHandlers` to prepend middleware to all NoRoute handlers.**",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "d49c29de-0250-4eeb-bc90-919e42df86ad",
+            "questionId": "gin-q3",
+            "arm": "WITH_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 47098,
+            "outputTokens": 1595,
+            "toolCallCount": 19,
+            "fileReadCount": 11,
+            "wallClockMillis": 102041,
+            "costUsd": null,
+            "finalAnswer": "Here is how route registration and route reading work in Gin (the code you provided):\n\n---\n\n### 1. **Registering a Route (`RouterGroup.GET`...`Engine.addRoute`...radix tree)**\n\n- **`RouterGroup.GET(relativePath, handlers...)`**  \n  This is a shortcut for `RouterGroup.Handle(\"GET\", relativePath, handlers...)`.\n\n- **`RouterGroup.Handle`**  \n  This checks the HTTP method's validity and calls `group.handle`.\n\n- **`RouterGroup.handle`**  \n  - Calculates the full absolute path by joining the group's base and `relativePath`.\n  - Combines the group’s handlers (middlewares) and the new handlers, yielding the complete `HandlersChain`.\n  - Calls `engine.addRoute(method, absolutePath, handlersChain)`.\n\n- **`Engine.addRoute(method, path, handlers)`**  \n  - Ensures the path starts with '/' and at least one handler is present.\n  - Finds (or creates) a radix tree for that method (`methodTrees` via `engine.trees`).\n  - Calls `root.addRoute(path, handlersChain)` on the method tree's root node.\n\n- **`node.addRoute(path, handlers)`** (in the radix tree, see `tree.go`)  \n  - Walks down the tree, splitting nodes where needed to fit the new route path.\n  - Inserts nodes/children as necessary.\n  - When the proper node is reached, assigns `handlers` to `node.handlers`.\n  - Supports static, parameter, and wildcard segments in a radix-tree layout.\n\n#### **Handlers Storage**  \nEach node carries a `HandlersChain`.  \n- The chain for the route is set on the node corresponding to the full route path.\n- `combineHandlers` ensures group middlewares are prepended to the specific route handlers.\n\n---\n\n### 2. **Reading Routes Back (`Engine.Routes()`)**\n\n- **`Engine.Routes()`**  \n  - For each `methodTree` in `engine.trees`:\n    - Calls `iterate(\"\", tree.method, routes, tree.root)`\n\n- **`iterate(path, method, routes, rootNode)`**  \n  - Recursively walks the radix tree.\n  - At each node, appends node’s path part to the current full path.\n  - If a node has a non-nil `handlers` chain, appends a new `RouteInfo` to the output list:\n    - `Method`: HTTP method\n    - `Path`: full route path for that node\n    - `Handler`: the name of function in the `handlers` chain (see below)\n    - `HandlerFunc`: the function\n\n#### **Which Handler is Reported**\n- **It reports the *last* handler in the `handlers` chain.**\n  - From `HandlersChain.Last()` implementation:  \n    - `return c[length-1]` (the last function in the chain)\n- This is always the **final handler**, not a middleware.\n\n---\n\n### **Summary Table**\n\n| Operation               | Function(s)                                           | Notes                                                                        |\n|-------------------------|------------------------------------------------------|------------------------------------------------------------------------------|\n| Register GET            | RouterGroup.GET → .Handle → .handle → engine.addRoute| Prepends middlewares, calls addRoute                                         |\n| Insert into tree        | Engine.addRoute → root.addRoute                      | Puts route in per-method radix tree, saves handler chain at node             |\n| Inspect routes          | Engine.Routes → iterate                              | Walks all trees recursively, collects nodes with non-nil handlers            |\n| Which handler reported? | HandlersChain.Last()                                 | Always the final handler, i.e., the actual route handler (not middleware)    |\n\n---\n\n**In summary:** When you call `RouterGroup.GET`, it ultimately stores your route (with full middleware chain) into the per-method radix tree at the correct node. `Engine.Routes()` then walks all method trees, and every node with a handler chain returns a route—reporting the *last* handler (the endpoint, not a middleware) as the route handler.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        },
+        {
+            "id": "63f7c509-f7e5-4227-b895-1a3b2cc8db9d",
+            "questionId": "gin-q3",
+            "arm": "WITHOUT_TOOLS",
+            "repeatIndex": 0,
+            "inputTokens": 134916,
+            "outputTokens": 1614,
+            "toolCallCount": 34,
+            "fileReadCount": 20,
+            "wallClockMillis": 271918,
+            "costUsd": null,
+            "finalAnswer": "Here's how registering a route with `RouterGroup.GET` travels through the system down to `Engine.addRoute`, is organized in the per-method radix tree, and how `Engine.Routes()` reads routes back, including what handler is reported:\n\n---\n\n### Registering a Route (`RouterGroup.GET` to `Engine.addRoute` and the radix tree):\n\n1. **Calling `RouterGroup.GET`:**\n   - Signature: `func (group *RouterGroup) GET(relativePath string, handlers ...HandlerFunc) IRoutes`\n   - Simply calls: `return group.handle(http.MethodGet, relativePath, handlers)`\n\n2. **RouterGroup.handle:**\n   - Calls `group.calculateAbsolutePath` to compute the full path from the group's base path and the route's relative path.\n   - Calls `group.combineHandlers` — this merges the group's middleware with the provided handlers to create one \"handler chain\".\n   - **Crucially, calls:** `group.engine.addRoute(httpMethod, absolutePath, handlers)`\n\n3. **Engine.addRoute:**\n   - Signature: `func (engine *Engine) addRoute(method, path string, handlers HandlersChain)`\n   - Checks preconditions on the path and handlers.\n   - Finds (or creates) the radix tree (`methodTree`) for the HTTP method via `engine.trees.get(method)`.\n   - Calls `root.addRoute(path, handlers)`, where `root` is the root node of the method's radix tree.\n\n4. **node.addRoute (radix tree, per-method):**\n   - Walks or splits the tree as necessary to insert the path.\n   - Eventually, in `insertChild`, sets `node.handlers = handlers` in the appropriate node.\n   - So, each leaf node for a route stores the merged handler chain.\n\n---\n\n### Reading Routes (`Engine.Routes()` and handler reporting):\n\n1. **Engine.Routes():**\n   - Signature: `func (engine *Engine) Routes() (routes RoutesInfo)`\n   - For each method's tree, calls a helper, `iterate(\"\", tree.method, routes, tree.root)`.\n\n2. **iterate function:**\n   - Recursively walks the tree.\n   - For any node with a non-empty `handlers`, it constructs a `RouteInfo` object:\n     - The handler reported for the route is **the last handler in the node's `HandlersChain`**: this is by calling `handlerFunc := root.handlers.Last()`.\n     - `nameOfFunction(handlerFunc)` gets the function name for reporting.\n     - Adds method, path, handler function to `RoutesInfo`.\n\n---\n\n### Summary Table\n\n| Step                              | What Happens                                     |\n|------------------------------------|--------------------------------------------------|\n| group.GET(\"/path\", h1, h2)        | → `handle()` → merges group + route handlers     |\n| handle()                          | → `engine.addRoute()` with full handler chain    |\n| addRoute()                        | → Finds/creates methodTree → node.addRoute()     |\n| node.addRoute/insertChild         | → Stores handler chain at leaf for path          |\n| Engine.Routes()                   | Recurses all trees, reports each route where a handler is stored |\n| Node handler reported             | **The last handler in the chain** for each node  |\n\n---\n\n### Handler Reported\n\nThe `Handler` field in the output of `Engine.Routes()` is specifically:\n- **The last function** in the handler chain for the route node (typically the actual endpoint handler, not middleware).\n\n---\n\n**In summary:**  \nRegistration with `GET` merges middleware and the endpoint, stores the full chain per path in the per-method radix tree, and `Routes()` walks these trees, reporting only the final handler for each route.",
+            "hitCeiling": false,
+            "contaminated": false,
+            "cliInvocationAttempts": 0
+        }
+    ],
+    "judgeScores": [
+        {
+            "id": "6baac58e-f752-4db5-80ab-979f2359b8c1:gpt-4.1",
+            "runId": "6baac58e-f752-4db5-80ab-979f2359b8c1",
+            "judgeModel": "gpt-4.1",
+            "factScores": [
+                {
+                    "factId": "gin-q1-f1",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q1-f4",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f5",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f6",
+                    "hit": false
+                }
+            ],
+            "accuracyScore": 0.16666666666666666
+        },
+        {
+            "id": "d86e233b-a1e9-4163-be2a-d71bb9ab627f:gpt-4.1",
+            "runId": "d86e233b-a1e9-4163-be2a-d71bb9ab627f",
+            "judgeModel": "gpt-4.1",
+            "factScores": [
+                {
+                    "factId": "gin-q1-f1",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f2",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f3",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f4",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f5",
+                    "hit": false
+                },
+                {
+                    "factId": "gin-q1-f6",
+                    "hit": false
+                }
+            ],
+            "accuracyScore": 0.0
+        },
+        {
+            "id": "107f907b-88ea-41ea-b64c-1a706b6bee71:gpt-4.1",
+            "runId": "107f907b-88ea-41ea-b64c-1a706b6bee71",
+            "judgeModel": "gpt-4.1",
+            "factScores": [
+                {
+                    "factId": "gin-q2-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q2-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "d49c29de-0250-4eeb-bc90-919e42df86ad:gpt-4.1",
+            "runId": "d49c29de-0250-4eeb-bc90-919e42df86ad",
+            "judgeModel": "gpt-4.1",
+            "factScores": [
+                {
+                    "factId": "gin-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        },
+        {
+            "id": "63f7c509-f7e5-4227-b895-1a3b2cc8db9d:gpt-4.1",
+            "runId": "63f7c509-f7e5-4227-b895-1a3b2cc8db9d",
+            "judgeModel": "gpt-4.1",
+            "factScores": [
+                {
+                    "factId": "gin-q3-f1",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f2",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f3",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f4",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f5",
+                    "hit": true
+                },
+                {
+                    "factId": "gin-q3-f6",
+                    "hit": true
+                }
+            ],
+            "accuracyScore": 1.0
+        }
+    ],
+    "summary": {
+        "perQuestionArm": [
+            {
+                "questionId": "gin-q1",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 2310.0,
+                        "min": 2310.0,
+                        "max": 2310.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 260.0,
+                        "min": 260.0,
+                        "max": 260.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 2570.0,
+                        "min": 2570.0,
+                        "max": 2570.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 5420.0,
+                        "min": 5420.0,
+                        "max": 5420.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 0.16666666666666666,
+                        "min": 0.16666666666666666,
+                        "max": 0.16666666666666666,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q1",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 1,
+                    "inputTokens": {
+                        "median": 175560.0,
+                        "min": 175560.0,
+                        "max": 175560.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 968.0,
+                        "min": 968.0,
+                        "max": 968.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 176528.0,
+                        "min": 176528.0,
+                        "max": 176528.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 40.0,
+                        "min": 40.0,
+                        "max": 40.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 293160.0,
+                        "min": 293160.0,
+                        "max": 293160.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 0.0,
+                        "min": 0.0,
+                        "max": 0.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q2",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 53392.0,
+                        "min": 53392.0,
+                        "max": 53392.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 648.0,
+                        "min": 648.0,
+                        "max": 648.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 54040.0,
+                        "min": 54040.0,
+                        "max": 54040.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 2.0,
+                        "max": 2.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 113464.0,
+                        "min": 113464.0,
+                        "max": 113464.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q2",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 90020.0,
+                        "min": 90020.0,
+                        "max": 90020.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1089.0,
+                        "min": 1089.0,
+                        "max": 1089.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 91109.0,
+                        "min": 91109.0,
+                        "max": 91109.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 20.0,
+                        "min": 20.0,
+                        "max": 20.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 9.0,
+                        "min": 9.0,
+                        "max": 9.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 178969.0,
+                        "min": 178969.0,
+                        "max": 178969.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": null,
+                    "accuracyScore": null
+                }
+            },
+            {
+                "questionId": "gin-q3",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47098.0,
+                        "min": 47098.0,
+                        "max": 47098.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1595.0,
+                        "min": 1595.0,
+                        "max": 1595.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 48693.0,
+                        "min": 48693.0,
+                        "max": 48693.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 19.0,
+                        "min": 19.0,
+                        "max": 19.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 11.0,
+                        "min": 11.0,
+                        "max": 11.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 102041.0,
+                        "min": 102041.0,
+                        "max": 102041.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            },
+            {
+                "questionId": "gin-q3",
+                "repoId": "gin",
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 1,
+                    "includedRuns": 1,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 134916.0,
+                        "min": 134916.0,
+                        "max": 134916.0,
+                        "sampleSize": 1
+                    },
+                    "outputTokens": {
+                        "median": 1614.0,
+                        "min": 1614.0,
+                        "max": 1614.0,
+                        "sampleSize": 1
+                    },
+                    "totalTokens": {
+                        "median": 136530.0,
+                        "min": 136530.0,
+                        "max": 136530.0,
+                        "sampleSize": 1
+                    },
+                    "toolCallCount": {
+                        "median": 34.0,
+                        "min": 34.0,
+                        "max": 34.0,
+                        "sampleSize": 1
+                    },
+                    "fileReadCount": {
+                        "median": 20.0,
+                        "min": 20.0,
+                        "max": 20.0,
+                        "sampleSize": 1
+                    },
+                    "wallClockMillis": {
+                        "median": 271918.0,
+                        "min": 271918.0,
+                        "max": 271918.0,
+                        "sampleSize": 1
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 1.0,
+                        "max": 1.0,
+                        "sampleSize": 1
+                    }
+                }
+            }
+        ],
+        "perRepoArm": [
+            {
+                "repoId": "gin",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47098.0,
+                        "min": 2310.0,
+                        "max": 53392.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 648.0,
+                        "min": 260.0,
+                        "max": 1595.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 48693.0,
+                        "min": 2570.0,
+                        "max": 54040.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 1.0,
+                        "max": 19.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 0.0,
+                        "max": 11.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 102041.0,
+                        "min": 5420.0,
+                        "max": 113464.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.16666666666666666,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "repoId": "gin",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 1,
+                    "inputTokens": {
+                        "median": 134916.0,
+                        "min": 90020.0,
+                        "max": 175560.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 1089.0,
+                        "min": 968.0,
+                        "max": 1614.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 136530.0,
+                        "min": 91109.0,
+                        "max": 176528.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 34.0,
+                        "min": 20.0,
+                        "max": 40.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 11.0,
+                        "min": 9.0,
+                        "max": 20.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 271918.0,
+                        "min": 178969.0,
+                        "max": 293160.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "sampleSize": 2
+                    }
+                }
+            }
+        ],
+        "perCategoryArm": [
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47098.0,
+                        "min": 2310.0,
+                        "max": 53392.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 648.0,
+                        "min": 260.0,
+                        "max": 1595.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 48693.0,
+                        "min": 2570.0,
+                        "max": 54040.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 1.0,
+                        "max": 19.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 0.0,
+                        "max": 11.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 102041.0,
+                        "min": 5420.0,
+                        "max": 113464.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.16666666666666666,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "category": "GRAPH_HEAVY",
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 1,
+                    "inputTokens": {
+                        "median": 134916.0,
+                        "min": 90020.0,
+                        "max": 175560.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 1089.0,
+                        "min": 968.0,
+                        "max": 1614.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 136530.0,
+                        "min": 91109.0,
+                        "max": 176528.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 34.0,
+                        "min": 20.0,
+                        "max": 40.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 11.0,
+                        "min": 9.0,
+                        "max": 20.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 271918.0,
+                        "min": 178969.0,
+                        "max": 293160.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "sampleSize": 2
+                    }
+                }
+            }
+        ],
+        "headline": [
+            {
+                "arm": "WITH_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 0,
+                    "inputTokens": {
+                        "median": 47098.0,
+                        "min": 2310.0,
+                        "max": 53392.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 648.0,
+                        "min": 260.0,
+                        "max": 1595.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 48693.0,
+                        "min": 2570.0,
+                        "max": 54040.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 9.0,
+                        "min": 1.0,
+                        "max": 19.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 2.0,
+                        "min": 0.0,
+                        "max": 11.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 102041.0,
+                        "min": 5420.0,
+                        "max": 113464.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 1.0,
+                        "min": 0.16666666666666666,
+                        "max": 1.0,
+                        "sampleSize": 3
+                    }
+                }
+            },
+            {
+                "arm": "WITHOUT_TOOLS",
+                "metrics": {
+                    "totalRuns": 3,
+                    "includedRuns": 3,
+                    "excludedContaminatedRuns": 0,
+                    "ceilingHitRuns": 1,
+                    "inputTokens": {
+                        "median": 134916.0,
+                        "min": 90020.0,
+                        "max": 175560.0,
+                        "sampleSize": 3
+                    },
+                    "outputTokens": {
+                        "median": 1089.0,
+                        "min": 968.0,
+                        "max": 1614.0,
+                        "sampleSize": 3
+                    },
+                    "totalTokens": {
+                        "median": 136530.0,
+                        "min": 91109.0,
+                        "max": 176528.0,
+                        "sampleSize": 3
+                    },
+                    "toolCallCount": {
+                        "median": 34.0,
+                        "min": 20.0,
+                        "max": 40.0,
+                        "sampleSize": 3
+                    },
+                    "fileReadCount": {
+                        "median": 11.0,
+                        "min": 9.0,
+                        "max": 20.0,
+                        "sampleSize": 3
+                    },
+                    "wallClockMillis": {
+                        "median": 271918.0,
+                        "min": 178969.0,
+                        "max": 293160.0,
+                        "sampleSize": 3
+                    },
+                    "costUsd": null,
+                    "accuracyScore": {
+                        "median": 0.5,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "sampleSize": 2
+                    }
+                }
+            }
+        ],
+        "negativeControl": [],
+        "breakEvenByRepo": [
+            {
+                "repoId": "gin",
+                "result": {
+                    "type": "io.contextgraph.benchmark.model.BreakEvenResult.InsufficientData",
+                    "reason": "missing WITH_TOOLS or WITHOUT_TOOLS cost data for this repo"
+                }
+            }
+        ]
+    },
+    "failedRunCount": 0,
+    "agentClientKind": "REAL",
+    "judgingComplete": true,
+    "failedJudgeCount": 1
+}

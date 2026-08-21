@@ -1,0 +1,171 @@
+questions:
+  - id: calcom-q1
+    repoId: calcom
+    text: "When a new attendee tries to add themselves as a seat to an existing seated booking whose seat capacity is already full, what happens: which condition triggers the rejection, what HTTP status and error code are returned, and where in the schema/migration history did the underlying seatsPerTimeSlot column originate?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: calcom-q1-f1
+        statement: "EventType.seatsPerTimeSlot is declared as an optional Int column (`seatsPerTimeSlot Int?`) on the EventType model in the Prisma schema."
+        evidence: "packages/prisma/schema.prisma:222"
+      - id: calcom-q1-f2
+        statement: "Prisma migration 20220413173832_add_seats_to_event_type_model adds the seatsPerTimeSlot column to the EventType table (`ALTER TABLE \"EventType\" ADD COLUMN \"seatsPerTimeSlot\" INTEGER;`)."
+        evidence: "packages/prisma/migrations/20220413173832_add_seats_to_event_type_model/migration.sql:2"
+      - id: calcom-q1-f3
+        statement: "In addSeatToBooking, the seat limit is enforced only when seatsPerTimeSlot > 0, and it rejects the new seat once the current seat count has reached or exceeded that limit (`input.seatsPerTimeSlot > 0 && input.seatsPerTimeSlot <= currentSeatCount`)."
+        evidence: "packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:77"
+      - id: calcom-q1-f4
+        statement: "The HttpError thrown when that seat-limit condition is true carries statusCode 409 (`statusCode: 409,`)."
+        evidence: "packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:79"
+      - id: calcom-q1-f5
+        statement: "That same HttpError's message field is ErrorCode.BookingSeatsFull (`message: ErrorCode.BookingSeatsFull,`)."
+        evidence: "packages/features/bookings/lib/handleSeats/create/createNewSeat.ts:80"
+      - id: calcom-q1-f6
+        statement: "ErrorCode.BookingSeatsFull is defined as the string literal \"booking_seats_full_error\"."
+        evidence: "packages/lib/errorCodes.ts:22"
+
+  - id: calcom-q2
+    repoId: calcom
+    text: "How does cal.com let a webhook subscriber verify that a received payload is authentic, from the database column that stores the per-webhook secret, through the code that signs outgoing payloads, to the documented verification steps?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: calcom-q2-f1
+        statement: "Webhook.secret is declared as an optional String column (`secret String?`) on the Webhook model in the Prisma schema."
+        evidence: "packages/prisma/schema.prisma:1189"
+      - id: calcom-q2-f2
+        statement: "Prisma migration 20220614090326_add_webhook_secret adds the secret column to the Webhook table (`ALTER TABLE \"Webhook\" ADD COLUMN \"secret\" TEXT;`)."
+        evidence: "packages/prisma/migrations/20220614090326_add_webhook_secret/migration.sql:2"
+      - id: calcom-q2-f3
+        statement: "When a secret is configured, createWebhookSignature computes the payload signature as an HMAC-SHA256 hex digest of the body using that secret (`createHmac(\"sha256\", params.secret).update(...).digest(\"hex\")`)."
+        evidence: "packages/features/webhooks/lib/sendPayload.ts:322"
+      - id: calcom-q2-f4
+        statement: "The computed signature is sent to the subscriber URL in the `X-Cal-Signature-256` request header when the webhook payload is dispatched."
+        evidence: "packages/features/webhooks/lib/sendPayload.ts:340"
+      - id: calcom-q2-f5
+        statement: "The docs' payload-verification steps instruct subscribers to compare the hash they compute against the hash received in the webhook's `x-cal-signature-256` header, to confirm the payload wasn't tampered with."
+        evidence: "docs/developing/guides/automation/webhooks.mdx:1675"
+
+  - id: calcom-q3
+    repoId: calcom
+    text: "cal.com's self-hosting license-key doc (in docs/) describes needing a purchased License Key but never names the environment variable for it. Within cal.com's docs/ directory specifically, which doc does explicitly name that environment variable, what is its name, which function reads it directly off process.env, which service factory calls that function to obtain the license key, and what condition causes that factory to fall back to a no-op license implementation?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: calcom-q3-f1
+        statement: "The self-hosting license-key doc states that self-hosting Cal.com under the Commercial License requires purchasing a License Key, without naming the environment variable that carries it."
+        evidence: "docs/self-hosting/license-key.mdx:6"
+      - id: calcom-q3-f2
+        statement: "Within cal.com's docs/ directory, the local-API-setup developer doc is the only one that explicitly names CALCOM_LICENSE_KEY as the environment variable to set in the root .env file to supply the license key (presented there as a staging key for local API development). CALCOM_LICENSE_KEY is also named in several top-level README.md files elsewhere in the repo (e.g. the project root README.md, and the v1/v2 API and organizations package READMEs) — the uniqueness claim here is scoped to docs/ only, not repo-wide."
+        evidence: "docs/developing/guides/api/how-to-setup-api-in-a-local-instance.mdx:12"
+      - id: calcom-q3-f3
+        statement: "getDeploymentKey's first step is checking whether the CALCOM_LICENSE_KEY environment variable is set, via `if (process.env.CALCOM_LICENSE_KEY)`."
+        evidence: "packages/features/ee/deployment/lib/getDeploymentKey.ts:8"
+      - id: calcom-q3-f4
+        statement: "LicenseKeyService's static factory method create() calls getDeploymentKey(deploymentRepo) to obtain the license key it will use (`const licenseKey = await getDeploymentKey(deploymentRepo);`) — this is the caller edge from the service back to the function that reads process.env."
+        evidence: "packages/features/ee/common/server/LicenseKeyService.ts:38"
+      - id: calcom-q3-f5
+        statement: "LicenseKeyService.create computes its `useNoop` flag as `!licenseKey || process.env.NEXT_PUBLIC_IS_E2E === \"1\"`."
+        evidence: "packages/features/ee/common/server/LicenseKeyService.ts:40"
+      - id: calcom-q3-f6
+        statement: "LicenseKeyService.create's return statement is the fallback itself: `return !useNoop ? new LicenseKeyService(licenseKey, signatureToken) : new NoopLicenseKeyService();` — when useNoop is true, it returns a NoopLicenseKeyService instead of a real one."
+        evidence: "packages/features/ee/common/server/LicenseKeyService.ts:41"
+
+  - id: calcom-q4
+    repoId: calcom
+    text: "Trace how EventType.requiresConfirmation flows from the Prisma schema into booking-creation code: which function first reads that field off the event type (before any threshold/free-email override is applied), what does the function that computes isConfirmedByDefault actually check to decide it, which webhook event fires instead of BOOKING_CREATED when that decision leaves the booking PENDING, and does the developer docs' example payload for that alternate webhook event corroborate the PENDING/requires-confirmation state?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: calcom-q4-f1
+        statement: "EventType.requiresConfirmation is declared as a non-optional Boolean column defaulting to false (`requiresConfirmation Boolean @default(false)`) on the EventType model in the Prisma schema."
+        evidence: "packages/prisma/schema.prisma:205"
+      - id: calcom-q4-f2
+        statement: "Prisma migration 20210717120159_booking_confirmation adds the requiresConfirmation column to the EventType table (`ALTER TABLE \"EventType\" ADD COLUMN     \"requiresConfirmation\" BOOLEAN NOT NULL DEFAULT false;`)."
+        evidence: "packages/prisma/migrations/20210717120159_booking_confirmation/migration.sql:6"
+      - id: calcom-q4-f3
+        statement: "determineRequiresConfirmation's underlying implementation first assigns `requiresConfirmation` straight from `eventType?.requiresConfirmation`, before any requiresConfirmationForFreeEmail or requiresConfirmationThreshold override is considered."
+        evidence: "packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts:54"
+      - id: calcom-q4-f4
+        statement: "determineIsConfirmedByDefault computes isConfirmedByDefault as `(!requiresConfirmation && price === 0) || userReschedulingIsOwner` — a booking is confirmed by default only if it didn't require confirmation and is free, or the rescheduling user is the event's owner."
+        evidence: "packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts:92"
+      - id: calcom-q4-f5
+        statement: "RegularBookingService queues a BOOKING_REQUESTED webhook via a call to `deps.webhookProducer.queueBookingRequestedWebhook`, inside the branch that runs once the booking has ended up with status PENDING (the pending-status guard and this call are a few lines apart, inside the same try block; the call's argument object is multi-line and not itself quoted here)."
+        evidence: "packages/features/bookings/lib/service/RegularBookingService.ts:2796"
+      - id: calcom-q4-f6
+        statement: "The developer docs' example payload for the BOOKING_REQUESTED webhook event shows `\"requiresConfirmation\": true,`, corroborating that this webhook corresponds to the requires-confirmation/PENDING code path rather than the BOOKING_CREATED path."
+        evidence: "docs/developing/guides/automation/webhooks.mdx:585"
+
+  - id: calcom-q5
+    repoId: calcom
+    text: "Trace how cal.com's private-link (HashedLink) feature enforces usage-based expiration alongside its older time-based expiry: which HashedLink column did the migration add to cap the number of uses, and what is its default; what is the exact boundary condition isUsageBasedExpired uses to decide a link's uses are exhausted; does validateHashedLinkData check time-based or usage-based expiration first; what error code identifies an expired/exhausted private link; and does the v2 API's documented request schema for creating a private link corroborate that same default of 1?"
+    category: GRAPH_HEAVY
+    goldFacts:
+      - id: calcom-q5-f1
+        statement: "HashedLink.maxUsageCount is declared as a non-optional Int column defaulting to 1 (`maxUsageCount Int @default(1)`) on the HashedLink model in the Prisma schema."
+        evidence: "packages/prisma/schema.prisma:1252"
+      - id: calcom-q5-f2
+        statement: "Prisma migration 20250707145503_add_private_links_expiration_capability adds the maxUsageCount column to the HashedLink table with that same default of 1 (`ADD COLUMN \"maxUsageCount\" INTEGER NOT NULL DEFAULT 1,`)."
+        evidence: "packages/prisma/migrations/20250707145503_add_private_links_expiration_capability/migration.sql:3"
+      - id: calcom-q5-f3
+        statement: "validateHashedLinkData checks time-based expiration first, before it ever reaches the usage-based check later in the same function, via `if (isTimeBasedExpired(linkData.expiresAt, linkData.eventType))`."
+        evidence: "packages/lib/hashedLinksUtils.ts:104"
+      - id: calcom-q5-f4
+        statement: "isUsageBasedExpired's exhaustion boundary is `usageCount >= maxUsageCount` — a link is considered exhausted once its usage count reaches, not merely exceeds, the configured max."
+        evidence: "packages/lib/hashedLinksUtils.ts:95"
+      - id: calcom-q5-f5
+        statement: "ErrorCode.PrivateLinkExpired, the error thrown for both an expired-by-time and an exhausted-by-usage private link, is defined as the string literal `private_link_expired`."
+        evidence: "packages/lib/errorCodes.ts:39"
+      - id: calcom-q5-f6
+        statement: "The v2 API's documented CreatePrivateLinkInput.maxUsageCount schema corroborates the same default of 1, describing the field as `Maximum number of times the link can be used. If omitted and expiresAt is not provided, defaults to 1 (one time use).`"
+        evidence: "docs/api-reference/v2/openapi.json:26492"
+
+  - id: calcom-q6
+    repoId: calcom
+    text: "In the same EventType Prisma schema field block that runs from seatsPerTimeSlot through schedulingType, several Boolean fields control what slot/seat information is displayed to the booker — distinct from the two Boolean fields in that same block that instead disable a booking action (disableCancelling, disableRescheduling — out of scope here) and the one Int field that sets a notice period (minimumRescheduleNotice — also out of scope). Name every one of those display-control Boolean fields — i.e. every Boolean field in that block whose name does not start with `disable` — and give each one's exact type and default value."
+    category: NEUTRAL
+    goldFacts:
+      - id: calcom-q6-f1
+        statement: "EventType.onlyShowFirstAvailableSlot is a non-optional Boolean column defaulting to false (`onlyShowFirstAvailableSlot Boolean @default(false)`)."
+        evidence: "packages/prisma/schema.prisma:223"
+      - id: calcom-q6-f2
+        statement: "EventType.showOptimizedSlots is an optional Boolean column defaulting to false (`showOptimizedSlots Boolean? @default(false)`)."
+        evidence: "packages/prisma/schema.prisma:224"
+      - id: calcom-q6-f3
+        statement: "EventType.seatsShowAttendees is an optional Boolean column defaulting to false (`seatsShowAttendees Boolean? @default(false)`)."
+        evidence: "packages/prisma/schema.prisma:229"
+      - id: calcom-q6-f4
+        statement: "EventType.seatsShowAvailabilityCount is an optional Boolean column defaulting to true (`seatsShowAvailabilityCount Boolean? @default(true)`)."
+        evidence: "packages/prisma/schema.prisma:230"
+
+  - id: calcom-q7
+    repoId: calcom
+    text: "According to cal.com's self-hosting database-migrations documentation, what causes Prisma's P3005 'schema is not empty' error, and what two remedies does the doc give: one to mark existing migrations as applied, and one to fully reset a local Postgres migration history?"
+    category: NEUTRAL
+    goldFacts:
+      - id: calcom-q7-f1
+        statement: "The doc explains that Prisma tracks applied migrations in a `_prisma_migrations` table, and that a mismatch between the local migrations history and the actual database state causes Prisma to throw an error."
+        evidence: "docs/self-hosting/database-migrations.mdx:36"
+      - id: calcom-q7-f2
+        statement: "The doc's example names that error as code P3005 (`Error: P3005`)."
+        evidence: "docs/self-hosting/database-migrations.mdx:39"
+      - id: calcom-q7-f3
+        statement: "The doc gives `yarn prisma migrate resolve --applied migration_name` as the command to run to resolve that error."
+        evidence: "docs/self-hosting/database-migrations.mdx:49"
+      - id: calcom-q7-f4
+        statement: "To reset a local Postgres migration history entirely, the doc instructs running `DELETE FROM \"_prisma_migrations\";` directly against the database."
+        evidence: "docs/self-hosting/database-migrations.mdx:61"
+
+  - id: calcom-q8
+    repoId: calcom
+    text: "In packages/features/bookings/lib/handleCancelBooking.ts, what are the exact literal error messages returned by the early validation checks that run before any calendar/payment side effects — for an already-cancelled booking, a booking with no associated user record, a missing required cancellation reason, and a booking whose end time has already passed?"
+    category: NEGATIVE_CONTROL
+    goldFacts:
+      - id: calcom-q8-f1
+        statement: "When the booking's status is already CANCELLED, handleCancelBooking's rejection message is the exact literal string \"This booking has already been cancelled.\""
+        evidence: "packages/features/bookings/lib/handleCancelBooking.ts:200"
+      - id: calcom-q8-f2
+        statement: "When the booking has no associated userId or user, handleCancelBooking throws an HttpError with statusCode 400 and the exact message \"User not found\" (both on the same line: `throw new HttpError({ statusCode: 400, message: \"User not found\" });`)."
+        evidence: "packages/features/bookings/lib/handleCancelBooking.ts:205"
+      - id: calcom-q8-f3
+        statement: "When a cancellation reason is required but missing, handleCancelBooking's rejection message is the exact literal string \"Cancellation reason is required\"."
+        evidence: "packages/features/bookings/lib/handleCancelBooking.ts:226"
+      - id: calcom-q8-f4
+        statement: "When the booking's end time is already in the past, handleCancelBooking's rejection message is the exact literal string \"Cannot cancel a booking that has already ended\"."
+        evidence: "packages/features/bookings/lib/handleCancelBooking.ts:233"

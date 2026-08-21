@@ -1,0 +1,15 @@
+questions:
+  - id: gin-q1
+    repoId: gin
+    text: "Which handlers register the /ping route?"
+    category: NEGATIVE_CONTROL
+    goldFacts:
+      - id: gin-q1-f1
+        statement: "routes.go registers /ping"
+        evidence: "routes.go:15"
+      - id: gin-q1-f2
+        statement: "main.go wires the router"
+        evidence: "main.go:9"
+      - id: gin-q1-f3
+        statement: "handlers.go defines the ping handler"
+        evidence: "handlers.go:22"
