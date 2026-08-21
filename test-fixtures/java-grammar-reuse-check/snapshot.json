@@ -42,7 +42,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.reusecheck.Hello.greet",
-                "kind": "method"
+                "kind": "method",
+                "returns": "String"
             },
             "provenance": [
                 {

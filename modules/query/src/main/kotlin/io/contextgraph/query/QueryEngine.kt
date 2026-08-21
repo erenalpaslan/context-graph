@@ -38,9 +38,14 @@ class QueryEngine(private val storage: StorageAdapter) {
         return bundler.bundle(nodes)
     }
 
-    fun expandNode(nodeId: String, depth: Int = 2, edgeTypes: List<EdgeType> = emptyList()): ContextBundle {
+    fun expandNode(
+        nodeId: String,
+        depth: Int = 2,
+        edgeTypes: List<EdgeType> = emptyList(),
+        maxNodes: Int = ContextBundler.DEFAULT_MAX_NODES
+    ): ContextBundle {
         val (nodes, edges) = expander.expand(listOf(NodeId(nodeId)), depth, edgeTypes)
-        return bundler.bundle(nodes)
+        return bundler.bundle(nodes, maxNodes)
     }
 
     fun findPath(fromId: String, toId: String): List<io.contextgraph.core.GraphNode> =
@@ -48,11 +53,32 @@ class QueryEngine(private val storage: StorageAdapter) {
 
     fun getEvidence(nodeId: String) = evidenceRetriever.getEvidence(nodeId)
 
-    fun impactAnalysis(nodeId: String): ContextBundle {
+    /**
+     * Everything that points *at* [nodeId] -- its direct dependents, and for a method its call
+     * sites.
+     *
+     * Direct only, deliberately. This used to expand two hops out from the incomers and then keep
+     * the 50 highest-PageRank nodes of the result, which broke the tool for the question it names.
+     * Asked which 74 methods call one builder method, it answered with a blast radius of hundreds
+     * ranked by graph centrality, of which the 50 kept were mostly *not* callers -- a direct caller
+     * in a leaf file loses a centrality contest to a hub two hops away every time. So the tool
+     * both padded the answer and dropped members of it, and no caller could tell which was which.
+     *
+     * A dependent of a dependent is reachable by calling this again on that node; a direct caller
+     * that never appears is not reachable at all. [limit] caps the answer but never silently: the
+     * returned bundle carries the full incomer count for the caller to compare against.
+     */
+    fun impactAnalysis(nodeId: String, limit: Int = ContextBundler.DEFAULT_MAX_NODES): ContextBundle {
         val id = NodeId(nodeId)
-        val incomers = storage.getEdgesTo(id).map { it.source }
-        val (nodes, _) = expander.expand(incomers, depth = 2)
-        return bundler.bundle(nodes)
+        val incomingEdges = storage.getEdgesTo(id)
+        val dependents = incomingEdges.map { it.source }.distinct().mapNotNull { storage.getNode(it) }
+        return ContextBundle(
+            nodes = dependents.take(limit),
+            edges = incomingEdges,
+            evidence = dependents.take(limit).flatMap { storage.getProvenance(it.id.value) },
+            rankScores = emptyMap(),
+            totalNodeCount = dependents.size
+        )
     }
 
     fun relatedFiles(nodeId: String): List<String> {

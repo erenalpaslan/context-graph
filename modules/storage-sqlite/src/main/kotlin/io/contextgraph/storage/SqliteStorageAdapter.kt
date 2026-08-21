@@ -94,6 +94,8 @@ object UnresolvedReferencesTable : Table("unresolved_references") {
     val referenceName = text("reference_name")
     val referringSymbolId = text("referring_symbol_id")
     val line = integer("line")
+    val receiverType = text("receiver_type").nullable()
+    val receiverCall = text("receiver_call").nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -363,6 +365,8 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             it[referenceName] = reference.referenceName
             it[referringSymbolId] = reference.referringSymbolId.value
             it[line] = reference.line
+            it[receiverType] = reference.receiverType
+            it[receiverCall] = reference.receiverCall
         }
     }
 
@@ -377,7 +381,9 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 referringSymbolId = NodeId(it[UnresolvedReferencesTable.referringSymbolId]),
                 repoRelativePath = it[UnresolvedReferencesTable.repoRelativePath],
                 artifactId = ArtifactId(it[UnresolvedReferencesTable.artifactId]),
-                line = it[UnresolvedReferencesTable.line]
+                line = it[UnresolvedReferencesTable.line],
+                receiverType = it[UnresolvedReferencesTable.receiverType],
+                receiverCall = it[UnresolvedReferencesTable.receiverCall]
             )
         }
     }

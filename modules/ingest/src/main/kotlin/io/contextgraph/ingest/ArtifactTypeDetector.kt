@@ -6,7 +6,14 @@ import kotlin.io.path.extension
 import kotlin.io.path.name
 
 object ArtifactTypeDetector {
-    private val codeExtensions = setOf("kt", "java", "py", "ts", "tsx", "js", "jsx", "go", "rs", "rb", "php", "cpp", "c", "h", "cs", "swift", "scala", "groovy")
+    /**
+     * Extensions that make a file source code.
+     *
+     * Public because [FileDiscovery] needs the same answer: its secret-file heuristic matches on
+     * name substrings, and "is this source code" is what keeps that heuristic off `PasswordPolicy.java`.
+     * One list, so the two cannot drift into disagreeing about what code is.
+     */
+    val codeExtensions = setOf("kt", "java", "py", "ts", "tsx", "js", "jsx", "go", "rs", "rb", "php", "cpp", "c", "h", "cs", "swift", "scala", "groovy")
     private val configNames = setOf("dockerfile", ".dockerignore", ".gitignore", ".editorconfig", ".prettierrc", ".eslintrc")
     private val configExtensions = setOf("yml", "yaml", "toml", "ini", "cfg", "conf", "json", "xml", "properties")
     private val packageFileNames = setOf("package.json", "pom.xml", "build.gradle", "build.gradle.kts", "cargo.toml", "requirements.txt", "go.mod", "go.sum", "pyproject.toml", "setup.py", "setup.cfg", "gemfile", "composer.json", "package-lock.json", "yarn.lock")

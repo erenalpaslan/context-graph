@@ -1,0 +1,11 @@
+-- The method name whose return value is a call's receiver, for chained access.
+--
+-- `receiver_type` (V4) handles a receiver that names a parameter, field or local, and covered
+-- 44% of a real corpus's call sites. Of the rest, the dominant shape is a chain --
+-- `authSession.getParentSession().getId()` -- where the receiver is another call's result and
+-- no declaration in the calling file says what type that is. Pass 1 records the name here;
+-- pass 2 looks it up and reads the declared return type off the method it finds.
+--
+-- Nullable, like receiver_type: NULL means the receiver was not a call, and resolution behaves
+-- exactly as it did before this column existed.
+ALTER TABLE unresolved_references ADD COLUMN receiver_call TEXT;

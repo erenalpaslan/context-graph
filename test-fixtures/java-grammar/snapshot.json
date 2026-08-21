@@ -78,7 +78,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.AuditLog.record",
-                "kind": "method"
+                "kind": "method",
+                "returns": "void"
             },
             "provenance": [
                 {
@@ -150,7 +151,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.save",
-                "kind": "method"
+                "kind": "method",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -168,7 +170,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.save",
-                "kind": "method"
+                "kind": "method",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -273,7 +276,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.billing.UserService.charge",
-                "kind": "method"
+                "kind": "method",
+                "returns": "BigDecimal"
             },
             "provenance": [
                 {
@@ -343,7 +347,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.broken.Broken.oops",
-                "kind": "method"
+                "kind": "method",
+                "returns": "void"
             },
             "provenance": [
                 {
@@ -486,7 +491,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.Shape.area",
-                "kind": "method"
+                "kind": "method",
+                "returns": "double"
             },
             "provenance": [
                 {

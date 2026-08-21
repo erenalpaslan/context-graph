@@ -129,11 +129,30 @@ class FileDiscovery(private val config: ContextGraphConfig) {
         return matchers.any { it.matches(relative) }
     }
 
+    /**
+     * Whether a file is a credential container that must never be ingested.
+     *
+     * The name-substring rules ([sensitivePatterns]) do not apply to source code, and that
+     * exemption is the whole point of this function rather than an inline `any { }`. Matching
+     * `.*password.*` against a bare filename silently deleted 227 of Keycloak's 8,145 Java files
+     * from the graph -- `Argon2PasswordHashProvider.java`, `ClientCredentialsGrantType.java`,
+     * `ClientIdAndSecretAuthenticator.java` -- which on an identity server is not a random 2.8%
+     * but a large share of the code anyone would ask about. Nothing reported it: the files were
+     * dropped at discovery, so the graph was not wrong about them, it had simply never heard of
+     * them, and every query about password handling came back thin for no visible reason.
+     *
+     * A `.java` file is source code whatever it is named. A credential does not arrive wearing a
+     * source extension, so exempting those costs no protection: [sensitiveNames] (`.env`) and
+     * [sensitiveExtensions] (`.pem`, `.key`, `.p12`) still apply to every file unconditionally,
+     * and they are what actually catches secrets. Secrets *inside* a source file are a different
+     * problem than this filename heuristic was ever solving.
+     */
     private fun isSensitive(path: Path): Boolean {
         val name = path.fileName?.toString()?.lowercase() ?: return false
         if (name in sensitiveNames) return true
         val ext = name.substringAfterLast(".", "")
         if (ext in sensitiveExtensions) return true
+        if (ext in ArtifactTypeDetector.codeExtensions) return false
         return sensitivePatterns.any { it.matches(name) }
     }
 }
