@@ -47,7 +47,9 @@ class CorpusPreparationStepTest : FunSpec({
 
             results shouldHaveSize 1
             val result = results.single()
-            result.ingestRecord.repoId shouldBe entry.id
+            // Non-null is part of the assertion, not a formality: this call left `indexWithCopy`
+            // at its default, so a null record here would mean the WITH copy was never indexed.
+            requireNotNull(result.ingestRecord).repoId shouldBe entry.id
 
             val withPath = Path.of(requireNotNull(result.repo.workingCopyWithPath))
             val withoutPath = Path.of(requireNotNull(result.repo.workingCopyWithoutPath))

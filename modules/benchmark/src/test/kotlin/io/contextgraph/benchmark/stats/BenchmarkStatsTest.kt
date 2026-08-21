@@ -1,5 +1,6 @@
 package io.contextgraph.benchmark.stats
 
+import io.contextgraph.benchmark.judge.SetScorer
 import io.contextgraph.benchmark.model.AgentRunRecord
 import io.contextgraph.benchmark.model.Arm
 import io.contextgraph.benchmark.model.BenchmarkConfig
@@ -133,7 +134,12 @@ class BenchmarkStatsTest : FunSpec({
         JudgeScore("js-1", "q1-with-0", "claude-opus-5", listOf(FactScore("f1", true)), accuracyScore = 1.0),
         JudgeScore("js-2", "q1-with-1", "claude-opus-5", listOf(FactScore("f1", true)), accuracyScore = 1.0),
         JudgeScore("js-3", "q1-with-2", "claude-opus-5", listOf(FactScore("f1", false)), accuracyScore = 0.5),
-        JudgeScore("js-secondary", "q1-with-0", "claude-sonnet-5-validator", listOf(FactScore("f1", false)), accuracyScore = 0.0)
+        JudgeScore("js-secondary", "q1-with-0", "claude-sonnet-5-validator", listOf(FactScore("f1", false)), accuracyScore = 0.0),
+        // repoB / q3 is scored by the deterministic set scorer, not by a model. Its judgeModel is
+        // never the configured one, so it exercises the case where filtering "everything that
+        // isn't the primary judge" silently discards a real score.
+        JudgeScore("js-set-0", "q3-with-0", SetScorer.SCORER_NAME, emptyList(), accuracyScore = 0.8),
+        JudgeScore("js-set-1", "q3-with-1", SetScorer.SCORER_NAME, emptyList(), accuracyScore = 0.6)
     )
 
     val summary = BenchmarkStats.summarize(run(allRuns, judgeScores))
@@ -168,6 +174,14 @@ class BenchmarkStatsTest : FunSpec({
         // 3 included runs, all scored by the primary judge -> sample size 3, not 4 (secondary judge excluded).
         q1WithSummary.metrics.accuracyScore!!.sampleSize shouldBe 3
         q1WithSummary.metrics.accuracyScore!!.median shouldBe 1.0 // sorted [0.5, 1.0, 1.0]
+    }
+
+    test("a set question's deterministic scorer counts as primary, not as a second opinion to discard") {
+        val q3WithSummary = summary.perQuestionArm.first { it.questionId == "q3" && it.arm == Arm.WITH_TOOLS }
+        // Both runs were scored by SetScorer under a judgeModel that is not the configured one.
+        // Before the fix this was null -- "Accuracy: no data" on a run whose scores were on disk.
+        q3WithSummary.metrics.accuracyScore!!.sampleSize shouldBe 2
+        q3WithSummary.metrics.accuracyScore!!.median shouldBe (0.7 plusOrMinus 1e-9) // (0.6 + 0.8) / 2
     }
 
     test("repo-level breakdown pools every question in that repo, not a median of medians") {

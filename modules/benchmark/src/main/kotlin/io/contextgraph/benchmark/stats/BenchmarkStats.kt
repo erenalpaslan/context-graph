@@ -1,5 +1,6 @@
 package io.contextgraph.benchmark.stats
 
+import io.contextgraph.benchmark.judge.SetScorer
 import io.contextgraph.benchmark.model.AgentRunRecord
 import io.contextgraph.benchmark.model.AggregatedMetrics
 import io.contextgraph.benchmark.model.Arm
@@ -103,9 +104,21 @@ object BenchmarkStats {
             .map { (arm, runs) -> ArmSummary(arm = arm, metrics = aggregate(runs, accuracyByRunId)) }
             .sortedBy { it.arm }
 
-    /** Only the run's configured primary judge model feeds aggregation; a kappa-validation second judge stays out of the headline numbers. */
+    /**
+     * Only the run's configured primary judge model feeds aggregation; a kappa-validation second
+     * judge stays out of the headline numbers.
+     *
+     * [SetScorer.SCORER_NAME] counts as primary too. A set question is not scored by a model at
+     * all -- [SetScorer] compares the returned set against mechanically derived ground truth and
+     * stamps its own name into `judgeModel` -- so a filter that admits only the configured judge
+     * model dropped every set-question score on the floor. The whole run then reported "Accuracy:
+     * no data" while the scores sat in its own JSON, which reads as "the instrument found nothing"
+     * rather than "the instrument's output was filtered out". The exclusion this filter exists for
+     * is a *second opinion on the same answer*, and a deterministic scorer is never that.
+     */
     private fun accuracyLookup(judgeScores: List<JudgeScore>, primaryJudgeModel: String): Map<String, Double> =
-        judgeScores.filter { it.judgeModel == primaryJudgeModel }.associate { it.runId to it.accuracyScore }
+        judgeScores.filter { it.judgeModel == primaryJudgeModel || it.judgeModel == SetScorer.SCORER_NAME }
+            .associate { it.runId to it.accuracyScore }
 
     private fun aggregate(runs: List<AgentRunRecord>, accuracyByRunId: Map<String, Double>): AggregatedMetrics {
         val totalRuns = runs.size
