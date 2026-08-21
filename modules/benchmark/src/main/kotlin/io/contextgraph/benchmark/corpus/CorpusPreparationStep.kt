@@ -4,8 +4,12 @@ import io.contextgraph.benchmark.model.CorpusRepo
 import io.contextgraph.benchmark.model.IngestRecord
 import io.contextgraph.benchmark.model.Question
 import io.contextgraph.core.ContextGraphConfig
+import io.contextgraph.core.GraphDb
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.contextgraph.core.LiteLlmConfig
 import java.nio.file.Path
+
+private val logger = KotlinLogging.logger {}
 
 /** One repo's outcome from [CorpusPreparationStep.run]: the updated catalog entry plus its ingest cost. */
 data class CorpusPreparationResult(
@@ -57,7 +61,18 @@ object CorpusPreparationStep {
         // Before indexing: a prior run's WITH copy must never have been mistaken for WITHOUT.
         CleanCopyVerifier.verifyClean(withoutPath)
 
-        val ingestRecord = if (indexWithCopy) {
+        // A working copy is checked out at a pinned SHA and verified never to change, so an index
+        // that already exists for it is current by construction -- re-indexing it produces the
+        // same graph and, for the largest repo in the corpus, costs ~50 minutes before the first
+        // agent run. That cost was paid twice in one evening: once for a run that was interrupted,
+        // then again on the restart, for a graph that was already sitting on disk.
+        val existingIndex = GraphDb.forLocalWrite(withPath)
+        val alreadyIndexed = indexWithCopy && existingIndex.toFile().length() > 0
+        if (alreadyIndexed) {
+            logger.info { "reusing existing index for '${repo.id}' at $existingIndex (pinned checkout, so it cannot be stale)" }
+        }
+
+        val ingestRecord = if (indexWithCopy && !alreadyIndexed) {
             val record = CorpusIndexer.index(repo.id, withPath, ingestConfig)
             // AC-2a: the index is not usable until this passes. Throws IndexIncompleteException
             // (uncaught here, on purpose) if a gold-fact-cited file didn't make it into the graph --
@@ -65,6 +80,9 @@ object CorpusPreparationStep {
             IndexIntegrityGate.verify(repo.id, withPath, questions)
             record
         } else {
+            // The gate still runs against a reused index: reuse skips the cost of rebuilding, not
+            // the check that the graph actually contains what the questions cite.
+            if (alreadyIndexed) IndexIntegrityGate.verify(repo.id, withPath, questions)
             null
         }
 

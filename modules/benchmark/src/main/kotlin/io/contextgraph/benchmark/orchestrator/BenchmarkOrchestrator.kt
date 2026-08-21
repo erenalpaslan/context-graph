@@ -179,6 +179,26 @@ class BenchmarkOrchestrator(
                 if (profile == Profile.SMOKE) ", and that --smoke-repo names a repo in the catalog." else "."
         }
 
+        // One place that knows how to snapshot progress so far, used both after every agent run
+        // and once more when the loop ends. judgingComplete is false on every one of these: a
+        // snapshot must never be mistaken for a scored result.
+        fun snapshot(runs: List<AgentRunRecord>, failed: Int, repos: List<CorpusRepo>, ingests: List<io.contextgraph.benchmark.model.IngestRecord>, questions: List<io.contextgraph.benchmark.model.Question>) =
+            BenchmarkRun(
+                runId = runId,
+                profile = profile,
+                generatedAt = Clock.System.now(),
+                config = config,
+                corpusRepos = repos,
+                questions = questions,
+                ingestRecords = ingests,
+                agentRuns = runs,
+                failedRunCount = failed,
+                agentClientKind = agentClientKindOf(agentClient),
+                judgingComplete = false,
+                measurement = measurement.name,
+                agentBackend = agentBackendOf(agentClient)
+            )
+
         progress("Preparing corpus for: ${plan.repos.joinToString(", ") { it.id }}")
         // questions = plan.questions wires AC-2a's index integrity gate: CorpusPreparationStep
         // verifies every gold-fact-cited file for a repo is present in *that repo's* freshly
@@ -241,6 +261,11 @@ class BenchmarkOrchestrator(
                     requireExtraToolUse = measurement == Measurement.FORCED,
                     graphTool = graphTool
                 )
+                // Checkpointed per run, not per batch. A single set-valued question can occupy an
+                // agent for twenty minutes, so an all-or-nothing write means an interruption
+                // three-quarters of the way through discards everything -- which is exactly what
+                // happened, costing two hours of completed runs that were already correct.
+                onAgentRunsComplete(snapshot(agentRuns, failedRunCount, preparedRepos, ingestRecords, plan.questions))
             } catch (e: ContaminatedWorkingCopyException) {
                 progress(
                     "  ABORTING (${planned.question.id}/${planned.arm}/repeat ${planned.repeatIndex}): " +
@@ -267,21 +292,7 @@ class BenchmarkOrchestrator(
         // judgingComplete is explicitly false -- this run is never mistaken for a scored one if
         // the caller reads this checkpoint back later (e.g. because judging crashed and this was
         // the last thing written).
-        val checkpointRun = BenchmarkRun(
-            runId = runId,
-            profile = profile,
-            generatedAt = Clock.System.now(),
-            config = config,
-            corpusRepos = preparedRepos,
-            questions = plan.questions,
-            ingestRecords = ingestRecords,
-            agentRuns = agentRuns,
-            failedRunCount = failedRunCount,
-            agentClientKind = agentClientKindOf(agentClient),
-            judgingComplete = false,
-            measurement = measurement.name,
-            agentBackend = agentBackendOf(agentClient)
-        )
+        val checkpointRun = snapshot(agentRuns, failedRunCount, preparedRepos, ingestRecords, plan.questions)
         onAgentRunsComplete(checkpointRun)
 
         val judgeScorer = JudgeScorer(judgeClient)
