@@ -76,6 +76,13 @@ private val CALLABLE_TYPES = setOf<NodeType>(NodeType.Method, NodeType.Function,
  * reference stays unresolved rather than guessing among a hairball of same-named
  * declarations.
  *
+ * `Implements` edges are rebuilt here too, from the supertype names pass 1 recorded on each type
+ * declaration. Not a second concern bolted on: resolution needs the type hierarchy anyway, to
+ * decide whether two differing return types agree (see [Candidates.commonReturnType]), and
+ * building it twice in two places would be the duplication worth avoiding. Both edge sets are
+ * deleted and rebuilt together for the same reason the `Calls` set is -- a supertype that was
+ * renamed away must stop having an edge, not keep a stale one.
+ *
  * Must run strictly after pass 1's write phase has fully drained -- never concurrently with
  * it -- so the single-writer property [IngestPipeline] depends on for SQLite lock avoidance
  * is preserved. [IngestPipeline.index] enforces this by calling [resolveAll] only after its
@@ -180,7 +187,10 @@ private class CallEdge(val rung: String, val confidence: Double) {
  * consumers are a supertype test that falls back to "no answer" and an `Implements` edge that is
  * itself name-resolved.
  */
-private class TypeHierarchy(private val directSupertypes: Map<String, Set<String>>) {
+private class TypeHierarchy(
+    private val directSupertypes: Map<String, Set<String>>,
+    private val typeNodesByName: Map<String, List<GraphNode>>
+) {
 
     /** Whether [sub] reaches [candidate] by extends/implements, at any depth. [sub] counts as its own. */
     fun isSubtypeOf(sub: String, candidate: String): Boolean {
@@ -217,8 +227,6 @@ private class TypeHierarchy(private val directSupertypes: Map<String, Set<String
         }
     }
 
-    private lateinit var typeNodesByName: Map<String, List<GraphNode>>
-
     companion object {
         private val TYPE_NODES = setOf<NodeType>(
             NodeType.Class, NodeType.Custom("Interface"), NodeType.Custom("Enum"), NodeType.Custom("Record")
@@ -228,7 +236,7 @@ private class TypeHierarchy(private val directSupertypes: Map<String, Set<String
             val types = storage.getAllNodes().filter { it.type in TYPE_NODES }
             val direct = HashMap<String, MutableSet<String>>()
             types.forEach { t -> direct.getOrPut(t.label) { HashSet() }.addAll(supertypeNamesOf(t)) }
-            return TypeHierarchy(direct).also { it.typeNodesByName = types.groupBy { n -> n.label } }
+            return TypeHierarchy(direct, types.groupBy { it.label })
         }
 
         fun supertypeNamesOf(node: GraphNode): List<String> =
