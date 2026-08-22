@@ -25,7 +25,23 @@ data class RetrievalRun(
     val kValues: List<Int>,
     val results: List<RetrievalRunResult> = emptyList(),
     val skippedRepos: List<SkippedRepo> = emptyList(),
-    val summary: RetrievalSummary? = null
+    val summary: RetrievalSummary? = null,
+    /**
+     * Per-repo, per-tool gold-file coverage -- see [GoldFileCoverage] for why this is published
+     * rather than the CodeGraph side being gated the way the ContextGraph one is. Empty for an
+     * archived schema-v1 result, which predates the field.
+     */
+    val goldFileCoverage: List<GoldFileCoverage> = emptyList(),
+    /**
+     * Per-repo, per-tool indexing cost, read from the manifest corpus preparation wrote. Empty
+     * when no manifest was found, which the report prints as "not recorded" rather than as zero.
+     *
+     * Read here rather than measured here on purpose: this run never indexes anything, and that
+     * read-only property is what lets it observe a corpus another process is still indexing
+     * without racing it. Measuring ingest cost inline would either break that or force a
+     * re-index costing ~50 minutes on Keycloak for a number corpus prep already knew.
+     */
+    val ingestCosts: List<ToolIngestCost> = emptyList()
 ) {
     fun toJson(): String = json.encodeToString(serializer(), this)
 
@@ -38,7 +54,15 @@ data class RetrievalRun(
     }
 
     companion object {
-        const val SCHEMA_VERSION = 1
+        /**
+         * 2 since the axis grew a third comparator. Every field added in that change --
+         * [RetrievalRunResult.codeGraph], [RetrievalAggregate.codeGraph], [goldFileCoverage],
+         * [ingestCosts] -- is nullable or defaulted, so the four archived v1 results still
+         * decode; the version moves anyway, because a reader needs to be able to tell a
+         * two-sided result from a three-sided one without inspecting every question for a field
+         * that might merely have been null that day.
+         */
+        const val SCHEMA_VERSION = 2
 
         private val json = Json {
             prettyPrint = true

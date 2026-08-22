@@ -30,7 +30,15 @@ object RetrievalStats {
         RetrievalAggregate(
             questionCount = results.size,
             contextGraph = sideAggregate(results.mapNotNull { it.contextGraph }, kValues),
-            ripgrep = sideAggregate(results.map { it.ripgrep }, kValues)
+            ripgrep = sideAggregate(results.map { it.ripgrep }, kValues),
+            // Null, not a zeroed aggregate, when this run measured no CodeGraph side anywhere in
+            // the group: "CodeGraph was not in this run" and "CodeGraph was in this run and scored
+            // 0" are different claims, and only the second is evidence about CodeGraph. The same
+            // distinction `SideAggregate`'s KDoc already draws between an excluded question and a
+            // zero-scoring one, one level up.
+            codeGraph = results.mapNotNull { it.codeGraph }
+                .takeIf { it.isNotEmpty() }
+                ?.let { sideAggregate(it, kValues) }
         )
 
     private fun sideAggregate(sides: List<SideResult>, kValues: List<Int>): SideAggregate {

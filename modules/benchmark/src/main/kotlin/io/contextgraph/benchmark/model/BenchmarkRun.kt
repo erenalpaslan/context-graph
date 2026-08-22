@@ -93,7 +93,26 @@ data class BenchmarkRun(
      * is denominated in, so numbers from the two are not comparable and a report that does not say
      * which one it came from invites exactly that comparison.
      */
-    val agentBackend: String? = null
+    val agentBackend: String? = null,
+    /**
+     * Which code-graph tool the WITH_TOOLS arm was actually given, or null for runs written
+     * before this field existed.
+     *
+     * Absent from every result JSON until now, which is how
+     * [io.contextgraph.benchmark.report.BenchmarksReportGenerator] came to publish a CodeGraph
+     * run as though no tool had ever been called: with nothing recorded, the only thing the
+     * generator could do was assume ContextGraph, and it counted `mcp__contextgraph__` calls in
+     * a run that made 23 `mcp__codegraph__codegraph_explore` ones. A reader of a stored run
+     * could not tell which tool it measured, so neither could the renderer.
+     *
+     * Additive and nullable with a default, the same convention [failedRunCount],
+     * [agentClientKind], [measurement] and [agentBackend] already establish on this class, so
+     * the eleven archived result files still decode. [SCHEMA_VERSION] deliberately does NOT
+     * move for this: none of those four prior additions bumped it either, and bumping now would
+     * make every archived file claim a version it was not written at. Where this is null, the
+     * report infers the tool from the observed `mcp__<server>__` prefixes and says that it did.
+     */
+    val graphTool: io.contextgraph.benchmark.runner.GraphTool? = null
 ) {
     fun toJson(): String = json.encodeToString(serializer(), this)
 

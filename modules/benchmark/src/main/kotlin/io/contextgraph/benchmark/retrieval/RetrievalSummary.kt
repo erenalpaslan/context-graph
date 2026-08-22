@@ -5,12 +5,16 @@ import kotlinx.serialization.Serializable
 
 /**
  * Mean precision@k/recall@k and MRR for one side, over [measuredCount] questions. [measuredCount]
- * can be smaller than the enclosing [RetrievalAggregate.questionCount] for the `contextGraph`
- * side specifically: a question whose repo's index failed integrity verification contributes no
- * [SideResult] at all (see [RetrievalRunResult.contextGraph]) and is excluded from this average
- * rather than silently counted as a zero -- that would understate ContextGraph's real score by
- * blaming it for an indexing problem, not a retrieval one. `ripgrep`'s [measuredCount] always
- * equals [RetrievalAggregate.questionCount].
+ * can be smaller than the enclosing [RetrievalAggregate.questionCount] for either of the two
+ * *graph* sides: a question whose repo's index failed integrity verification contributes no
+ * ContextGraph [SideResult], and a question whose `codegraph explore` call timed out or errored
+ * contributes no CodeGraph one (see [RetrievalRunResult]). Such a question is excluded from that
+ * side's average rather than silently counted as a zero -- that would understate the tool by
+ * blaming it for an infrastructure problem instead of a retrieval one. The exclusion is visible
+ * rather than implied: a [measuredCount] below [RetrievalAggregate.questionCount] is exactly the
+ * signal that a denominator differs, and the report prints both numbers side by side.
+ *
+ * `ripgrep`'s [measuredCount] always equals [RetrievalAggregate.questionCount].
  */
 @Serializable
 data class SideAggregate(
@@ -20,12 +24,23 @@ data class SideAggregate(
     val mrr: Double
 )
 
-/** Both sides' [SideAggregate] over the same set of questions, plus how many questions that set had. */
+/** Every side's [SideAggregate] over the same set of questions, plus how many questions that set had. */
 @Serializable
 data class RetrievalAggregate(
     val questionCount: Int,
     val contextGraph: SideAggregate,
-    val ripgrep: SideAggregate
+    val ripgrep: SideAggregate,
+    /**
+     * `null` for a run that measured no CodeGraph side at all -- an archived schema-v1 result, or
+     * a run where the binary or the index was absent. Distinct from a present [SideAggregate]
+     * whose [SideAggregate.measuredCount] is 0, which means CodeGraph *was* in the run and
+     * measured nothing.
+     *
+     * Additive with a default because this type is nested inside [RetrievalSummary], which is
+     * nested inside [RetrievalRun.summary]: a required field here would fail to decode all four
+     * archived results, not just their top level.
+     */
+    val codeGraph: SideAggregate? = null
 )
 
 /**
