@@ -65,15 +65,13 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
         return Triple(corpusRoot, listOf(question), catalog)
     }
 
-    test("scores both sides against a real index and a real (empty-token) ripgrep pass, end to end") {
+    test("scores the ContextGraph and ripgrep sides end to end, and says out loud why CodeGraph's is absent") {
         val (corpusRoot, questions, catalog) = buildFixtureCorpus()
         try {
             val runner = RetrievalBenchmarkRunner(corpusRoot, questions, catalog, kValues = listOf(5))
             val run = runner.run()
 
             run.results shouldHaveSize 1
-            run.skippedRepos shouldBe emptyList()
-
             val result = run.results.single()
             result.expectedFiles shouldBe listOf("src/Foo.kt")
             result.ripgrepQueryTokens shouldBe emptyList()
@@ -84,6 +82,106 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
             val contextGraph = result.contextGraph
             (contextGraph != null) shouldBe true
             contextGraph!!.rankedFiles shouldContain "src/Foo.kt"
+
+            // This fixture corpus has only with/without, so there is no CodeGraph index to ask.
+            // That absence must be null-and-recorded, never an empty ranked list scored as zero:
+            // a missing comparator that silently reads as "found nothing" is exactly the failure
+            // this instrument must not produce.
+            result.codeGraph shouldBe null
+            run.skippedRepos shouldHaveSize 1
+            run.skippedRepos.single().reason.contains("${RetrievalSide.CODE_GRAPH.label} side skipped") shouldBe true
+            run.summary!!.headline.codeGraph shouldBe null
+        } finally {
+            corpusRoot.toFile().deleteRecursively()
+        }
+    }
+
+    test("a CodeGraph call that fails leaves that side unmeasured and names the question -- never a zero") {
+        // The single most damaging thing this instrument could do is let a broken invocation read
+        // as "CodeGraph retrieves nothing". So: a codegraph binary that runs and exits non-zero
+        // must produce an ABSENT side plus a skip naming the question, not an empty ranked list
+        // that would be averaged in as 0.0 and published as a real finding.
+        val (corpusRoot, questions, catalog) = buildFixtureCorpus()
+        try {
+            // Give the repo a codegraph copy that looks indexed, so the per-repo gate lets the
+            // runner get as far as actually invoking the binary per question.
+            val codeGraphCopy = corpusRoot.resolve("fixture-repo").resolve("codegraph")
+            Files.createDirectories(codeGraphCopy.resolve(".codegraph"))
+
+            val failing = corpusRoot.resolve("failing-codegraph.sh")
+            Files.writeString(failing, "#!/bin/sh\nexit 3\n")
+            failing.toFile().setExecutable(true)
+
+            val run = RetrievalBenchmarkRunner(
+                corpusRoot, questions, catalog,
+                kValues = listOf(5),
+                codegraphPath = failing.toAbsolutePath().toString()
+            ).run()
+
+            val result = run.results.single()
+            result.codeGraph shouldBe null
+            // The other two sides are still scored: one broken comparator must not sink the run.
+            (result.contextGraph != null) shouldBe true
+
+            val skip = run.skippedRepos.single { it.reason.contains("${RetrievalSide.CODE_GRAPH.label} side unmeasured") }
+            skip.repoId shouldBe "fixture-repo"
+            skip.reason.contains("fixture-q1") shouldBe true
+
+            // Excluded from the average rather than dragging it to zero.
+            run.summary!!.headline.codeGraph shouldBe null
+        } finally {
+            corpusRoot.toFile().deleteRecursively()
+        }
+    }
+
+    test("with the real CodeGraph binary, an indexed copy yields ranked files and a real coverage fraction") {
+        if (!CodeGraphProcess.isAvailable("codegraph")) return@test
+
+        val (corpusRoot, questions, catalog) = buildFixtureCorpus()
+        try {
+            // A real third working copy, really indexed by the real tool.
+            val codeGraphCopy = corpusRoot.resolve("fixture-repo").resolve("codegraph")
+            LocalGitFixture.create(codeGraphCopy)
+            CodeGraphProcess.run(listOf("init", codeGraphCopy.toAbsolutePath().toString()))
+
+            val run = RetrievalBenchmarkRunner(corpusRoot, questions, catalog, kValues = listOf(5)).run()
+            val result = run.results.single()
+
+            // Ran, and produced a real measurement rather than an absence.
+            (result.codeGraph != null) shouldBe true
+            run.skippedRepos.none { it.reason.contains("CodeGraph") } shouldBe true
+
+            // `codegraph files --json` is readable, so coverage is a real fraction here, not the
+            // explicit unknown the coverage remedy falls back to.
+            val coverage = run.goldFileCoverage.single { it.side == RetrievalSide.CODE_GRAPH }
+            coverage.basis shouldBe CoverageBasis.INDEX_QUERY
+            (coverage.fraction != null) shouldBe true
+        } finally {
+            corpusRoot.toFile().deleteRecursively()
+        }
+    }
+
+    test("gold-file coverage is reported for all three sides, with ripgrep's stated as by-construction") {
+        val (corpusRoot, questions, catalog) = buildFixtureCorpus()
+        try {
+            val run = RetrievalBenchmarkRunner(corpusRoot, questions, catalog, kValues = listOf(5)).run()
+
+            val coverage = run.goldFileCoverage.associateBy { it.side }
+            coverage.keys shouldBe setOf(
+                RetrievalSide.CONTEXT_GRAPH, RetrievalSide.CODE_GRAPH, RetrievalSide.RIPGREP
+            )
+
+            // ContextGraph's index really holds the one cited file.
+            coverage[RetrievalSide.CONTEXT_GRAPH]!!.presentFileCount shouldBe 1
+            coverage[RetrievalSide.CONTEXT_GRAPH]!!.basis shouldBe CoverageBasis.INDEX_QUERY
+
+            // ripgrep reads the working tree, so it can reach every cited file by construction --
+            // said explicitly, so 100% does not read as a suspiciously perfect measurement.
+            coverage[RetrievalSide.RIPGREP]!!.basis shouldBe CoverageBasis.READS_WORKING_TREE
+
+            // No CodeGraph index here, so an explicit unknown -- not 0%, which would be a claim.
+            coverage[RetrievalSide.CODE_GRAPH]!!.basis shouldBe CoverageBasis.NOT_DETERMINABLE
+            coverage[RetrievalSide.CODE_GRAPH]!!.fraction shouldBe null
         } finally {
             corpusRoot.toFile().deleteRecursively()
         }
@@ -167,8 +265,13 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
 
             run.results shouldHaveSize 1
             run.results.single().contextGraph shouldBe null
-            run.skippedRepos shouldHaveSize 1
-            run.skippedRepos.single().reason.contains("ContextGraph side skipped") shouldBe true
+
+            // The ripgrep side is still measured — it reads the never-indexed working tree, so no
+            // index failure can block it. Both graph sides are absent here for their own separate
+            // reasons, and each says which.
+            run.results.single().ripgrep.rankedFiles shouldBe emptyList()
+            run.skippedRepos.count { it.reason.contains("${RetrievalSide.CONTEXT_GRAPH.label} side skipped") } shouldBe 1
+            run.skippedRepos.count { it.reason.contains("${RetrievalSide.CODE_GRAPH.label} side skipped") } shouldBe 1
         } finally {
             corpusRoot.toFile().deleteRecursively()
         }

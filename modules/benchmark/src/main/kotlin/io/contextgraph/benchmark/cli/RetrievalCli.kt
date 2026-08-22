@@ -30,9 +30,11 @@ class RetrievalCommand(
     private val explicitRepoRoot: Path?
 ) : CliktCommand(name = "retrieval") {
     override fun help(context: Context) =
-        "Measure ContextGraph's QueryEngine.buildContext against a ripgrep baseline over the " +
-            "same question set, LLM-free and deterministic (AC-23..AC-26). Requires an " +
-            "already-prepared corpus (see prepareCorpus) and `rg` on PATH."
+        "Measure ContextGraph (this project), CodeGraph (third-party) and ripgrep (baseline) " +
+            "against each other over the same question set, LLM-free and deterministic. Every " +
+            "side gets the same raw question text and is scored against the same gold-derived " +
+            "expected files with the same metrics. Requires an already-prepared corpus (see " +
+            "prepareCorpus), `rg` on PATH, and — for the CodeGraph side — `codegraph` on PATH."
 
     private val corpusRootArg by option(
         "--corpus-root",
@@ -54,6 +56,13 @@ class RetrievalCommand(
         "--rg-path",
         help = "Path to the ripgrep binary (default: 'rg', resolved via PATH)"
     ).default("rg")
+
+    private val codegraphPath by option(
+        "--codegraph-path",
+        help = "Path to the CodeGraph binary (default: 'codegraph', resolved via PATH). A repo " +
+            "whose codegraph working copy is missing or unindexed is skipped on that side alone, " +
+            "with the reason recorded — the other two sides are still measured."
+    ).default("codegraph")
 
     private val kValuesArg by option(
         "--k-values",
@@ -78,6 +87,7 @@ class RetrievalCommand(
             catalog = CorpusCatalog.DEFAULT,
             kValues = kValues,
             rgPath = rgPath,
+            codegraphPath = codegraphPath,
             progress = { echo(it) }
         )
         val run = runner.run()
