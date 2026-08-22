@@ -46,13 +46,30 @@ data class AgentRunRecord(
     val toolNameCounts: Map<String, Int> = emptyMap()
 ) {
     /**
-     * Calls that went to ContextGraph's MCP server. Zero in a WITH_TOOLS run means the arm did not
-     * actually exercise the product, whatever its score says.
+     * Calls that went to [tool]'s MCP server. Zero in a WITH_TOOLS run means the arm did not
+     * actually exercise that tool, whatever its score says.
+     *
+     * Takes the tool rather than assuming ContextGraph, because assuming it is what published a
+     * CodeGraph run as though nothing had happened: `results/codegraph-forced/BENCHMARKS.md`
+     * counted `mcp__contextgraph__` calls in a run that made 23 `mcp__codegraph__codegraph_explore`
+     * ones, found none, and asserted "No ContextGraph tool was ever called in this run. The two
+     * arms were therefore behaviourally identical" -- of the one run that could have validated
+     * this whole harness.
      */
-    val contextGraphToolCalls: Int
-        get() = toolNameCounts.entries.filter { it.key.startsWith(CONTEXTGRAPH_TOOL_PREFIX) }.sumOf { it.value }
+    fun graphToolCalls(tool: io.contextgraph.benchmark.runner.GraphTool): Int =
+        toolNameCounts.entries.filter { it.key.startsWith(tool.toolPrefix) }.sumOf { it.value }
+
+    /** Every `mcp__<server>__` prefix this run actually called, which is what a missing `graphTool` is inferred from. */
+    val observedMcpPrefixes: Set<String>
+        get() = toolNameCounts.keys
+            .filter { it.startsWith(MCP_PREFIX) }
+            .mapNotNull { key ->
+                val end = key.indexOf("__", MCP_PREFIX.length)
+                if (end < 0) null else key.substring(0, end + 2)
+            }
+            .toSet()
 
     companion object {
-        const val CONTEXTGRAPH_TOOL_PREFIX: String = "mcp__contextgraph__"
+        const val MCP_PREFIX: String = "mcp__"
     }
 }

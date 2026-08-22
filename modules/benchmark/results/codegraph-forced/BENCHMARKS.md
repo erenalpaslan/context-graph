@@ -20,14 +20,14 @@ Everything else is identical between arms: same model, same system prompt, same 
 | Budget per run | unlimited -- no per-run cap was set |
 | Repeats per (question, arm) | 1 |
 
-### ContextGraph tool usage (WITH_TOOLS arm)
+### CodeGraph (third-party) tool usage (WITH_TOOLS arm)
+
+_Which tool this run measured was **inferred**, not recorded: this result predates the stored `graphTool` field, and `mcp__codegraph__` was the only known MCP server prefix its agent runs called._
 
 | | |
 |---|---|
-| ContextGraph tool calls | 0 |
-| Runs that called it at least once | 0 / 8 |
-
-**No ContextGraph tool was ever called in this run.** The two arms were therefore behaviourally identical, and any accuracy difference or lack of one below is evidence about tool *adoption*, not about whether the graph improves answers. Do not read the headline as a verdict on ContextGraph's usefulness.
+| CodeGraph (third-party) tool calls | 23 |
+| Runs that called it at least once | 8 / 8 |
 
 
 Indexing config used for the WITH_TOOLS arm, per repo (AC-2, kept separate from query-time cost):

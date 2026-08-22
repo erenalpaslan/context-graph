@@ -137,6 +137,36 @@ class BenchmarkRunSerializationTest : FunSpec({
         BenchmarkRun.fromJson(legacyJson).agentClientKind shouldBe null
     }
 
+    test("graphTool defaults to null (never to CONTEXTGRAPH) and round-trips when set") {
+        // Defaulting to CONTEXTGRAPH here would recreate the exact bug this field exists to fix:
+        // BenchmarksReportGenerator assuming ContextGraph is what made results/codegraph-forced
+        // publish "No ContextGraph tool was ever called" about a run that made 23 CodeGraph calls.
+        // Null means "not recorded", and inferring it is the report's job -- announced as an
+        // inference, not silently substituted here where nothing downstream could tell the guess
+        // from a recorded fact.
+        val withoutField = sampleRun()
+        withoutField.graphTool shouldBe null
+        BenchmarkRun.fromJson(withoutField.toJson()).graphTool shouldBe null
+
+        val contextGraph = sampleRun().copy(graphTool = io.contextgraph.benchmark.runner.GraphTool.CONTEXTGRAPH)
+        BenchmarkRun.fromJson(contextGraph.toJson()).graphTool shouldBe
+            io.contextgraph.benchmark.runner.GraphTool.CONTEXTGRAPH
+
+        val codeGraph = sampleRun().copy(graphTool = io.contextgraph.benchmark.runner.GraphTool.CODEGRAPH)
+        BenchmarkRun.fromJson(codeGraph.toJson()).graphTool shouldBe
+            io.contextgraph.benchmark.runner.GraphTool.CODEGRAPH
+    }
+
+    test("a legacy result JSON with no graphTool key at all still decodes, as null") {
+        val original = Json.parseToJsonElement(sampleRun().toJson()).jsonObject
+        val legacyJson = Json.encodeToString(
+            JsonObject.serializer(),
+            JsonObject(original.filterKeys { it != "graphTool" })
+        )
+        legacyJson.contains("graphTool") shouldBe false
+        BenchmarkRun.fromJson(legacyJson).graphTool shouldBe null
+    }
+
     test("default BenchmarkConfig matches the spec's Q1/Q2 answers") {
         val config = BenchmarkConfig()
         config.toolCallCeiling shouldBe 40

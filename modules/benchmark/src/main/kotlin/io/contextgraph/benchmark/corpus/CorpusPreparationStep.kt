@@ -3,11 +3,15 @@ package io.contextgraph.benchmark.corpus
 import io.contextgraph.benchmark.model.CorpusRepo
 import io.contextgraph.benchmark.model.IngestRecord
 import io.contextgraph.benchmark.model.Question
+import io.contextgraph.benchmark.retrieval.RetrievalSide
+import io.contextgraph.benchmark.retrieval.ToolIngestCost
+import io.contextgraph.benchmark.runner.GraphTool
 import io.contextgraph.core.ContextGraphConfig
 import io.contextgraph.core.GraphDb
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.contextgraph.core.LiteLlmConfig
 import java.nio.file.Path
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -15,7 +19,13 @@ private val logger = KotlinLogging.logger {}
 data class CorpusPreparationResult(
     val repo: CorpusRepo,
     /** Null when no graph was built for this repo -- see [CorpusPreparationStep.run]'s `indexWithCopy`. */
-    val ingestRecord: IngestRecord?
+    val ingestRecord: IngestRecord?,
+    /**
+     * Per-tool ingest cost for this repo, as written to its [IngestManifest]. Always carries an
+     * entry for each tool -- one that was not indexed carries an `absentReason` instead of a
+     * duration, never a zero, so "cost nothing" and "was never built" stay distinguishable.
+     */
+    val toolIngestCosts: List<ToolIngestCost> = emptyList()
 )
 
 /**
@@ -52,13 +62,22 @@ object CorpusPreparationStep {
          * whose index is known to be incomplete, blocking exactly the questions that most need
          * calibrating.
          */
-        indexWithCopy: Boolean = true
+        indexWithCopy: Boolean = true,
+        /** Where the CodeGraph binary lives. Default resolves it on `PATH`, mirroring `--rg-path`'s shape. */
+        codegraphPath: String = "codegraph",
+        /** Budget for one `codegraph init`; exceeding it fails loudly rather than yielding a partial index. */
+        codeGraphTimeout: Duration = CodeGraphIndexer.DEFAULT_TIMEOUT,
+        /** Surfaces indexing progress (including CodeGraph's own output) so a slow index is not mistaken for a hung one. */
+        progress: (String) -> Unit = {}
     ): List<CorpusPreparationResult> = repos.map { repo ->
         val prepared = preparer.prepare(repo, corpusRoot)
         val withoutPath = Path.of(requireNotNull(prepared.workingCopyWithoutPath))
         val withPath = Path.of(requireNotNull(prepared.workingCopyWithPath))
+        val codeGraphPath = Path.of(requireNotNull(GraphTool.CODEGRAPH.withToolsDir(prepared)))
 
         // Before indexing: a prior run's WITH copy must never have been mistaken for WITHOUT.
+        // Now covers CodeGraph's artefacts as well, so the guarantee is "no code-graph tool has
+        // touched this", not merely "ContextGraph has not".
         CleanCopyVerifier.verifyClean(withoutPath)
 
         // A working copy is checked out at a pinned SHA and verified never to change, so an index
@@ -86,9 +105,69 @@ object CorpusPreparationStep {
             null
         }
 
-        // After indexing: proves indexing wrote only to the WITH copy (AC-1a / AC-7a).
+        // The third comparator's index. Deliberately after ContextGraph's, and before the
+        // after-check below, so one clean-copy verification covers both writers.
+        val codeGraphCost = if (indexWithCopy) {
+            CodeGraphIndexer.index(repo.id, codeGraphPath, codegraphPath, codeGraphTimeout, progress)
+        } else {
+            CodeGraphIndexer.absent(
+                repo.id,
+                "indexing was not requested for this run (indexWithCopy=false), so the codegraph " +
+                    "working copy at $codeGraphPath was checked out but never indexed"
+            )
+        }
+
+        // After indexing: proves indexing wrote only where it was supposed to (AC-1a / AC-7a) --
+        // for BOTH tools now, which is the property that would silently have been lost had the
+        // verifier kept knowing only about ContextGraph.
         CleanCopyVerifier.verifyClean(withoutPath)
 
-        CorpusPreparationResult(prepared, ingestRecord)
+        val costs = listOf(
+            contextGraphCost(repo.id, withPath, indexWithCopy, ingestRecord, alreadyIndexed),
+            codeGraphCost
+        )
+        IngestManifest(repoId = repo.id, costs = costs)
+            .writeTo(corpusRoot.resolve(repo.id))
+
+        CorpusPreparationResult(prepared, ingestRecord, costs)
+    }
+
+    /**
+     * ContextGraph's side of the manifest. Duration comes from the [IngestRecord] the indexer
+     * already produced; a reused index reports `0` because rebuilding it was genuinely skipped,
+     * which is different from never having been built -- that case carries an `absentReason`.
+     */
+    private fun contextGraphCost(
+        repoId: String,
+        withPath: Path,
+        indexWithCopy: Boolean,
+        ingestRecord: IngestRecord?,
+        alreadyIndexed: Boolean
+    ): ToolIngestCost {
+        val dbPath = GraphDb.forLocalWrite(withPath)
+        val sizeBytes = dbPath.toFile().takeIf { it.exists() }?.length()
+        return when {
+            ingestRecord != null -> ToolIngestCost(
+                repoId = repoId,
+                tool = GraphTool.CONTEXTGRAPH,
+                durationMillis = ingestRecord.durationMillis,
+                indexSizeBytes = sizeBytes
+            )
+            alreadyIndexed -> ToolIngestCost(
+                repoId = repoId,
+                tool = GraphTool.CONTEXTGRAPH,
+                durationMillis = 0,
+                indexSizeBytes = sizeBytes
+            )
+            else -> ToolIngestCost(
+                repoId = repoId,
+                tool = GraphTool.CONTEXTGRAPH,
+                absentReason = if (indexWithCopy) {
+                    "no ${RetrievalSide.CONTEXT_GRAPH.label} index was produced for the with copy at $withPath"
+                } else {
+                    "indexing was not requested for this run (indexWithCopy=false)"
+                }
+            )
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import io.contextgraph.benchmark.corpus.CorpusCatalog
 import io.contextgraph.benchmark.corpus.CorpusPreparationStep
+import io.contextgraph.benchmark.runner.GraphTool
 import java.nio.file.Path
 
 /**
@@ -40,8 +41,10 @@ class PrepareCorpusCommand(
     private val explicitRepoRoot: Path?
 ) : CliktCommand(name = "prepare-corpus") {
     override fun help(context: Context) =
-        "Clone-or-verify the pinned corpus repos' two working copies (WITH/WITHOUT) and index " +
-            "the WITH copy with litellm.enabled=false. Reused as-is by slice 12's orchestrator."
+        "Clone-or-verify the pinned corpus repos' three working copies (WITH/WITHOUT/CODEGRAPH), " +
+            "index the WITH copy with ContextGraph (litellm.enabled=false) and the CODEGRAPH copy " +
+            "with CodeGraph, and record both tools' ingest cost. WITHOUT is never indexed by " +
+            "either. Reused as-is by slice 12's orchestrator."
 
     private val corpusRoot by option(
         "--corpus-root",
@@ -55,6 +58,14 @@ class PrepareCorpusCommand(
         help = "Comma-separated subset/order of repo ids to prepare (default: all four, catalog order). " +
             "Known ids: ${CorpusCatalog.DEFAULT.joinToString(", ") { it.id }}"
     )
+
+    private val codegraphPath by option(
+        "--codegraph-path",
+        help = "Path to the CodeGraph binary used to index the CODEGRAPH working copy " +
+            "(default: 'codegraph', resolved via PATH). If it does not resolve, the copy is " +
+            "still checked out and the absence is recorded with its reason — corpus preparation " +
+            "does not fail."
+    ).default("codegraph")
 
     /**
      * The corpus root resolved from the parsed `--corpus-root`, [startDir] and
@@ -82,7 +93,12 @@ class PrepareCorpusCommand(
 
         echo("Preparing ${repos.size} repo(s) under $root: ${repos.joinToString(", ") { it.id }}")
 
-        val results = CorpusPreparationStep.run(root, repos = repos)
+        val results = CorpusPreparationStep.run(
+            root,
+            repos = repos,
+            codegraphPath = codegraphPath,
+            progress = { echo(it) }
+        )
 
         results.forEach { result ->
             val repo = result.repo
@@ -90,8 +106,17 @@ class PrepareCorpusCommand(
             echo(
                 "${repo.id}: pinned=${repo.pinnedTag}@${repo.pinnedSha} " +
                     "with=${repo.workingCopyWithPath} without=${repo.workingCopyWithoutPath} " +
+                    "codegraph=${GraphTool.CODEGRAPH.withToolsDir(repo)} " +
                     "ingest=" + (ingest?.let { "${it.durationMillis}ms tokens=${it.tokensUsed} costUsd=${it.costUsd}" } ?: "not built")
             )
+            // Echoed per tool, and an absence echoed with its reason: SkippedRepo's
+            // no-silent-omission property, applied on the preparation side.
+            result.toolIngestCosts.forEach { cost ->
+                echo(
+                    "  ${cost.tool.id}: " + (cost.absentReason?.let { "not indexed — $it" }
+                        ?: "${cost.durationMillis}ms, index ${cost.indexSizeBytes ?: "size unknown"} bytes")
+                )
+            }
         }
 
         echo("Corpus preparation complete: ${results.size}/${repos.size} repo(s) ready.")

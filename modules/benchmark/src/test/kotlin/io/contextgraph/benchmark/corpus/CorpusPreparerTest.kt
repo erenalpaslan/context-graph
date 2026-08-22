@@ -1,6 +1,7 @@
 package io.contextgraph.benchmark.corpus
 
 import io.contextgraph.benchmark.model.CorpusRepo
+import io.contextgraph.benchmark.runner.GraphTool
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.file.shouldExist
@@ -28,24 +29,97 @@ class CorpusPreparerTest : FunSpec({
         pinnedSha = remote.sha
     )
 
-    test("prepares two independent working copies at the pinned SHA") {
+    test("prepares three independent working copies at the pinned SHA") {
         val root = Files.createTempDirectory("corpus-preparer-")
         try {
             val remote = remoteRepo(root)
             val corpusRoot = root.resolve("corpus")
+            val entry = catalogEntry(remote)
 
+            val prepared = CorpusPreparer().prepare(entry, corpusRoot)
+
+            val withPath = Path.of(requireNotNull(prepared.workingCopyWithPath))
+            val withoutPath = Path.of(requireNotNull(prepared.workingCopyWithoutPath))
+            val codeGraphPath = Path.of(requireNotNull(GraphTool.CODEGRAPH.withToolsDir(prepared)))
+
+            listOf(withPath, withoutPath, codeGraphPath).distinct().size shouldBe 3
+            listOf(withPath, withoutPath, codeGraphPath).forEach { path ->
+                path.toFile().shouldExist()
+                GitOps.revParseHead(path) shouldBe remote.sha
+                path.resolve("src/Foo.kt").toFile().shouldExist()
+            }
+
+            // The path the tool enum resolves and the path preparation creates must be the same
+            // directory. They disagreeing is the original defect: withToolsDir pointed at a
+            // `codegraph` sibling that nothing had ever created.
+            codeGraphPath shouldBe CorpusPreparer.worktreeDir(corpusRoot, entry.id, "codegraph")
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    test("the codegraph copy is created even though nothing here checks for a CodeGraph binary") {
+        // Unconditional by construction: preparation never asks whether `codegraph` is installed,
+        // so the corpus layout is the same on every machine. Whether the copy then gets *indexed*
+        // is CorpusPreparationStep's decision, recorded either way.
+        val root = Files.createTempDirectory("corpus-preparer-unconditional-")
+        try {
+            val remote = remoteRepo(root)
+            val corpusRoot = root.resolve("corpus")
+            val entry = catalogEntry(remote)
+
+            val prepared = CorpusPreparer().prepare(entry, corpusRoot)
+
+            CorpusPreparer.worktreeDir(corpusRoot, entry.id, "codegraph").toFile().shouldExist()
+            // ...and it is a real checkout, not an empty directory.
+            GitOps.revParseHead(Path.of(GraphTool.CODEGRAPH.withToolsDir(prepared)!!)) shouldBe remote.sha
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    test("a write to the codegraph copy never reaches the other two") {
+        // CodeGraph indexes this copy, so its artifacts must not leak into the control arm — the
+        // property CleanCopyVerifier then proves from the other direction.
+        val root = Files.createTempDirectory("corpus-preparer-codegraph-independence-")
+        try {
+            val remote = remoteRepo(root)
+            val corpusRoot = root.resolve("corpus")
             val prepared = CorpusPreparer().prepare(catalogEntry(remote), corpusRoot)
 
             val withPath = Path.of(requireNotNull(prepared.workingCopyWithPath))
             val withoutPath = Path.of(requireNotNull(prepared.workingCopyWithoutPath))
+            val codeGraphPath = Path.of(requireNotNull(GraphTool.CODEGRAPH.withToolsDir(prepared)))
 
-            withPath shouldNotBe withoutPath
-            withPath.toFile().shouldExist()
-            withoutPath.toFile().shouldExist()
-            GitOps.revParseHead(withPath) shouldBe remote.sha
-            GitOps.revParseHead(withoutPath) shouldBe remote.sha
-            withPath.resolve("src/Foo.kt").toFile().shouldExist()
-            withoutPath.resolve("src/Foo.kt").toFile().shouldExist()
+            Files.createDirectories(codeGraphPath.resolve(".codegraph"))
+            Files.writeString(codeGraphPath.resolve(".codegraph/codegraph.db"), "index")
+
+            Files.exists(withPath.resolve(".codegraph")) shouldBe false
+            Files.exists(withoutPath.resolve(".codegraph")) shouldBe false
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    test("a codegraph copy moved off the pin is reported, not silently fixed") {
+        val root = Files.createTempDirectory("corpus-preparer-codegraph-mismatch-")
+        try {
+            val remote = remoteRepo(root)
+            val corpusRoot = root.resolve("corpus")
+            val entry = catalogEntry(remote)
+
+            val prepared = CorpusPreparer().prepare(entry, corpusRoot)
+            val codeGraphPath = Path.of(requireNotNull(GraphTool.CODEGRAPH.withToolsDir(prepared)))
+
+            Files.writeString(codeGraphPath.resolve("drift.txt"), "unpinned change")
+            GitOps.run(listOf("add", "."), cwd = codeGraphPath)
+            GitOps.run(listOf("commit", "-q", "-m", "drift"), cwd = codeGraphPath)
+
+            val ex = shouldThrow<CorpusShaMismatchException> {
+                CorpusPreparer().prepare(entry, corpusRoot)
+            }
+            ex.role shouldBe "codegraph"
+            ex.expectedSha shouldBe remote.sha
         } finally {
             root.toFile().deleteRecursively()
         }
