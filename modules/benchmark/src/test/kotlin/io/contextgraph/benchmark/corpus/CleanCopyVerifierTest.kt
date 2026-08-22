@@ -21,17 +21,43 @@ class CleanCopyVerifierTest : FunSpec({
         }
     }
 
-    test("findArtifacts detects each known ContextGraph artifact") {
+    test("findArtifacts detects each known code-graph artifact") {
         CleanCopyVerifier.KNOWN_ARTIFACT_NAMES.forEach { name ->
             val dir = Files.createTempDirectory("clean-copy-artifact-")
             try {
                 val target = dir.resolve(name)
-                if (name == ".contextgraph") Files.createDirectory(target) else Files.writeString(target, "x")
+                // Both tools write their index into a dot-DIRECTORY at the project root.
+                if (name.startsWith(".")) Files.createDirectory(target) else Files.writeString(target, "x")
                 CleanCopyVerifier.findArtifacts(dir) shouldContainExactly listOf(name)
             } finally {
                 dir.toFile().deleteRecursively()
             }
         }
+    }
+
+    test("a copy carrying CodeGraph's index is contaminated too, not just ContextGraph's") {
+        // The control arm's guarantee is "a project NO code-graph tool has ever touched". Before
+        // this, a verifier that knew only ContextGraph's artifacts would certify this directory as
+        // clean while CodeGraph's index sat inside it — and the before/after check around indexing
+        // would have been proving nothing about the second writer.
+        val dir = Files.createTempDirectory("clean-copy-codegraph-")
+        try {
+            Files.createDirectory(dir.resolve(".codegraph"))
+            Files.writeString(dir.resolve(".codegraph/codegraph.db"), "index")
+
+            val ex = shouldThrow<CleanCopyContaminatedException> { CleanCopyVerifier.verifyClean(dir) }
+            ex.found shouldContainExactly listOf(".codegraph")
+            // The message must name the artifact, so an operator reading a failed run knows which
+            // tool wrote where it should not have.
+            ex.message!!.contains(".codegraph") shouldBe true
+        } finally {
+            dir.toFile().deleteRecursively()
+        }
+    }
+
+    test("the artifact list covers both tools' index directories") {
+        CleanCopyVerifier.KNOWN_ARTIFACT_NAMES.contains(".contextgraph") shouldBe true
+        CleanCopyVerifier.KNOWN_ARTIFACT_NAMES.contains(".codegraph") shouldBe true
     }
 
     test("verifyClean throws naming every artifact found, and does nothing when clean") {
