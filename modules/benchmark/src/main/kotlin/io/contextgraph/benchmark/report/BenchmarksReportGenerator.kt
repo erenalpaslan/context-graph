@@ -8,6 +8,7 @@ import io.contextgraph.benchmark.model.BenchmarkRun
 import io.contextgraph.benchmark.model.BreakEvenResult
 import io.contextgraph.benchmark.model.MetricSummary
 import io.contextgraph.benchmark.model.QuestionCategory
+import io.contextgraph.benchmark.runner.GraphTool
 import io.contextgraph.benchmark.runner.ModelPricing
 import java.util.Locale
 
@@ -580,44 +581,83 @@ object BenchmarksReportGenerator {
 }
 
 /**
- * How often the WITH_TOOLS arm actually called ContextGraph.
+ * How often the WITH_TOOLS arm actually called **the tool this run measured**.
  *
  * Without this the report's most dangerous reading is also its most natural one. A run where the
- * agent never touched ContextGraph produces the same "no difference" table as a run where it used
- * it heavily and gained nothing -- and the two mean opposite things: the first says nothing at all
- * about the graph, while only the second is evidence about it. This section is what makes a
+ * agent never touched the graph produces the same "no difference" table as a run where it used it
+ * heavily and gained nothing -- and the two mean opposite things: the first says nothing at all
+ * about the tool, while only the second is evidence about it. This section is what makes a
  * headline of "+0.00" falsifiable rather than merely disappointing.
+ *
+ * Which tool that is comes from [GraphToolResolution], never from an assumption. Assuming
+ * ContextGraph is exactly how this section published "No ContextGraph tool was ever called in
+ * this run" about a run that made 23 `mcp__codegraph__codegraph_explore` calls: it counted a
+ * prefix that run had never used, found zero, and printed the strongest possible negative claim.
+ * Where the tool cannot be established, **no count is printed at all** -- an absent number is
+ * recoverable, a confidently wrong one is not.
  */
 private fun renderToolUsage(run: BenchmarkRun): String = buildString {
     val withTools = run.agentRuns.filter { it.arm == Arm.WITH_TOOLS }
     if (withTools.isEmpty()) return@buildString
-    val calls = withTools.sumOf { it.contextGraphToolCalls }
-    val runsUsing = withTools.count { it.contextGraphToolCalls > 0 }
 
-    appendLine("### ContextGraph tool usage (WITH_TOOLS arm)")
+    val resolution = GraphToolResolution.of(run)
+    val tool = resolution.tool
+    if (tool == null) {
+        val observed = (resolution as GraphToolResolution.NotRecorded).observedPrefixes
+        appendLine("### Graph tool usage (WITH_TOOLS arm)")
+        appendLine()
+        appendLine(
+            "**Which code-graph tool this run measured is not recorded, and could not be " +
+                "inferred**, so no tool-usage count is reported: counting calls requires knowing " +
+                "whose calls to count, and guessing would be worse than saying nothing. " +
+                (if (observed.isEmpty()) {
+                    "No `mcp__*` tool calls were observed at all."
+                } else {
+                    "The MCP prefixes observed were: ${observed.sorted().joinToString(", ") { "`$it`" }}."
+                }) +
+                " Re-run with the tool recorded, or regenerate from a result that carries it."
+        )
+        appendLine()
+        return@buildString
+    }
+
+    val label = tool.label
+    val calls = withTools.sumOf { it.graphToolCalls(tool) }
+    val runsUsing = withTools.count { it.graphToolCalls(tool) > 0 }
+
+    appendLine("### $label tool usage (WITH_TOOLS arm)")
     appendLine()
+    if (resolution is GraphToolResolution.Inferred) {
+        appendLine(
+            "_Which tool this run measured was **inferred**, not recorded: this result predates " +
+                "the stored `graphTool` field, and `${resolution.fromPrefix}` was the only known " +
+                "MCP server prefix its agent runs called._"
+        )
+        appendLine()
+    }
     appendLine("| | |")
     appendLine("|---|---|")
-    appendLine("| ContextGraph tool calls | $calls |")
+    appendLine("| $label tool calls | $calls |")
     appendLine("| Runs that called it at least once | $runsUsing / ${withTools.size} |")
     appendLine()
     if (calls == 0) {
         appendLine(
-            "**No ContextGraph tool was ever called in this run.** The two arms were therefore " +
+            "**No $label tool was ever called in this run.** The two arms were therefore " +
                 "behaviourally identical, and any accuracy difference or lack of one below is " +
                 "evidence about tool *adoption*, not about whether the graph improves answers. " +
-                "Do not read the headline as a verdict on ContextGraph's usefulness."
+                "Do not read the headline as a verdict on $label's usefulness."
         )
         appendLine()
     } else if (runsUsing < withTools.size) {
         appendLine(
             "Usage was uneven: ${withTools.size - runsUsing} of ${withTools.size} runs never " +
-                "called ContextGraph at all. Per-question figures for those runs carry no " +
+                "called $label at all. Per-question figures for those runs carry no " +
                 "information about the graph."
         )
         appendLine()
     }
 }
+
 
 /** Spells out which question a result answers, since the two produce identically shaped tables. */
 private fun describeMeasurement(measurement: String?): String = when (measurement) {
