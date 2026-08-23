@@ -16,12 +16,19 @@ excalidraw's ingest roughly 15.3 s → 18.7–22.5 s and its index roughly 27.6 
 6 m 39.1 s (+27%) and 1,550,897,152 B → 1,580,851,200 B (+1.9%). The code is committed at
 `9aa58dc`.
 
-**But read §6 before trusting the size of that gain.** A live probe run against the shipped code
-found that the gain traces substantially to a defect elsewhere in the system — the known,
-unfixed `nodes_fts` duplicate-row bug — rather than to the vocabulary table alone. The
-measurement is sound and the comparison is fair (every arm was cold-indexed against the same
-instrument), but the *mechanism*'s value is not independent of that bug, and a reader should not
-leave this document thinking it is.
+**But read §6 before trusting the size of that gain.** A live probe against the shipped code
+(re-run and its output saved for this document at `scripts/segvocab/probe-a2-scene.txt` — the
+original run of it was never saved anywhere durable) confirms the mechanism §6 describes is
+real: full-text search's ranked window can fill with results that are not the caller's best
+answer — via a confirmed, unrelated defect *and* via an ordinary pattern the original probe's
+own output could not tell apart from that defect — before a segment candidate ever gets a
+chance to add one. The measurement is sound and the comparison is fair (every arm was
+cold-indexed against the same instrument), but the *mechanism*'s value is not shown to be
+independent of what already fills that window, and this run has no data on how much of A2's
+gain either contributing cause accounts for. A reader should not leave this document thinking
+the gain is the vocabulary table's alone, uncontaminated by what else was going on in the index
+it was measured against — nor should a reader take the size of that contamination as known,
+because it is not.
 
 ## 2. What was actually new here
 
@@ -52,10 +59,11 @@ so a concurrent run touching the shared corpus could not contaminate a row in fl
 Keycloak's ContextGraph side is refused by `IndexIntegrityGate` before scoring even starts, over
 one gold-cited file missing from its index:
 `services/src/main/resources/META-INF/services/org.keycloak.credential.hash.PasswordHashProviderFactory`.
-That is shown below as **SKIPPED**, with that reason — never as a zero, never averaged into any
-mean. Nothing in this run touches extraction or the gate; unblocking it would widen the
-denominator to 17 and was explicitly ruled out as a decision this run should not make as a side
-effect of an unrelated change (decision D2).
+That skip and its reason are recorded in §5, §7 and §12 below — never as a zero, never averaged
+into any mean, and never as a column in §4's table, since §4 carries only what every arm actually
+has: `n = 9` on excalidraw. Nothing in this run touches extraction or the gate; unblocking it
+would widen the denominator to 17 and was explicitly ruled out as a decision this run should not
+make as a side effect of an unrelated change (decision D2).
 
 The ship rule, fixed before any arm was measured: **an arm ships only if it beats the cold
 baseline (A0c) on MRR without losing R@5 or R@10.** A cheaper arm that already clears the
@@ -73,7 +81,7 @@ number of independent cold index+score passes behind that row's retrieval figure
 | Arm | MRR (n=9) | R@5 (n=9) | R@10 (n=9) | Cycles | Excalidraw coverage | Keycloak coverage | Excalidraw ingest | Keycloak ingest | Excalidraw index size | Keycloak index size |
 |---|---|---|---|---|---|---|---|---|---|---|
 | **A0** as-found — shared-corpus index, no rebuild, pinned `22713e3` | 0.4815 | 0.3426 | 0.3704 | 1 | 21/21 | 25/26 | **not comparable** — 61.1 s / 27,435,008 B is the stale pre-`run C` manifest value already on disk, not a fresh cold measurement | **not comparable** — 71 m 15.75 s / 1,550,958,592 B, same stale-manifest caveat | see ingest column | see ingest column |
-| **A0c** cold — pinned `22713e3`, `.contextgraph` deleted and rebuilt | 0.4815 | 0.3426 (mode; 0.3148 in 2 of 8 cycles — see §7) | 0.3704 | 8 | 21/21 | 25/26 | **15.3 s** (range 11.2–16.1 s across 5 cycles) | **5 m 15.1 s** (315,050 ms) | **27,594,752 B** (≈27.6 MB) | **1,550,897,152 B** (≈1.55 GB) |
+| **A0c** cold — pinned `22713e3`, `.contextgraph` deleted and rebuilt | 0.4815 | 0.3426 (mode; 0.3148 in 2 of 8 cycles — see §7) | 0.3704 | 8 | 21/21 | 25/26 | **15,265–16,095 ms** (≈15.3–16.1 s; only 2 of the 8 retrieval cycles also wrote a matching ingest-duration record under this label — the rig's `rows.jsonl` is append-only and carries no third) | **5 m 15.1 s** (315,050 ms) | **27,594,752 B** (≈27.6 MB) | **1,550,897,152 B** (≈1.55 GB) |
 | **A1** — file nodes excluded from `ftsLabelFor`'s split, no new table | 0.4259 (regression vs A0c) | 0.3426 | 0.3704 | 5 | 21/21 | not measured for this arm — Keycloak indexing is capped at two runs total for this study (D5); every ablation arm is excalidraw-only by design | 12.3–19.6 s | not measured (D5) | 27,303,936–27,435,008 B (≈27.3–27.4 MB) | not measured (D5) |
 | **A2 — SHIPS** — segment table added, candidates re-verified against `nodes`, `ftsLabelFor` left untouched | **0.5556** (beats A0c) | **0.3981** (beats A0c) | **0.4259** (beats A0c) | 5 | 21/21 | **25/26** (this run's final, cold, `9aa58dc` — §5) | 18.7–22.5 s | **399,088 ms = 6 m 39.1 s** (1 cold cycle, `9aa58dc` — §5) | 32,088,064–32,215,040 B (≈32.1–32.2 MB) | **1,580,851,200 B** (≈1.58 GB, §5) |
 | **A2-growth** — A2 with the candidate budget widened from `limit − results.size` to a fixed 5 | 0.5556 (identical to A2) | 0.3981 (identical to A2) | 0.4259 (identical to A2) | 5 | 21/21 | not measured for this arm (D5) | 19.3–22.7 s | not measured (D5) | 32,149,504–32,292,864 B (≈32.1–32.3 MB) | not measured (D5) |
@@ -85,6 +93,15 @@ shared corpus already had on disk, which for excalidraw was 61.1 s / 27,435,008 
 not a controlled cold measurement of the pinned commit this run built A0c from. A0c is the real
 "before" — it re-indexed the same pinned commit from a deleted database, and its 15.3 s /
 27,594,752 B is what A2's final cost is measured against in §5.
+
+**A0 and A0c are identical on MRR, R@5 and R@10** (0.4815 / 0.3426 / 0.3704, both rows above)
+despite A0 reading whatever dirtiness the shared corpus's index already carried and A0c
+rebuilding cold. That identity is itself a finding, not just a sanity check: it means the
+`nodes_fts` duplicate-row growth these nine questions' full-text matches encounter does not
+move retrieval on them one way or the other — contrary to what the brief assumed when it asked
+for A0c specifically so a dirty index could not be mistaken for a code-state difference. §6
+still applies to A2 (a different code state, different candidates, different window), but on
+these questions, at the baseline, index dirtiness alone bought nothing and cost nothing.
 
 ## 5. The final cost, at the shipped state
 
@@ -113,7 +130,7 @@ snapshot used for A2's excalidraw rows, since `5384db7`'s product code is `9aa58
 | Keycloak ingest | 315,050 ms (5 m 15.1 s) | 399,088 ms (6 m 39.1 s) | +84,038 ms, **+26.7%** |
 | Keycloak index size | 1,550,897,152 B (≈1.551 GB) | 1,580,851,200 B (≈1.581 GB) | +29,954,048 B, **+1.9%** |
 | Excalidraw ingest | 15.3 s (11.2–16.1 s range) | 18.7–22.5 s | roughly **+22% to +47%** (≈+37% at the mean) |
-| Excalidraw index size | 27,594,752 B | 32,088,064–32,215,040 B | **+16.4% to +16.7%** (≈+17%) |
+| Excalidraw index size | 27,594,752 B | 32,088,064–32,215,040 B | **+16.28% to +16.74%** (≈+17%) |
 
 **Read next to the retrieval gain this section is spending against**: excalidraw's MRR rose 15%
 relative for a ~17% larger index and ~37% longer ingest; Keycloak's ContextGraph side cannot be
@@ -130,7 +147,10 @@ log) pays the same per-node `writeSegmentVocab` call regardless of the repositor
 
 **Coverage.** Keycloak: 25/26 (`INDEX_QUERY` basis) — identical to the pre-change baseline,
 confirming AC-16 that extraction was not weakened to pay for the added index work. Excalidraw:
-21/21, matching every other row in §4.
+21/21, matching every other row in §4. (The result file this Keycloak figure comes from,
+`retrieval-1787508392729.json`, also reports excalidraw's MRR as 0.3333 — that is not a second
+excalidraw measurement for this document; the private excalidraw index still held A3's build at
+the moment this run scored, and only the Keycloak side of that same result file is used here.)
 
 **Disk**, `df -H /`:
 
@@ -147,31 +167,52 @@ section ran. `scripts/segvocab/check-shared-corpus-unmodified.sh` passed both be
 this measurement, and again after the deletion — the shared corpus at
 `/tmp/claude/benchmark-corpus` was never opened for writing (§11).
 
-## 6. The most important caveat: part of this gain is compensating for a defect
+## 6. The most important caveat: part of this gain is compensating for what fills FTS's window
 
-`docs/retrieval-improvements.md` and `docs/ingest-cost.md` both name it, and it stays open and
-unassigned here too: `INSERT OR REPLACE INTO nodes_fts` never actually replaces, because
-`nodes_fts` is FTS5 with `id UNINDEXED` and therefore has no unique index for a conflict clause
-to target. Every re-upsert of a node **appends a duplicate search row**, so a node that has been
-written more than once can occupy several ranks in the same result set.
+`docs/retrieval-improvements.md` and `docs/ingest-cost.md` both name a defect here, and it stays
+open and unassigned in this document too: `INSERT OR REPLACE INTO nodes_fts` never actually
+replaces, because `nodes_fts` is FTS5 with `id UNINDEXED` and therefore has no unique index for a
+conflict clause to target. Every re-upsert of a node **appends a duplicate search row**, so a
+node that has been written more than once can occupy several ranks in the same result set. This
+is real and confirmed present in this run's own final cold index, not merely asserted from
+elsewhere: `nodes_fts` carries 10,602 rows against `nodes`' 10,383 (219 excess), and one id alone
+(a `CHANGELOG.md` section) occupies 33 of them by itself
+(`scripts/segvocab/probe-a2-scene.txt`).
 
-Slice 07's liveness probe ran `SqliteStorageAdapter.searchNodes("scene", types=[Function],
-limit=3)` directly against a built A2 index and got back **the same node three times** — the
-`limit` was exhausted by duplicates of a single label before any other candidate was considered.
+Slice 07's original liveness probe ran `SqliteStorageAdapter.searchNodes("scene",
+types=[Function], limit=3)` against a built A2 index and got back the same *label* three times
+("Module | ../scene/Scene"), read at the time as the same node three times exhausting the
+`limit` before any other candidate was considered. Re-run for this document
+(`scripts/segvocab/probe-a2-scene.txt` — the original's output was never saved anywhere
+durable) with the underlying node ids also printed, those three rows turn out to be **three
+distinct nodes**: three different import sites (`frame.ts`, `mutateElement.ts`,
+`dragElements.ts`), each with its own id, that legitimately share the label "../scene/Scene"
+because excalidraw imports that module from many files. That is *not* the `nodes_fts`
+id-duplication defect — it is ordinary label collision among genuinely different nodes — and the
+original probe's output (type and label only, never an id) could not have told the two apart.
+The defect itself is separately confirmed present in the same index (previous paragraph); it
+just is not what this specific illustrative example demonstrated, and the original wording
+overstated what a type-and-label-only probe had actually shown.
+
 `QueryEngine.buildContext` already narrows the FTS search to a `typeFilter`'d top-N *post hoc*;
-duplicate rows fill that narrowed budget more often than distinct nodes would, which is exactly
-the condition under which the segment vocabulary's appended candidates (§2's item 2 and 3) get a
-chance to add anything — the budget opens because the top of the list was already spent on
-repeats of something already found.
+either mechanism — a genuinely repeated id, or several distinct nodes that happen to share a
+label — can fill that narrowed budget with results that are not necessarily the caller's single
+best answer, which is exactly the condition under which the segment vocabulary's appended
+candidates (§2's item 2 and 3) get a chance to add anything: the budget opens because the top of
+the list was already spent on something that was not the best *distinct* answer, for one reason
+or the other.
 
 **This does not invalidate §4's numbers.** Every arm in that table was cold-indexed and scored
 against the identical instrument, so the comparison between arms is sound regardless of what is
 happening inside any one of them. What it means is narrower and still important: **the
-mechanism's measured value is not independent of the duplicate-row bug**, and if that bug were
-fixed, A2's gain over A0c could shrink — this run has no data on by how much, because fixing it
-was explicitly out of scope (it is scoped out in the spec's non-goals, and cold-indexing every
-arm was the allowed way to neutralise it for measurement rather than a reason to leave it fixed).
-Whoever picks up `nodes_fts`'s duplicate-row bug next should read this section first.
+mechanism's measured value is not shown to be independent of what already fills FTS's ranked
+window**, and this run has no data on how much either the confirmed duplicate-row defect or the
+label-collision pattern above contributes to A2's gain over A0c — both are real, neither is
+quantified. Fixing the duplicate-row defect was explicitly out of scope (it is scoped out in the
+spec's non-goals, and cold-indexing every arm was the allowed way to neutralise its *growth* for
+measurement, not a reason to leave it fixed, and not evidence of how much it matters). Whoever
+picks up `nodes_fts`'s duplicate-row bug next should read this section first — and should not
+assume the "scene" example above is a demonstration of it.
 
 ## 7. What else bounds these numbers
 
@@ -240,7 +281,7 @@ other was not compensating for — A1 alone regresses (§3), and A3 alone regres
 === check 1: git diff --name-only main -- <named files> ===
 PASS: all named files byte-for-byte identical to main
 
-=== check 2: working-tree blob hash vs capabilities.json's prohibitedFilesBaseline.blobs ===
+=== check 2: working-tree blob hash vs .../scripts/segvocab/prohibited-files-baseline.json's blobs ===
   ok   modules/benchmark/questions/calcom.yaml
   ok   modules/benchmark/questions/excalidraw.yaml
   ok   modules/benchmark/questions/gin.yaml
@@ -253,10 +294,16 @@ PASS: all named files byte-for-byte identical to main
   ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepQueryDeriver.kt
 
 === check 3: git diff --stat main -- modules/benchmark/src (run A's stronger line) ===
-PASS: modules/benchmark/src is byte-for-byte identical to main (no file created, modified or removed)
+PASS: modules/benchmark/src is byte-for-byte identical to main, and no untracked file sits there
+either (no file created, modified or removed)
 
 === VERDICT: PASS -- all prohibitions hold against main ===
 ```
+
+(Re-run for this close-out rework: check 2's baseline moved from `.harness/runs/<id>/capabilities.json`
+— gitignored, and gone once that run directory is cleaned up — to the tracked
+`scripts/segvocab/prohibited-files-baseline.json`, the same ten blob hashes, so this check keeps
+working after the run record does not.)
 
 **Shared-corpus check**, `scripts/segvocab/check-shared-corpus-unmodified.sh`, run after every
 private index this run built and again at the end:

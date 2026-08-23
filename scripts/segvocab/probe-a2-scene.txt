@@ -1,0 +1,75 @@
+Probe re-run for docs/identifier-segment-vocabulary.md §1/§6, close-out rework.
+
+Slice 07's original liveness probe (`SqliteStorageAdapter.searchNodes("scene",
+types=[Function], limit=3)` against a built A2 index) was never saved anywhere durable --
+it existed only as `/tmp/claude/segvocab-run/probe-a2.jsh`, gone with the scratch directory.
+This file is that probe re-run against the final shipped state (commit
+95cb23b11b846c784a0b4245db87dac2eecab05c, a cold index of excalidraw's private corpus
+copy), plus a follow-up SQL investigation the original probe did not do: it printed only
+`type` and `label`, never `id`, so it could not distinguish "the same node's id appearing
+more than once" (the real `nodes_fts` `INSERT OR REPLACE` defect, id `UNINDEXED` so no
+conflict target) from "several distinct nodes that happen to share a label" (not that
+defect, and not fixable by fixing it).
+
+=== jshell probe: storage.searchNodes("scene", ...) against a cold A2 index ===
+(script: /tmp/claude/segvocab-run/probe-a2-final.jsh, run via jshell --class-path
+<a2-final-pinned snapshot's benchmark/lib/*.jar>)
+
+=== query='scene' types=[Function] limit=3 ===
+count=0
+
+=== query='scene' no type filter limit=3 (raw FTS behaviour) ===
+count=3
+  Module | ../scene/Scene
+  Module | ../scene/Scene
+  Module | ../scene/Scene
+
+=== query='scene' types=[Function] limit=8 (wider) ===
+count=0
+
+=== SQL follow-up: are those three "Module | ../scene/Scene" rows one node's id repeated,
+    or three distinct nodes that share a label? ===
+
+sqlite> SELECT id FROM nodes_fts WHERE nodes_fts MATCH '"scene"' ORDER BY rank LIMIT 3;
+packages/excalidraw/frame.ts#import:./scene/Scene
+packages/excalidraw/element/mutateElement.ts#import:../scene/Scene
+packages/excalidraw/element/dragElements.ts#import:../scene/Scene
+
+Three distinct ids -- three distinct import-reference ("Module") nodes, one per import
+site, that legitimately share the label "../scene/Scene" because excalidraw imports that
+module from many files. This is NOT the nodes_fts duplicate-row defect: it is ordinary
+label collision among genuinely different nodes, which `type`+`label` alone cannot tell
+apart from a true duplicate id, and which the original probe's output (type+label only)
+could not have distinguished either -- so "the same node three times" was not something
+that probe's output actually established; it was a reasonable-looking but unverified
+reading of output that is equally consistent with this more mundane explanation.
+
+=== SQL follow-up: does the real nodes_fts duplicate-id defect exist in this same index? ===
+
+sqlite> SELECT id, COUNT(*) AS n FROM nodes_fts GROUP BY id HAVING COUNT(*) > 1
+        ORDER BY n DESC LIMIT 10;
+id                                                             n
+section:packages/excalidraw/CHANGELOG.md:Fixes                33
+section:packages/excalidraw/CHANGELOG.md:Features             27
+section:packages/excalidraw/CHANGELOG.md:Excalidraw Library   22
+section:packages/excalidraw/CHANGELOG.md:Refactor             13
+section:packages/excalidraw/CHANGELOG.md:Excalidraw API       13
+section:packages/excalidraw/CHANGELOG.md:BREAKING CHANGE      12
+section:packages/excalidraw/CHANGELOG.md:Build                11
+link:https://excalidraw.com                                    7
+dep:typescript                                                 6
+dep:react-dom                                                  5
+
+sqlite> SELECT (SELECT COUNT(*) FROM nodes) AS nodes_count,
+               (SELECT COUNT(*) FROM nodes_fts) AS nodes_fts_count;
+nodes_count  nodes_fts_count
+10383        10602
+
+Yes: the defect is real and present in this same cold index (219 excess rows; one id --
+a CHANGELOG.md section -- occupies 33 nodes_fts rows by itself). It just is not what the
+"scene" probe specifically demonstrated. Whether the "scene"-style label-collision
+mechanism (many distinct nodes sharing a label) or the id-level duplicate-row mechanism
+(one node's id repeated) contributes more to A2's gain over A0c is not established by
+either probe; this run still has no data on the magnitude of either, which is why §1's
+wording is "partly attributable, magnitude unquantified" rather than "traces
+substantially."

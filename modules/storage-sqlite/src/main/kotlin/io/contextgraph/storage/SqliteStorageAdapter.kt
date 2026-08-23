@@ -128,17 +128,23 @@ private const val FTS_CHUNK_SIZE = 250
 private const val BULK_CHUNK_SIZE = 10_000
 
 /**
- * AC-12's rarity guard: a segment reaching more than this fraction of every distinct name in
+ * The rarity guard: a segment reaching more than this fraction of every distinct name in
  * `name_segment_vocab` contributes no candidates to a search. A fixed fraction of the corpus's
  * own total, computed from this project's vocabulary (cached per adapter instance -- see
  * `cachedTotalVocabNames` -- and invalidated on every write) -- not a word list.
- * The same guard suppresses a query word as common as "how" or "the" if either ever landed
- * inside an identifier, and a project's own name too if it is common enough among that
- * project's identifiers, without either ever being written down anywhere. 5% is a deliberately
- * blunt cut: on the 3,597-node corpus this table was sized against (~5,292 distinct
- * `(segment, name)` rows), a segment needs to reach on the order of a hundred or more distinct
- * names before this guard removes it -- well past what an ordinary shared word (a verb like
- * "get", a domain noun repeated across one package) reaches by chance.
+ *
+ * **What this measurably is: a high-frequency domain-word guard, not a stopword substitute.**
+ * Measured on excalidraw's built index (4,764 distinct names, so the 5% cut sits at 238 names
+ * reached): this guard suppresses `element` (reaching 359 names), `get` (343) and `2` (269) --
+ * three genuinely high-frequency identifier sub-words, each well past the 238 cut. It does
+ * **not** suppress the project's own name, `excalidraw` (199 -- under the cut), nor any of the
+ * ordinary English words a natural-language question tends to contain: `is` (163), `to` (155),
+ * `a` (136), `on` (112), `from` (73), `the` (24), `how` (4), `does` (2). Every one of those is
+ * rare *as an identifier sub-word* on this corpus, however common it is in English prose, and a
+ * query containing it is harmless for that reason -- not because this guard caught it. Do not
+ * read this constant as a stopword list's replacement; it catches a handful of genuinely
+ * overrepresented domain words and nothing resembling general English stopwords, and a caller
+ * relying on it to suppress a project's own name in particular should not.
  */
 private const val SEGMENT_RARITY_MAX_FRACTION = 0.05
 
@@ -629,7 +635,11 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
      * query term against a `LOWER(segment)`-wrapped column left any non-ASCII uppercase segment
      * (Cyrillic, Greek, a Latin letter with a diacritic outside `A`-`Z`, ...) permanently
      * unreachable no matter how the query was cased. Folding at write time closes that gap by
-     * construction, since both sides then go through the same fold.
+     * construction, since both sides then go through the same fold. A side effect worth naming:
+     * this also shrinks the table itself, since two labels differing only in case now collapse
+     * onto the same `(segment, name)` row-per-name pair (e.g. `Get` and `GET` both write a
+     * `"get"` segment row) wherever the same *name* happens to appear in more than one casing --
+     * fewer distinct segment values overall, not just a faster comparison.
      *
      * A label with no internal boundary still gets a row: [IdentifierSplitter.split] returns
      * such a label unchanged as the sole element of its result, so that becomes the label's
@@ -692,6 +702,18 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
      * invalidated by every [writeSegmentVocab] write. See that field's own comment for why: the
      * query is a full scan no matter what, so the cache is what keeps [segmentCandidates] from
      * paying for it on every call.
+     *
+     * This counts every distinct `name` the table holds, including orphans left behind by a
+     * node a later index removed ([writeSegmentVocab]'s row-count property, `V6__name_segment_vocab.sql`'s
+     * "rows are proposals" note) -- there is no join back to `nodes` here, unlike
+     * [segmentCandidates]'s own re-verification join. The rarity guard's denominator therefore
+     * grows monotonically as a project is edited and re-indexed over time, even for names whose
+     * only node was deleted; a segment's reach as a *fraction* of this count can only shrink
+     * relative to what it would be against a denominator of live names alone, making the guard
+     * strictly more permissive (never less) as orphans accumulate. Left uncorrected deliberately:
+     * joining against `nodes` here would turn a cached full-table-scan cost into an uncached
+     * full-table-*join* cost on every cache miss, for a correction that only ever loosens the
+     * guard, never tightens it past what was already measured.
      */
     private fun Transaction.totalVocabNames(): Long {
         cachedTotalVocabNames?.let { return it }
@@ -703,22 +725,23 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     }
 
     /**
-     * Segment-vocabulary candidates for [terms] that are not already present in [excludeIds],
-     * up to [budget] of them -- the read half of the identifier segment vocabulary (AC-9 read
-     * half, AC-11, AC-12). Called from inside [searchNodes]'s own `transaction { }`, like
-     * [writeSegmentVocab].
+     * Segment-vocabulary candidates for [terms] that are not already present in [excludeIds], up
+     * to [budget] of them -- the read half of the identifier segment vocabulary, re-verified
+     * against live nodes, appended strictly after full-text hits, and suppressed by a rarity
+     * guard. Called from inside [searchNodes]'s own `transaction { }`, like [writeSegmentVocab].
      *
      * Every candidate comes out of exactly one join from `name_segment_vocab` to `nodes` on
-     * `label = name`. AC-9's re-verification is not a check bolted onto the result afterwards --
-     * it *is* this join: a vocabulary row naming an identifier no longer carried by any node
-     * (the node was removed by a later index; `V6__name_segment_vocab.sql` explains why the
-     * orphaned row is deliberately left behind rather than swept) simply has no join partner in
-     * `nodes` and contributes nothing. There is no separate existence check to forget.
+     * `label = name`. Re-verifying that a vocabulary row still names a live node is not a check
+     * bolted onto the result afterwards -- it *is* this join: a row naming an identifier no
+     * longer carried by any node (the node was removed by a later index; `V6__name_segment_vocab.sql`
+     * explains why the orphaned row is deliberately left behind rather than swept) simply has no
+     * join partner in `nodes` and contributes nothing. There is no separate existence check to
+     * forget.
      *
-     * AC-12's rarity guard ([SEGMENT_RARITY_MAX_FRACTION]) is computed here, from this corpus's
-     * own vocabulary (via [totalVocabNames]) -- a segment reaching more than that fraction of
-     * every distinct name in the table is suppressed before it ever reaches the join above, so
-     * it costs nothing and proposes nothing.
+     * The rarity guard ([SEGMENT_RARITY_MAX_FRACTION]) is computed here, from this corpus's own
+     * vocabulary (via [totalVocabNames]) -- a segment reaching more than that fraction of every
+     * distinct name in the table is suppressed before it ever reaches the join above, so it
+     * costs nothing and proposes nothing.
      *
      * `terms` is expected already extracted via [ftsTerms] -- the same discipline [searchNodes]
      * uses to keep the FTS MATCH expression safe applies unchanged here, since every term is
