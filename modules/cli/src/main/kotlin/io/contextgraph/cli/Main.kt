@@ -117,6 +117,7 @@ class IndexCommand : CliktCommand("index") {
         if (stats.parseWarnings > 0) {
             echo("  Parse warnings: ${stats.parseWarnings} file(s) had syntax errors (partial extraction; see logs)")
         }
+        stats.timingReport().forEach { echo(it) }
     }
 }
 

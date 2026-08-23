@@ -2,6 +2,7 @@ package io.contextgraph.ingest
 
 import io.contextgraph.core.Artifact
 import io.contextgraph.core.ArtifactId
+import io.contextgraph.core.ArtifactWriteBatch
 import io.contextgraph.core.ExtractionContext
 import io.contextgraph.core.ExtractionDiagnostic
 import io.contextgraph.core.ExtractionResult
@@ -22,6 +23,23 @@ import kotlin.io.path.readAttributes
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Runs [block], charging its elapsed nanoseconds to [phase].
+ *
+ * `inline` so it composes with `suspend` call sites without a wrapper coroutine, and so the
+ * measurement costs two `nanoTime` reads and nothing else. Charged in a `finally` block, so a
+ * phase that throws still reports the time it burned before failing -- which is exactly when
+ * you want to know.
+ */
+private inline fun <T> IndexStats.timed(phase: IngestPhase, block: () -> T): T {
+    val startedAt = System.nanoTime()
+    try {
+        return block()
+    } finally {
+        addPhaseNanos(phase, System.nanoTime() - startedAt)
+    }
+}
+
 class IngestPipeline(
     private val discovery: FileDiscovery,
     private val registry: ExtractorRegistry,
@@ -32,8 +50,53 @@ class IngestPipeline(
 ) {
     suspend fun index(root: Path): IndexStats {
         val stats = IndexStats()
+        val startedAt = System.nanoTime()
 
-        indexModules(root, stats)
+        stats.timed(IngestPhase.MODULE_DETECTION) { indexModules(root, stats) }
+
+        stats.timed(IngestPhase.PASS_1) { runPass1(root, stats) }
+
+        // Pass 2: resolve every persisted unresolved reference -- including ones belonging
+        // to files pass 1 skipped this run -- against the current symbol table, and
+        // materialise Calls edges. Runs only after pass 1's producer/consumer scope has
+        // fully drained, so this is never a second concurrent writer -- it's the same
+        // sequential caller, one step later.
+        val resolution = stats.timed(IngestPhase.PASS_2_RESOLVE) { ReferenceResolver(storage).resolveAll() }
+        stats.addEdges(resolution.resolved)
+        logger.debug { "Pass 2 resolved ${resolution.resolved} Calls edges (${resolution.unresolved} references left unresolved)" }
+
+        // Pass 3: group declaration sites that share an fqn -- a Swift type and its
+        // extensions, an ObjC @interface/@implementation pair, a Kotlin expect/actual split
+        // -- into SiblingOf edges. Like pass 2 this deletes and rebuilds its whole edge set
+        // each run, so it inherits the same incremental correctness for free, and it runs in
+        // the same sequential caller rather than as a second concurrent writer.
+        val grouping = stats.timed(IngestPhase.PASS_3_GROUP) { SiblingGrouper(storage).groupAll() }
+        stats.addEdges(grouping.edges)
+        logger.debug { "Pass 3 linked ${grouping.edges} SiblingOf edges across ${grouping.groups} fqn group(s)" }
+
+        stats.setTotalNanos(System.nanoTime() - startedAt)
+        return stats
+    }
+
+    /**
+     * Pass 1: discover files, extract them concurrently, and persist every result through one
+     * writer.
+     *
+     * Its own function rather than a block inside [index] so that [index] reads as the four
+     * phases it actually is -- and so the phase timer around it wraps something with a name.
+     */
+    private suspend fun runPass1(root: Path, stats: IndexStats) {
+        // Every previously-indexed artifact's checksum, read once.
+        //
+        // This used to be one indexed lookup per discovered file, issued from whichever of the
+        // extraction coroutines happened to be triaging it -- so on a repo of Keycloak's size,
+        // twelve thousand concurrent single-row reads, each opening its own SQLite connection,
+        // against the file the single write consumer is holding a lock on. The answers cannot
+        // change while pass 1 runs: an artifact row is only written by the processing of that
+        // same artifact, so no file's checksum decision can be affected by another file's.
+        // Reading them all up front is therefore the same decision, taken off the contended
+        // path -- one query instead of twelve thousand, and none of them racing the writer.
+        val previousChecksums = storage.getAllArtifacts().associate { it.id to it.checksum }
 
         coroutineScope {
             val resultChannel = Channel<ExtractionResult>(capacity = 100)
@@ -44,7 +107,7 @@ class IngestPipeline(
                     discovery.discover(root).collect { path ->
                         launch(Dispatchers.IO) {
                             try {
-                                extractFile(path, stats, resultChannel)
+                                extractFile(path, stats, resultChannel, previousChecksums)
                             } catch (e: Exception) {
                                 logger.warn(e) { "Failed to process $path" }
                                 stats.incrementFailed()
@@ -70,6 +133,7 @@ class IngestPipeline(
             // needed and no second writer is introduced.
             val clearedArtifacts = HashSet<ArtifactId>()
             for (result in resultChannel) {
+                val writeStartedAt = System.nanoTime()
                 try {
                     // Surface pass 1's parse diagnostics (AC-3): a covered language whose
                     // grammar produced an error node gets logged and counted here, distinct
@@ -88,51 +152,37 @@ class IngestPipeline(
                         }
                         stats.addParseWarnings(result.diagnostics.size)
                     }
-                    if (clearedArtifacts.add(result.artifact.id)) {
-                        storage.deleteNodesForArtifact(result.artifact.id)
-                        storage.deleteUnresolvedReferencesForArtifact(result.artifact.id)
+                    val firstResultForArtifact = clearedArtifacts.add(result.artifact.id)
+                    if (firstResultForArtifact) {
                         // Counted here, on an artifact's first result only, for the same reason
-                        // the delete is: several extractors can each yield a result for one
+                        // the clear is: several extractors can each yield a result for one
                         // artifact, and counting per result reports more artifacts than the
                         // graph actually holds (a .plist matching two extractors counted twice).
                         stats.incrementArtifacts()
                     }
-                    storage.upsertArtifact(result.artifact)
-                    result.nodes.forEach { storage.upsertNode(it) }
-                    result.edges.forEach { storage.upsertEdge(it) }
-                    result.references.forEach { storage.insertUnresolvedReference(it) }
-                    result.nodes.forEach { node ->
-                        node.provenance.forEach { p -> storage.upsertProvenance(node.id.value, "node", p) }
-                    }
+                    // One call, not five loops: the adapter decides how to make it cheap, and
+                    // its default implementation is exactly the loops this replaced, in the
+                    // same order, so the rows written cannot differ.
+                    storage.writeArtifactBatch(
+                        ArtifactWriteBatch(
+                            artifact = result.artifact,
+                            clearExisting = firstResultForArtifact,
+                            nodes = result.nodes,
+                            edges = result.edges,
+                            references = result.references
+                        )
+                    )
                     stats.addNodes(result.nodes.size)
                     stats.addEdges(result.edges.size)
                     logger.debug { "Indexed ${result.artifact.path}: ${result.nodes.size} nodes, ${result.edges.size} edges, ${result.references.size} unresolved references" }
                 } catch (e: Exception) {
                     logger.error(e) { "Failed to store result for ${result.artifact.path}" }
                     stats.incrementFailed()
+                } finally {
+                    stats.addPhaseNanos(IngestPhase.DB_WRITE, System.nanoTime() - writeStartedAt)
                 }
             }
         }
-
-        // Pass 2: resolve every persisted unresolved reference -- including ones belonging
-        // to files pass 1 skipped this run -- against the current symbol table, and
-        // materialise Calls edges. Runs only after the coroutineScope above (producer +
-        // single-consumer writer) has fully drained, so this is never a second concurrent
-        // writer -- it's the same sequential caller, one step later.
-        val resolution = ReferenceResolver(storage).resolveAll()
-        stats.addEdges(resolution.resolved)
-        logger.debug { "Pass 2 resolved ${resolution.resolved} Calls edges (${resolution.unresolved} references left unresolved)" }
-
-        // Pass 3: group declaration sites that share an fqn -- a Swift type and its
-        // extensions, an ObjC @interface/@implementation pair, a Kotlin expect/actual split
-        // -- into SiblingOf edges. Like pass 2 this deletes and rebuilds its whole edge set
-        // each run, so it inherits the same incremental correctness for free, and it runs in
-        // the same sequential caller rather than as a second concurrent writer.
-        val grouping = SiblingGrouper(storage).groupAll()
-        stats.addEdges(grouping.edges)
-        logger.debug { "Pass 3 linked ${grouping.edges} SiblingOf edges across ${grouping.groups} fqn group(s)" }
-
-        return stats
     }
 
     /**
@@ -145,15 +195,21 @@ class IngestPipeline(
     private suspend fun indexModules(root: Path, stats: IndexStats) {
         val tree = withContext(Dispatchers.IO) { moduleDetector.detect(root, context.config) }
         val moduleNodes = tree.toGraphNodes()
-        moduleNodes.forEach { storage.upsertNode(it) }
+        storage.upsertNodes(moduleNodes)
         stats.addNodes(moduleNodes.size)
     }
 
-    private suspend fun extractFile(path: Path, stats: IndexStats, channel: Channel<ExtractionResult>) {
+    private suspend fun extractFile(
+        path: Path,
+        stats: IndexStats,
+        channel: Channel<ExtractionResult>,
+        previousChecksums: Map<ArtifactId, String>
+    ) {
         val type = ArtifactTypeDetector.detect(path)
         val extractors = registry.findExtractors(type)
         if (extractors.isEmpty()) return
 
+        val triageStartedAt = System.nanoTime()
         val checksum = checksumTracker.checksum(path)
         val attrs = withContext(Dispatchers.IO) { path.readAttributes<BasicFileAttributes>() }
         val repoRelativePath = repoRelativePathOf(context.projectRoot, path)
@@ -168,15 +224,16 @@ class IngestPipeline(
             indexedAt = Clock.System.now()
         )
 
-        val existing = storage.getArtifact(artifact.id)
-        if (existing?.checksum == checksum) {
+        val previousChecksum = previousChecksums[artifact.id]
+        stats.addPhaseNanos(IngestPhase.FILE_TRIAGE, System.nanoTime() - triageStartedAt)
+        if (previousChecksum == checksum) {
             stats.incrementSkipped()
             return
         }
 
         for (extractor in extractors) {
             try {
-                val result = extractor.extract(artifact, context)
+                val result = stats.timed(IngestPhase.EXTRACTION) { extractor.extract(artifact, context) }
                 channel.send(result)
             } catch (e: Exception) {
                 // Count it, don't just log it. An extractor that throws drops the whole file
