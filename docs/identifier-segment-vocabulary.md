@@ -13,8 +13,10 @@ relative), R@5 from 0.3426 to 0.3981 (+16%), and R@10 from 0.3704 to 0.4259 (+15
 excalidraw's nine questions, the only denominator ContextGraph is scored on here (§3). It costs
 excalidraw's ingest roughly 15.3 s → 18.7–22.5 s and its index roughly 27.6 MB → 32.1 MB, about
 +17%; on Keycloak, measured once at this document's final cost step (§5), it costs 5 m 15.1 s →
-6 m 39.1 s (+27%) and 1,550,897,152 B → 1,580,851,200 B (+1.9%). The code is committed at
-`9aa58dc`.
+6 m 39.1 s (+27%) and 1,550,897,152 B → 1,580,851,200 B (+1.9%). The code shipped at `9aa58dc`;
+a post-ship correctness/performance fix moved that forward without changing these numbers — see
+§14 for the fix and its re-measurement, and for the commit this document was current against
+when written.
 
 **But read §6 before trusting the size of that gain.** A live probe against the shipped code
 (re-run and its output saved for this document at `scripts/segvocab/probe-a2-scene.txt` — the
@@ -380,3 +382,59 @@ scripts/segvocab/measure-arm.sh <label>
 which prepares the private corpus if needed, builds the CLI and benchmark distributions from
 whatever is checked out, cold-indexes excalidraw, scores the retrieval axis, and prints the row.
 See `scripts/segvocab/README.md` for the full pipeline and its determinism proof.
+
+## 14. Close-out rework: the correctness/performance fix, re-measured (2026-08-23)
+
+Two independent post-ship reviews found defects in `segmentCandidates` (the read path): it
+wrapped the indexed `segment` column in SQLite's own `LOWER()` in two places, which disables the
+`(segment, name)` primary key — a full `SCAN` + `TEMP B-TREE` where `SEARCH ... USING PRIMARY
+KEY` was available (measured at Keycloak scale: ~1.5 s per call, ~99% avoidable, and
+`ExploreEngine.matchSymbols` pays this once per query token). Worse, because SQLite's `LOWER()`
+folds ASCII `A`-`Z` only while Kotlin's `String.lowercase()` is full Unicode, every non-ASCII
+uppercase identifier segment was permanently unreachable regardless of query casing. Fixed by
+lower-casing the segment once, in Kotlin, at write time (`writeSegmentVocab`) and comparing with
+a plain `segment IN (...)` at read time — lossless, since `segment` is never read back out as
+text, and symmetric with the query side in a way `COLLATE NOCASE` (itself ASCII-only) would not
+have been.
+
+`EXPLAIN QUERY PLAN`, both affected queries, before → after:
+`SCAN name_segment_vocab` / `SCAN v` → `SEARCH ... USING PRIMARY KEY (segment=?)`. A new test
+(`SegmentCandidatesTest`, non-ASCII reachability) proves the fix with a Cyrillic segment, seeded
+directly since `IdentifierSplitter`'s own separator regex is ASCII-only and cannot itself produce
+a non-ASCII segment from a real identifier — a separate, pre-existing limitation this fix does
+not touch.
+
+While in that function: `minConfidence`, a caller-supplied `Double`, was interpolated into raw
+SQL text — `NaN`/`Infinity` render as a bare identifier and throw a SQL parse error out of an
+unguarded `exec`, unlike the FTS `MATCH` path beside it, which is wrapped and logged. Moved to
+the Exposed re-fetch that already re-reads every row. The four-times-repeated
+`joinToString(",") { "'${sqlQuote(it)}'" }` pattern was extracted into one `sqlInList` helper.
+Ordering the candidates by accepted-segment match count descending was tried and **measured** —
+the point of this whole addendum — to move R@5 and R@10 below the cold baseline (MRR 0.5000 /
+R@5 0.3148 / R@10 0.3426, reproducible identically across 5 cold cycles, against baseline's
+0.4815 / 0.3426 / 0.3704), so `ORDER BY n.id` (A2's original) was kept, with a comment recording
+that the alternative was tried and why it was rejected.
+
+**Because this changes the shipped code, A2's row in §4 no longer traces to what ships (D14).**
+Re-measured with the same rig, five cold cycles each, both reproducing A2's original numbers
+exactly:
+
+| label | commit | MRR | R@5 | R@10 | dirty | notes |
+|---|---|---|---|---|---|---|
+| `a2-final` (×5) | `4e341d149a667aebdb5479c54807c406110af227` | 0.5556 | 0.3981 | 0.4259 | 0 | ordinary live-worktree build |
+| `a2-final-pinned` (×5) | `95cb23b11b846c784a0b4245db87dac2eecab05c` | 0.5556 | 0.3981 | 0.4259 | 0 | built from an isolated, pinned `git worktree` after a concurrent build in the shared live worktree corrupted one prior attempt (`SQLITE_TOOBIG`, garbage bytes in a log line) — see this rig's README, "When the live worktree won't compile" |
+
+Identical to A2's original 0.5556 / 0.3981 / 0.4259 on every one of the 10 cycles above, at both
+commits measured. The fix is real (`SEARCH` replaces `SCAN`; a non-ASCII segment is now
+reachable), but on excalidraw's nine ASCII-identifier questions it changes nothing about which
+candidates are proposed or in what order — exactly what a comparison-and-Unicode-only, no
+ranking-shape change should do.
+
+This repository saw further commits after `95cb23b` during this same close-out rework (this
+document's own corrections among them, plus independent fixes to `nodes_fts` read-side
+de-duplication, this migration's citations, and test-comment accuracy) — a shared, actively
+worked-on host, consistent with §7's caveat about this run's conditions generally.
+`git diff 95cb23b HEAD -- modules/storage-sqlite/src/main/kotlin/io/contextgraph/storage/SqliteStorageAdapter.kt`
+was checked immediately before this document was finalised and carried no line outside a comment,
+so the measurement above still describes `HEAD`'s actual behaviour at the commit named in §11's
+verification block, even though that commit's hash is later than the two measured above.
