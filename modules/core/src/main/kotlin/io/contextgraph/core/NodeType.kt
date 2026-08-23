@@ -85,5 +85,23 @@ sealed interface NodeType {
             is Custom -> t.name
             else -> t::class.simpleName ?: "Unknown"
         }
+
+        /**
+         * Whether [t] represents a whole file rather than a symbol declared inside one -- the
+         * "Artifact-level types" vs "Entity-level types" split the two comments above already
+         * draw, now enforced by the compiler rather than left as prose: this `when` has no
+         * `else` branch, so adding a new [NodeType] without deciding which side of the split it
+         * falls on fails the build instead of silently defaulting either way. `Custom` (open-
+         * ended extension types, e.g. from a project-specific extractor) is never a file type --
+         * a caller that needs one to sometimes act as one should not reach for this.
+         */
+        fun isFileType(t: NodeType): Boolean = when (t) {
+            CodeFile, Document, MarkdownFile, PDF, Image, Diagram, DatabaseSchema, ConfigFile,
+            ResearchPaper, TestFile, PackageFile -> true
+            Function, Class, Method, Module, Package, CodeModule, API, Route, Component,
+            DatabaseTable, Column, Concept, Claim, Methodology, Dataset, Experiment, Requirement,
+            Decision, Person, Organization -> false
+            is Custom -> false
+        }
     }
 }
