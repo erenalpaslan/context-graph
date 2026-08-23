@@ -41,7 +41,7 @@ class QueryRelevance private constructor(
      * state, not an error, and every path-derived term simply does not fire for it).
      */
     fun score(node: GraphNode, path: String?): Double =
-        searchHitPoints(node) + kindPoints(node) + deprioritisationPoints(node, path)
+        searchHitPoints(node) + kindPoints(node) + pathPoints(path) + deprioritisationPoints(node, path)
 
     /**
      * What the search layer already knew and the sort used to throw away: this candidate's place
@@ -63,6 +63,37 @@ class QueryRelevance private constructor(
      * are exactly the class that centrality used to float to the top.
      */
     private fun kindPoints(node: GraphNode): Double = kindPointsOf(node.type)
+
+    /**
+     * Where the query's words fall in the candidate's path -- how a human narrows a repository
+     * before reading a line of it.
+     *
+     * Each query **word** contributes once, at the most specific place it reaches: the filename
+     * beats a directory, a directory beats an incidental appearance anywhere else in the path.
+     * Once per word and not once per sub-token, which is the mistake CodeGraph shipped and had to
+     * fix -- one concept spelled several ways inflated a single path fourfold.
+     */
+    private fun pathPoints(path: String?): Double {
+        if (path == null || words.isEmpty()) return 0.0
+        val segments = path.split('/').filter { it.isNotEmpty() }
+        if (segments.isEmpty()) return 0.0
+
+        val fileWords = IdentifierSplitter.split(segments.last()).map { it.lowercase() }.toSet()
+        val directoryWords = segments.dropLast(1)
+            .flatMap { IdentifierSplitter.split(it) }
+            .map { it.lowercase() }
+            .toSet()
+        val whole = path.lowercase()
+
+        return words.sumOf { word ->
+            when {
+                word in fileWords -> PATH_FILENAME_POINTS
+                word in directoryWords -> PATH_DIRECTORY_POINTS
+                whole.contains(word) -> PATH_ELSEWHERE_POINTS
+                else -> 0.0
+            }
+        }
+    }
 
     /**
      * A penalty for candidates whose file is documentation or a test, waived when the query is
@@ -164,6 +195,11 @@ private fun kindPointsOf(type: NodeType): Double = when (type) {
 
     is NodeType.Custom -> 0.0
 }
+
+// Path relevance, CodeGraph's constants: the most specific position a query word reaches, once.
+private const val PATH_FILENAME_POINTS = 10.0
+private const val PATH_DIRECTORY_POINTS = 5.0
+private const val PATH_ELSEWHERE_POINTS = 3.0
 
 private val DOCUMENTATION_QUERY_WORDS = setOf("doc", "docs", "documentation", "readme", "changelog")
 private val TEST_QUERY_WORDS = setOf("test", "tests", "testing", "spec", "specs", "fixture", "fixtures")

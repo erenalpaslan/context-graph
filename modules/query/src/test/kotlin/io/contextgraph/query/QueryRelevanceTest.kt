@@ -54,6 +54,34 @@ class QueryRelevanceTest : FunSpec({
 
     }
 
+    context("path relevance") {
+        val r = relevance("where does binding happen")
+        val thing = node("Thing")
+
+        test("the filename beats a directory, and a directory beats anywhere else in the path") {
+            val inFilename = r.score(thing, "src/binding.kt")
+            val inDirectory = r.score(thing, "src/binding/thing.kt")
+            val elsewhere = r.score(thing, "src/bindingsupport/thing.kt")
+            val absent = r.score(thing, "src/unrelated/thing.kt")
+
+            inFilename shouldBeGreaterThan inDirectory
+            inDirectory shouldBeGreaterThan elsewhere
+            elsewhere shouldBeGreaterThan absent
+        }
+
+        test("a query word contributes once however often the path repeats it") {
+            r.score(thing, "binding/binding/binding.kt") shouldBe r.score(thing, "src/binding.kt")
+        }
+
+        test("matching is by whole word, so a path segment written in any convention still counts") {
+            r.score(thing, "src/element_binding.kt") shouldBe r.score(thing, "src/elementBinding.kt")
+        }
+
+        test("a candidate with no file scores nothing from its path rather than failing") {
+            r.score(thing, null) shouldBe relevance("unrelated words entirely").score(thing, null)
+        }
+    }
+
     context("the kind ladder") {
         val r = relevance("anything at all")
 
@@ -120,8 +148,11 @@ class QueryRelevanceTest : FunSpec({
         }
 
         test("a query about tests does not de-prioritise tests") {
+            // A `spec/` directory rather than a `*Test.kt` filename, so the comparison isolates
+            // the waiver: were the filename to spell one of the query's own words, path relevance
+            // would move the score too and this would stop being a test of the waiver.
             val asking = relevance("which test covers the widget")
-            asking.score(node("Thing"), "src/ThingTest.kt") shouldBe asking.score(node("Thing"), "src/thing.kt")
+            asking.score(node("Thing"), "spec/thing.kt") shouldBe asking.score(node("Thing"), "src/thing.kt")
         }
 
         test("the waivers are independent -- asking about tests still de-prioritises documentation") {
