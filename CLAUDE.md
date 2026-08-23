@@ -28,15 +28,29 @@ Requires Java 17+.
 ```bash
 ./gradlew :modules:cli:run --args="init"                   # Init .contextgraph/ in cwd
 ./gradlew :modules:cli:run --args="index /path/to/project" # Index a directory
+./gradlew :modules:cli:run --args="refresh"                # Re-parse changed files into the local overlay
+./gradlew :modules:cli:run --args="watch"                  # Watcher daemon; needs watcher.enabled=true
+./gradlew :modules:cli:run --args="ci-reindex ."           # CI only — writes the committed baseline
 ./gradlew :modules:cli:run --args='search "authentication"'
+./gradlew :modules:cli:run --args='search "auth" --semantic'
 ./gradlew :modules:cli:run --args="node <nodeId>"
 ./gradlew :modules:cli:run --args="expand <nodeId> --depth 3"
 ./gradlew :modules:cli:run --args="path <fromId> <toId>"
 ./gradlew :modules:cli:run --args="report"
+./gradlew :modules:cli:run --args="describe-modules"       # LLM module descriptions + embeddings
 ./gradlew :modules:cli:run --args="serve-mcp"
 ./gradlew :modules:cli:run --args="export graph.json"
 ./gradlew :modules:cli:run --args="config set litellm.enabled true"
 ```
+
+`describe-modules` takes `--regenerate-stale` to regenerate descriptions a prior run
+flagged stale rather than only flagging them. `ci-reindex` refuses to run with an
+interactive terminal attached (`CONTEXTGRAPH_CI=true` overrides) — that refusal is what
+keeps the committed baseline single-writer.
+
+For a launcher without Gradle startup per command:
+`./gradlew :modules:cli:installDist` puts a `contextgraph` binary in
+`modules/cli/build/install/contextgraph/bin/`.
 
 ## Architecture
 
@@ -44,8 +58,9 @@ The pipeline flows left-to-right:
 
 ```
 FileDiscovery → ArtifactTypeDetector → ExtractorRegistry → ResourceExtractor(s)
+                                          (TreeSitterExtractor, Markdown, PDF, SQL, Config, Semantic)
                                                                      ↓
-                                               EntityResolver → GraphBuilder
+                            ReferenceResolver → EntityResolver → GraphBuilder
                                                                      ↓
                                                            SqliteStorageAdapter (SQLite + FTS5)
                                                                      ↓
@@ -54,21 +69,37 @@ FileDiscovery → ArtifactTypeDetector → ExtractorRegistry → ResourceExtract
 
 **Key design choices:**
 - `IngestPipeline` runs extraction concurrently (Coroutines + `Dispatchers.IO`) but funnels all DB writes through a single `Channel` consumer to avoid SQLite lock contention.
+- **Writes go through the batch seam on `StorageAdapter` — `writeArtifactBatch`, `upsertNodes`, `upsertEdges` — not one call per row.** ContextGraph previously opened, prepared, executed and closed a separate SQLite connection for every row; that alone accounted for a 17.3× ingest slowdown (Keycloak: 142m 55.6s → 8m 16.4s). Do not reintroduce per-row writes. See `docs/ingest-cost.md`.
+- Source files are parsed to a tree-sitter AST and walked for declarations. Symbols get **scope-correct identity** (`DeclarationSiteId`, `Fqn` in `modules:tree-sitter`), so same-named members of different types stay distinct.
+- References unresolvable within a file are held and resolved afterwards by `ReferenceResolver` through `ResolutionLadder`'s increasingly permissive rungs. Every edge records which rung resolved it and at what confidence — that provenance is what `explore` and `impact_analysis` surface.
 - `StorageAdapter` is the only interface between the graph domain and persistence — swap implementations without touching anything else.
 - `ResourceExtractor` is the extension point for adding new file types: implement the interface, register in `ExtractorRegistry`.
 - `NodeType` uses sealed interfaces with `data object` singletons for all well-known types plus `Custom(name)` for open-ended extension.
+- `ReindexPrimitive` (in `modules:ingest`) is the single reindex call site shared by `index`/`refresh`, the watcher, `ci-reindex` and the MCP `index_project` tool. It takes both locks — an in-JVM `ReentrantLock` and a cross-process `<dbPath>.lock`. Reindexing outside it can corrupt the graph.
 
 ## Module Dependency Graph
 
+Thirteen modules. `a → b` means "a depends on b".
+
 ```
-core  ←  ingest  ←  extractors  ←  graph
-  ↑                                  ↑
-storage-sqlite                     query  ←  mcp-server
-                                     ↑
-                              report / visualization / cli
+core                    (no internal dependencies)
+  ↑
+  ├── tree-sitter ← extractors ← ingest
+  ├── storage-sqlite ────────────↑
+  ├── graph
+  ├── query          → core, graph, storage-sqlite
+  ├── report         → core, graph, storage-sqlite
+  └── visualization  → core, storage-sqlite
+
+mcp-server → core, extractors, graph, ingest, query, report, storage-sqlite, visualization
+cli        → all of the above, plus mcp-server
+eval       → core, ingest, mcp-server, storage-sqlite
+benchmark  → core, extractors, graph, ingest, mcp-server, query, storage-sqlite, cli
 ```
 
 `core` has no internal dependencies — it defines the domain (`GraphNode`, `GraphEdge`, `Artifact`, `StorageAdapter`, `ResourceExtractor`, `ContextGraphConfig`).
+
+Note the direction between `ingest` and `extractors`: **`ingest` depends on `extractors`**, which depends on `tree-sitter`. `eval` grades `explore` answers against curated questions; `benchmark` runs the three-way retrieval and ingest-cost comparison against CodeGraph and ripgrep, and is the only module that depends on `cli`.
 
 ## Project Configuration
 
@@ -83,10 +114,19 @@ Each indexed project needs `.contextgraph/config.json` (auto-created by `init`).
 | `includePatterns` | `["**/*"]` | Glob patterns to include |
 | `excludePatterns` | build dirs, `.git`, etc. | Glob patterns to exclude |
 | `maxFileSizeBytes` | `10 MB` | Files larger than this are skipped |
+| `ignoreSecrets` | `true` | Skip files that look like secrets |
+| `moduleRoots` | `[]` | Explicit module roots where layout is not inferable |
+| `watcher.enabled` | `false` | Opt-in; `watch` refuses to start without it |
+| `watcher.debounceMillis` | `500` | Coalesce bursts of filesystem events |
+| `watcher.fallbackIntervalMillis` | `30000` | Full rescan interval, covers dropped watch registrations |
 
 ## MCP Server
 
-The server exposes 10 tools over stdio: `index_project`, `search_nodes`, `get_node`, `expand_node`, `find_path`, `get_evidence`, `impact_analysis`, `related_files`, `build_context`, `generate_report`. It also exposes 6 resources (`contextgraph://project`, `…/graph/nodes`, `…/graph/edges`, `…/artifacts`, `…/reports/summary`, `…/clusters`) and 4 prompts.
+The server exposes **11 tools** over stdio. `contextgraph.explore` is the primary one: it answers a natural-language question in a single call, returning matched modules, relevant symbols with **verbatim source**, their resolved edges (with confidence and resolution rung), and blast radius, capped at a token budget with lower-ranked symbols marked `elided`. It exists because agents choose badly among many thin tools; prefer it.
+
+The other ten are secondary and mostly return pointers: `index_project`, `search_nodes`, `get_node`, `expand_node`, `find_path`, `get_evidence`, `impact_analysis`, `related_files`, `build_context`, `generate_report`.
+
+It also exposes 6 resources (`contextgraph://project`, `…/graph/nodes`, `…/graph/edges`, `…/artifacts`, `…/reports/summary`, `…/clusters`) and 4 prompts (`explain_codebase`, `find_context_for_task`, `analyze_change_impact`, `summarize_research`).
 
 ## Testing
 

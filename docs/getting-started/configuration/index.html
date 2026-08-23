@@ -31,7 +31,14 @@
     <span class="t-str">"**/target/**"</span>,
     <span class="t-str">"**/__pycache__/**"</span>
   ],
-  <span class="t-key">"maxFileSizeBytes"</span>: <span class="t-num">10485760</span>
+  <span class="t-key">"ignoreSecrets"</span>: <span class="t-kw">true</span>,
+  <span class="t-key">"maxFileSizeBytes"</span>: <span class="t-num">10485760</span>,
+  <span class="t-key">"moduleRoots"</span>: [],
+  <span class="t-key">"watcher"</span>: {
+    <span class="t-key">"enabled"</span>: <span class="t-kw">false</span>,
+    <span class="t-key">"debounceMillis"</span>: <span class="t-num">500</span>,
+    <span class="t-key">"fallbackIntervalMillis"</span>: <span class="t-num">30000</span>
+  }
 }</code></pre>
 
   <h2>Options</h2>
@@ -46,6 +53,11 @@
       <tr><td><code>includePatterns</code></td><td><code>["**/*"]</code></td><td>Glob patterns for files to include</td></tr>
       <tr><td><code>excludePatterns</code></td><td>build dirs, .git…</td><td>Glob patterns for files to skip</td></tr>
       <tr><td><code>maxFileSizeBytes</code></td><td><code>10485760</code> (10 MB)</td><td>Files larger than this are skipped</td></tr>
+      <tr><td><code>ignoreSecrets</code></td><td><code>true</code></td><td>Skip files that look like secrets rather than indexing them</td></tr>
+      <tr><td><code>moduleRoots</code></td><td><code>[]</code></td><td>Explicitly declared module boundaries, overriding build-file detection for the same path. This is how a boundary no build file expresses gets in — an iOS target declared in an Xcode project, say, since <code>.pbxproj</code> is not parsed. Each entry takes a repo-relative <code>path</code> and an optional <code>name</code>, defaulting to the last path segment</td></tr>
+      <tr><td><code>watcher.enabled</code></td><td><code>false</code></td><td>Opt-in file watcher. <code>watch</code> refuses to start without it, and nothing else can start the watcher</td></tr>
+      <tr><td><code>watcher.debounceMillis</code></td><td><code>500</code></td><td>A burst of filesystem events collapses into one reindex this long after it starts</td></tr>
+      <tr><td><code>watcher.fallbackIntervalMillis</code></td><td><code>30000</code></td><td>Full rescan interval independent of events — covers watch registrations the OS drops silently</td></tr>
     </tbody>
   </table>
 
@@ -53,19 +65,23 @@
   <p>You can update config values without editing JSON directly:</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
   <pre><code><span class="t-comment"># Enable semantic extraction</span>
-./gradlew :modules:cli:run --args="config set litellm.enabled true"
+contextgraph config set litellm.enabled true
 
 <span class="t-comment"># Point at a different model</span>
-./gradlew :modules:cli:run --args="config set litellm.model claude-opus-4-7"
+contextgraph config set litellm.model claude-opus-4-7
 
 <span class="t-comment"># Change the LiteLLM endpoint</span>
-./gradlew :modules:cli:run --args="config set litellm.base-url http://localhost:4000"
+contextgraph config set litellm.base-url http://localhost:4000
 
 <span class="t-comment"># Increase max file size to 25 MB</span>
-./gradlew :modules:cli:run --args="config set max-file-size-mb 25"</code></pre>
+contextgraph config set max-file-size-mb 25
+
+<span class="t-comment"># Turn the watcher on</span>
+contextgraph config set watcher.enabled true</code></pre>
+  <p>The accepted keys are <code>litellm.base-url</code>, <code>litellm.model</code>, <code>litellm.enabled</code>, <code>litellm.rate-limit</code>, <code>max-file-size-mb</code>, <code>watcher.enabled</code>, <code>watcher.debounce-ms</code> and <code>watcher.fallback-interval-ms</code>. Anything else is rejected. Include and exclude patterns and module roots have no <code>config set</code> key — edit the JSON for those.</p>
 
   <h2>Enabling semantic extraction</h2>
-  <p>Semantic extraction sends file contents to an LLM to extract high-level concepts, decisions, and relationships. To use it:</p>
+  <p>Semantic extraction sends file contents to an LLM to extract high-level concepts, decisions, and relationships. It also unlocks <code>describe-modules</code>, which authors a description for each module and embeds it — the vectors <code>search --semantic</code> ranks against. Everything else in ContextGraph works with LLM calls off, which is the default. To use it:</p>
   <ol>
     <li>Start a LiteLLM proxy in front of your preferred model:</li>
   </ol>
@@ -77,8 +93,11 @@ litellm --model claude-opus-4-7</code></pre>
     <li>Enable it in your config:</li>
   </ol>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
-  <pre><code>./gradlew :modules:cli:run --args="config set litellm.enabled true"
-./gradlew :modules:cli:run --args="config set litellm.model claude-opus-4-7"</code></pre>
+  <pre><code>contextgraph config set litellm.enabled true
+contextgraph config set litellm.model claude-opus-4-7
+
+<span class="t-comment"># Then author and embed module descriptions</span>
+contextgraph describe-modules</code></pre>
 
   <div class="callout">
     <div class="callout-title">Note</div>

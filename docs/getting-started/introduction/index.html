@@ -11,12 +11,13 @@
   <h1>Introduction</h1>
 
   <h2>Overview</h2>
-  <p>ContextGraph is a local-first knowledge graph engine that turns your project's files — source code, Markdown documentation, PDFs, SQL schemas, YAML/JSON configs — into a connected, queryable graph stored in SQLite.</p>
-  <p>Once indexed, you can search the graph from the CLI, explore relationships between concepts, and expose the entire knowledge base to AI agents through a Model Context Protocol (MCP) server.</p>
+  <p>ContextGraph is a local-first <strong>code understanding engine</strong> for AI agents. It parses your repository into a graph of symbols and the resolved edges between them — built from tree-sitter ASTs, with scope-correct identity, so a <code>getName</code> in one class is never confused with a <code>getName</code> in another — and stores it in SQLite on your disk.</p>
+  <p>Agents reach it through a Model Context Protocol (MCP) server. The primary tool, <code>contextgraph.explore</code>, takes a natural-language question and returns the matched modules, the relevant symbols with <strong>verbatim source</strong>, the resolved edges between them, and the blast radius of changing them — in one call.</p>
+  <p>The same engine also ingests Markdown, PDFs, SQL schemas and config files into the same graph, so a design document and the code implementing it end up connected rather than merely stored side by side.</p>
 
   <h2>Why it exists</h2>
-  <p>Large codebases and documentation collections are hard to navigate — for humans and AI agents alike. Reading every file to answer "what does this module do?" or "what depends on this function?" is slow and expensive. ContextGraph solves this by building a persistent, structured graph of your project's knowledge so that questions can be answered in milliseconds instead of minutes.</p>
-  <p>AI agents using ContextGraph can answer questions with far fewer token-consuming file reads, because they can navigate the graph directly.</p>
+  <p>Large codebases are hard to navigate — for humans and AI agents alike. Reading every file to answer "what does this module do?" or "what calls this function?" is slow and expensive, and grep answers with text matches rather than with meaning.</p>
+  <p>Most graph tools then hand an agent a list of pointers and let it go read files anyway, which spends the tokens the graph was supposed to save. ContextGraph returns the source itself, ranked against the question that was asked, capped at a token budget. On nine benchmark questions its mean reciprocal rank went from 0.133, when ranking ignored the query, to 0.556 today — against 0.244 for CodeGraph and 0.140 for ripgrep on those same questions. That is one repository in one language, and the comparator figures come from an earlier measurement run; the <a href="https://github.com/erenalpaslan/context-graph#benchmarks" target="_blank">project README</a> spells out what the numbers do and do not establish.</p>
 
   <h2>What's in the graph</h2>
   <p>Every indexed file produces <strong>nodes</strong> and <strong>edges</strong>:</p>
@@ -25,13 +26,13 @@
     <li><strong>Entity nodes</strong> — symbols extracted from the file (<code>Class</code>, <code>Function</code>, <code>Method</code>, <code>DatabaseTable</code>, <code>Concept</code>, <code>Claim</code>…)</li>
     <li><strong>Edges</strong> — relationships between nodes (<code>DEFINES</code>, <code>CALLS</code>, <code>DEPENDS_ON</code>, <code>REFERENCES</code>, <code>CONTAINS</code>…)</li>
   </ul>
-  <p>Every node carries a <strong>confidence score</strong> and full <strong>provenance</strong> — the exact file path and line numbers where it was extracted from.</p>
+  <p>Every node carries a <strong>confidence score</strong> and full <strong>provenance</strong> — the exact file path and line numbers where it was extracted from. Every edge additionally records the <strong>resolution rung</strong> that produced it: references that cannot be resolved within a single file are resolved afterwards through a ladder of increasingly permissive strategies, and an edge tells you which one matched. That is what lets you distinguish a call resolved by exact type from one resolved by name alone.</p>
 
   <h2>Extractors</h2>
   <table>
     <thead><tr><th>Extractor</th><th>File types</th><th>What it extracts</th></tr></thead>
     <tbody>
-      <tr><td><code>TreeSitterExtractor</code></td><td>.java, .kt, .py, .swift, .m/.mm, .ts, .tsx, .js…</td><td>Classes, functions, methods, imports, call sites</td></tr>
+      <tr><td><code>TreeSitterExtractor</code></td><td>Kotlin, Java, TypeScript, TSX, JavaScript, Python, Swift, Objective-C</td><td>Classes, functions, methods, imports, call sites — with scope-correct symbol identity</td></tr>
       <tr><td><code>MarkdownExtractor</code></td><td>.md</td><td>Headings, sections, links</td></tr>
       <tr><td><code>SqlExtractor</code></td><td>.sql</td><td>Tables, columns, foreign keys</td></tr>
       <tr><td><code>PdfExtractor</code></td><td>.pdf</td><td>Sections, text content</td></tr>
@@ -41,7 +42,7 @@
   </table>
 
   <h2>100% local</h2>
-  <p>ContextGraph runs entirely on your machine. The graph is stored in a single SQLite file at <code>.contextgraph/graph.db</code> in your project directory. No data is sent to any cloud service unless you explicitly enable the optional semantic extractor and point it at your own LiteLLM endpoint.</p>
+  <p>ContextGraph runs entirely on your machine. The graph is stored as SQLite files under <code>.contextgraph/</code> in your project directory — <code>graph.local.db</code>, your working copy, and optionally a committed <code>graph.db</code> baseline that CI writes so a fresh clone is queryable before anyone indexes anything. No data is sent to any cloud service unless you explicitly enable the optional semantic extractor and point it at your own LiteLLM endpoint.</p>
 
   <div class="callout">
     <div class="callout-title">Note</div>

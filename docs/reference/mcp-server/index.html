@@ -12,25 +12,35 @@
   <p>ContextGraph exposes its knowledge graph to AI agents over the <a href="https://modelcontextprotocol.io" target="_blank">Model Context Protocol</a> (MCP) via stdio. Start the server with:</p>
 
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
-  <pre><code>./gradlew :modules:cli:run --args="serve-mcp"</code></pre>
+  <pre><code>./gradlew :modules:cli:installDist
+modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
 
   <h2>Claude Desktop</h2>
+  <p>Point the client at the installed launcher rather than at Gradle — an MCP client starts the server on every session, and a Gradle daemon start on each call is pure latency.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">claude_desktop_config.json</span></div>
   <pre><code>{
   <span class="t-key">"mcpServers"</span>: {
     <span class="t-key">"contextgraph"</span>: {
-      <span class="t-key">"command"</span>: <span class="t-str">"/absolute/path/to/context-graph/gradlew"</span>,
-      <span class="t-key">"args"</span>: [
-        <span class="t-str">"-p"</span>, <span class="t-str">"/absolute/path/to/context-graph"</span>,
-        <span class="t-str">":modules:cli:run"</span>,
-        <span class="t-str">"--args=serve-mcp"</span>
-      ]
+      <span class="t-key">"command"</span>: <span class="t-str">"/absolute/path/to/context-graph/modules/cli/build/install/contextgraph/bin/contextgraph"</span>,
+      <span class="t-key">"args"</span>: [<span class="t-str">"serve-mcp"</span>]
     }
   }
 }</code></pre>
 
   <h2>Tools</h2>
-  <p>The server registers 10 tools that agents can call to query the knowledge graph.</p>
+  <p>The server registers 11 tools. One of them is the primary entry point; the other ten are secondary and mostly return pointers you then have to follow with a separate file read.</p>
+
+  <h3>contextgraph.explore <span class="t-str">— primary</span></h3>
+  <p><strong>Answers a natural-language question about the codebase in one call.</strong> Returns the modules that matched with their descriptions, the relevant symbols with <strong>verbatim source</strong>, the resolved edges between them — each carrying its confidence and the resolution rung that produced it — and blast radius, meaning what depends on those symbols.</p>
+  <p>The response is capped at a token budget: the highest-ranked symbols carry full source, the rest carry signature and location only and are marked <code>"elided": true</code>. A question that matches nothing returns <code>"empty": true</code> rather than an error.</p>
+  <p>Prefer this over every tool below for most questions. It exists because agents choose badly among many similar tools and chaining thin calls costs more than one fat call.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>question</code></td><td>string</td><td>yes</td><td>Natural-language question about the codebase</td></tr>
+      <tr><td><code>tokenBudget</code></td><td>number</td><td>no</td><td>Max response size in approximate tokens (default: 15000)</td></tr>
+    </tbody>
+  </table>
 
   <h3>contextgraph.index_project</h3>
   <p>Index a project directory into the graph.</p>
@@ -86,13 +96,13 @@
   <p>Return the full provenance chain for a node — every file and line number that contributed to it.</p>
 
   <h3>contextgraph.impact_analysis</h3>
-  <p>Reverse dependency analysis: what nodes depend on this one? Useful before making changes to understand blast radius.</p>
+  <p>Every node that points at this one — its direct dependents, and for a method its resolved call sites, each with its node ID and <code>file:line</code> location. This is the tool for "what calls X" and "what breaks if I change X" when you want that one answer without the rest of an <code>explore</code> response.</p>
 
   <h3>contextgraph.related_files</h3>
   <p>Return all source file paths associated with a node via provenance records.</p>
 
   <h3>contextgraph.build_context</h3>
-  <p>The most powerful tool for agents. Given a task description, it searches the graph, expands neighborhoods, and returns a ranked set of nodes and edges most relevant to the task.</p>
+  <p>Given a task description, searches the graph, expands neighborhoods, and returns a ranked set of nodes and edges relevant to the task — pointers rather than source. For a question you want answered, <code>contextgraph.explore</code> is the better call.</p>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Default</th></tr></thead>
     <tbody>

@@ -17,65 +17,64 @@
     <li>Git</li>
   </ul>
 
-  <h2>1. Clone and build</h2>
+  <h2>1. Clone and build the launcher</h2>
+  <p><code>installDist</code> produces a native launcher script, so every later command runs directly instead of paying a Gradle startup.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
   <pre><code>git clone https://github.com/erenalpaslan/context-graph
 cd context-graph
-./gradlew build</code></pre>
+./gradlew :modules:cli:installDist
+
+<span class="t-comment"># Put it on your PATH</span>
+<span class="t-str">export</span> PATH=<span class="t-str">"$PWD/modules/cli/build/install/contextgraph/bin:$PATH"</span></code></pre>
 
   <h2>2. Initialize your project</h2>
   <p>Run <code>init</code> inside the project you want to index. This creates the <code>.contextgraph/</code> directory and a default config file.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
   <pre><code>cd /path/to/your/project
-/path/to/context-graph/gradlew \
-  -p /path/to/context-graph \
-  :modules:cli:run --args="init"</code></pre>
-
-  <div class="callout">
-    <div class="callout-title">Tip</div>
-    For convenience, create an alias: <code>alias contextgraph="./gradlew :modules:cli:run --args="</code>
-  </div>
+contextgraph init</code></pre>
 
   <h2>3. Index your project</h2>
-  <p>Point the indexer at your project directory. It will discover all supported files, extract nodes and edges, and write them to <code>.contextgraph/graph.db</code>.</p>
+  <p>The indexer discovers supported files, parses source to a tree-sitter AST, resolves references between symbols, and writes nodes and edges to <code>.contextgraph/graph.local.db</code>.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
-  <pre><code>./gradlew :modules:cli:run --args="index /path/to/your/project"
+  <pre><code>contextgraph index .
 
-# Output:
+<span class="t-comment"># Output:
 # Indexing /path/to/your/project...
 # Done: 142 artifacts, 891 nodes, 1204 edges
-#   Skipped (unchanged): 0</code></pre>
+#   Skipped (unchanged): 0</span></code></pre>
+  <p>Later, <code>contextgraph refresh</code> re-parses only what changed. If you would rather not think about it at all, enable the watcher: <code>contextgraph config set watcher.enabled true</code> then <code>contextgraph watch</code>.</p>
 
   <h2>4. Search the graph</h2>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
-  <pre><code>./gradlew :modules:cli:run --args='search "authentication"'
+  <pre><code>contextgraph search <span class="t-str">"authentication"</span>
 
-# 8 results for 'authentication':
+<span class="t-comment"># 8 results for 'authentication':
 #   [Class]    AuthController  id=io.example.AuthController  confidence=1.0
 #   [Function] authenticate    id=io.example.AuthController.authenticate  confidence=1.0
 #   [Concept]  JWT Strategy    id=concept:jwt-strategy  confidence=0.85
-#   ...</code></pre>
+#   ...</span></code></pre>
 
   <h2>5. Generate a report</h2>
   <p>Generates <code>GRAPH_REPORT.md</code> (Markdown summary) and <code>graph.html</code> (interactive D3.js visualization) in the current directory.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
-  <pre><code>./gradlew :modules:cli:run --args="report"</code></pre>
+  <pre><code>contextgraph report</code></pre>
 
   <h2>6. Connect to an AI agent</h2>
-  <p>Start the MCP server so agents like Claude Desktop can query the graph directly.</p>
+  <p>Start the MCP server so agents can query the graph directly. The tool that matters is <code>contextgraph.explore</code>: one call, one natural-language question, and the answer comes back with verbatim source rather than pointers to go read.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
-  <pre><code>./gradlew :modules:cli:run --args="serve-mcp"</code></pre>
+  <pre><code>contextgraph serve-mcp</code></pre>
 
-  <p>Add ContextGraph to your Claude Desktop config:</p>
+  <p>Add ContextGraph to your client config — point it at the launcher, not at Gradle:</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">claude_desktop_config.json</span></div>
   <pre><code>{
   <span class="t-key">"mcpServers"</span>: {
     <span class="t-key">"contextgraph"</span>: {
-      <span class="t-key">"command"</span>: <span class="t-str">"/path/to/context-graph/gradlew"</span>,
-      <span class="t-key">"args"</span>: [<span class="t-str">"-p"</span>, <span class="t-str">"/path/to/context-graph"</span>, <span class="t-str">":modules:cli:run"</span>, <span class="t-str">"--args=serve-mcp"</span>]
+      <span class="t-key">"command"</span>: <span class="t-str">"/path/to/context-graph/modules/cli/build/install/contextgraph/bin/contextgraph"</span>,
+      <span class="t-key">"args"</span>: [<span class="t-str">"serve-mcp"</span>]
     }
   }
 }</code></pre>
+  <p>See the <a href="../../reference/mcp-server/">MCP Server reference</a> for every tool, resource and prompt the server exposes.</p>
 </article>
 <script>const PAGE = 'quickstart'; const BASE = '../../';</script>
 <script src="../../shared/docs.js"></script>
