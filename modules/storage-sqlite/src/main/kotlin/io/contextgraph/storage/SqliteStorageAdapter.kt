@@ -450,21 +450,25 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             emptyList()
         }
 
-        // AC-11 / D11: segment-vocabulary candidates are appended after every full-text hit,
-        // never interleaved. `results` above is already in MATCH rank order, and
-        // QueryRelevance.of turns a candidate's position in this returned list directly into
-        // its seed score, so appending means a segment candidate can only add a slot at the
-        // tail -- it can never demote anything full-text search already found.
+        // Segment-vocabulary candidates are appended after every full-text hit, never
+        // interleaved. `results` above is already in MATCH rank order, and QueryRelevance.of
+        // turns a candidate's position in this returned list directly into its seed score, so
+        // appending means a segment candidate can only add a slot at the tail -- it can never
+        // demote anything full-text search already found.
         //
-        // Conservative bound (this arm): a segment candidate can only fill a short result, never
-        // grow one that is already full -- `budget` is what is missing from a full page of
-        // `limit`, zero once that page is already full. The full-text query ORs every query
-        // word, so it frequently returns a full page on its own; when it does, this line makes
-        // the vocabulary a deliberate no-op here rather than a source of hidden growth. The
-        // other bound the slice distinguishes -- letting the result grow by a small fixed amount
-        // even past a full page -- is a one-line change here (swap the right-hand side below for
-        // a fixed constant), deliberately left unmade so a later arm measures it as its own git
-        // state, not a flag on this one (D14).
+        // Conservative bound: a segment candidate can only fill a short result, never grow one
+        // that is already full -- `budget` is what is missing from a full page of `limit`, zero
+        // once that page is already full. The full-text query ORs every query word, so it
+        // frequently returns a full page on its own; when it does, this line makes the
+        // vocabulary a deliberate no-op here rather than a source of hidden growth. A wider,
+        // fixed-size budget that keeps proposing candidates even past a full page was measured
+        // as its own code state (arm "A2-growth": budget widened from `limit - results.size` to
+        // a flat 5) and changed nothing -- not MRR, not R@5, not R@10, across 5 cold cycles,
+        // identical to this conservative bound to four decimal places (see
+        // docs/identifier-segment-vocabulary.md, "The A2-growth null"). The rarity guard and the
+        // re-verification join were the binding constraints, not the budget shape, so the
+        // conservative bound is what ships: it is the one that can only help or do nothing,
+        // never one that grows a result for no measured benefit.
         val segmentBudget = (limit - results.size).coerceAtLeast(0)
         val segmentResults = segmentCandidates(
             terms = terms,
