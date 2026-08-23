@@ -1,14 +1,15 @@
-#!/usr/local/bin/python3
-"""Deliverable 3: the row extractor (agent-team/tasks/02-measurement-rig.md).
+#!/usr/bin/env python3
+"""The row extractor.
 
 Turns one retrieval result JSON (io.contextgraph.benchmark.retrieval.RetrievalRun, written by
 RetrievalCli / RetrievalCommand) into one arm's row: MRR, R@5, R@10, gold-file coverage per
 repo, and the ContextGraph side's measuredCount, printed alongside every metric so a changed
-denominator can never hide (spec AC-3/AC-4, task 02 deliverable 3).
+denominator can never hide.
 
-Lives outside modules/benchmark/src on purpose (hard prohibition 1): it reads a JSON file that
-module already writes and does per-arm arithmetic in a script, exactly the split run A's own
-row script (modules/benchmark/results/ablation/ablation_row.py) drew.
+Lives outside modules/benchmark/src on purpose (this rig must never modify the benchmark
+harness it measures against): it reads a JSON file that module already writes and does per-arm
+arithmetic in a script, exactly the split an earlier ranking-ablation run's own row script
+(modules/benchmark/results/ablation/ablation_row.py) drew.
 
 **Why a side's measuredCount of 0 is never printed as MRR 0.000**: RetrievalStats.sideAggregate
 returns measuredCount=0 (with every mean forced to 0.0) exactly when no question in the group
@@ -30,14 +31,14 @@ Usage:
     --ingest-json  a JSON object (as produced by cold-index.sh) carrying this arm's
                    durationMillis/indexSizeBytes, folded into the row's ingest columns. Omitted
                    entirely (never zero-filled) when not given.
-    --repo         which repo's row to print. Defaults to excalidraw (D1: the only repo this
-                   rig's retrieval denominator counts).
+    --repo         which repo's row to print. Defaults to excalidraw -- the only repo this
+                   rig's retrieval denominator counts.
     --rows-log     append the row as one JSON line here too, in addition to printing the
                    human-readable line to stdout. Defaults to <result-dir>/rows.jsonl.
     --snapshot-dir a build-arm.sh snapshot directory (holds BUILD_INFO.json). Its "gitHead" and
                    "gitDirtyFileCount" are folded into the row's "provenance" so a published row
                    is traceable to the code state that produced it, not just to a human-typed
-                   --label -- D14 makes an arm *be* a git code state, so this is the row's most
+                   --label -- an arm here *is* a git code state, so this is the row's most
                    load-bearing field, not a nicety. When BUILD_INFO.json's own "label" disagrees
                    with --label, this is refused loudly (see assert_label_matches) rather than
                    silently trusting whichever one was typed last -- a snapshot reused under a
@@ -105,9 +106,9 @@ def load_provenance(snapshot_dir: Path | None, label: str | None) -> tuple[dict,
     `resolved_label` is `label` when given; otherwise BUILD_INFO.json's own recorded label (so a
     caller that only supplies --snapshot-dir still gets a real arm name instead of falling back
     to the result JSON's runId). Raises SystemExit -- refuses to proceed at all -- when both are
-    given and disagree: this is the mislabelling guard the code-state-is-the-arm design (D14)
-    depends on, and a silently-preferred value here is exactly the failure mode that makes a
-    wrong verdict indistinguishable from a right one after the fact.
+    given and disagree: this is the mislabelling guard the code-state-is-the-arm design depends
+    on, and a silently-preferred value here is exactly the failure mode that makes a wrong
+    verdict indistinguishable from a right one after the fact.
     """
     if snapshot_dir is None:
         return {"snapshotDir": None, "gitHead": None, "gitDirtyFileCount": None}, label
@@ -164,7 +165,7 @@ def build_row(run: dict, repo_id: str, label: str, ingest: dict | None, provenan
         "repoId": repo_id,
         "runId": run.get("runId"),
         "generatedAt": run.get("generatedAt"),
-        # D14: an arm IS a git code state, so this is what ties a published row back to the
+        # An arm here IS a git code state, so this is what ties a published row back to the
         # source that produced it -- see load_provenance's docstring. None across the board
         # (never a partially-filled dict) when no --snapshot-dir was given.
         "provenance": provenance,
@@ -177,8 +178,9 @@ def build_row(run: dict, repo_id: str, label: str, ingest: dict | None, provenan
             key: coverage_row(coverage_entries, COVERAGE_ENUM[key])
             for key in ("contextGraph", "codeGraph", "ripgrep")
         },
-        # Recorded from the manifest RetrievalRun read (never measured, D6's ingestCosts KDoc)
-        # when present; from --ingest-json (this rig's own cold-index.sh measurement) when
+        # Recorded from the manifest RetrievalRun read (never measured by this rig itself --
+        # see RetrievalRun's own ingestCosts field) when present; from --ingest-json (this
+        # rig's own cold-index.sh measurement) when
         # given, which takes precedence since it is what this rig itself just measured.
         "ingest": {
             "contextGraph": ingest if ingest is not None else ingest_costs.get("CONTEXTGRAPH"),
@@ -192,8 +194,8 @@ def format_provenance(provenance: dict) -> str:
     """One clause, meant to sit on the row's headline line rather than buried below it --
     which code state a row came from is exactly what the reviewer flagged as invisible, so it
     is surfaced at the same prominence as the arm label itself. A dirty tree is not an error
-    (several arms in this run are legitimately measured from uncommitted working states, D14's
-    "applied and reverted with git" doesn't require a commit in between) but a reader comparing
+    (several arms in this run are legitimately measured from uncommitted working states -- a
+    code-state arm applied and reverted with git doesn't require a commit in between) but a reader comparing
     rows across arms needs to see it without opening the JSON."""
     git_head = provenance.get("gitHead")
     dirty = provenance.get("gitDirtyFileCount")

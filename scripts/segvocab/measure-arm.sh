@@ -1,7 +1,6 @@
 #!/bin/sh
-# THE single entry point (spec AC-2, task 02's first acceptance criterion): one command
-# measures one arm end to end -- cold index, retrieval run, row printed -- and running it
-# twice on the same code state prints the same row.
+# THE single entry point: one command measures one arm end to end -- cold index, retrieval run,
+# row printed -- and running it twice on the same code state prints the same row.
 #
 # Usage: measure-arm.sh <arm-label> [--snapshot-dir DIR] [--source-root DIR]
 #   <arm-label>     name for this measurement (used as the build snapshot's name unless

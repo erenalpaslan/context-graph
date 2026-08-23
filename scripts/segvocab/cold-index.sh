@@ -1,5 +1,5 @@
 #!/bin/sh
-# Deliverable 2: the cold-index step (agent-team/tasks/02-measurement-rig.md).
+# The cold-index step.
 #
 # Deletes the private WITH copy's .contextgraph/ and rebuilds it from nothing, every time this
 # is called -- there is no flag to skip the delete. That is what makes a warm-index run unable
@@ -8,12 +8,12 @@
 # it also verifies the built database's mtime is not older than the deletion, so "cold" is a
 # checked property of the output, not just an intention in the script's control flow.
 #
-# IngestPipeline.extractFile skips any artifact whose checksum still matches an existing row,
-# so indexing over a warm database measures the skip path (D12/AC-2) -- this is the step that
-# neutralises that for every arm alike.
+# IngestPipeline.extractFile skips any artifact whose checksum still matches an existing row, so
+# indexing over a warm database measures the skip path rather than a real index -- this is the
+# step that neutralises that for every arm alike.
 #
-# D6's caveat: the CLI's .contextgraph home follows the CWD it was invoked from
-# (Main.kt:projectRoot() = Path.of(".")), not the directory argument to `index` -- so this
+# Caveat this script works around: the CLI's .contextgraph home follows the CWD it was invoked
+# from (Main.kt:projectRoot() = Path.of(".")), not the directory argument to `index` -- so this
 # script always `cd`s into the WITH directory before invoking the installed cli binary.
 #
 # Usage: cold-index.sh <snapshot-dir>
@@ -33,8 +33,8 @@ WITH_DIR="$SEGVOCAB_CORPUS_ROOT/$SEGVOCAB_REPO_ID/with"
 [ -d "$WITH_DIR" ] || segvocab_die "no private WITH copy at $WITH_DIR -- run prepare-corpus.sh first"
 
 # Neither private working copy carries a .contextgraph/config.json, so loadConfig() falls back
-# to ContextGraphConfig() defaults -- litellm.enabled=false, matching D6's requirement that
-# every index in this run is LLM-free. Asserted rather than assumed.
+# to ContextGraphConfig() defaults -- litellm.enabled=false, matching this rig's requirement
+# that every index it builds is LLM-free. Asserted rather than assumed.
 [ -e "$WITH_DIR/.contextgraph/config.json" ] && segvocab_die "unexpected config.json in $WITH_DIR -- would change litellm defaults"
 
 DELETED_AT=$(date +%s)
@@ -42,14 +42,14 @@ segvocab_log "deleting $WITH_DIR/.contextgraph (cold-index start, epoch=$DELETED
 rm -rf "$WITH_DIR/.contextgraph"
 [ -e "$WITH_DIR/.contextgraph" ] && segvocab_die "delete did not remove $WITH_DIR/.contextgraph"
 
-segvocab_log "indexing $WITH_DIR (cwd-driven .contextgraph home, D6)"
+segvocab_log "indexing $WITH_DIR (cwd-driven .contextgraph home)"
 START_MS=$(( $(date +%s%N 2>/dev/null || echo 0) / 1000000 ))
 if [ "$START_MS" = 0 ]; then START_MS=$(($(date +%s) * 1000)); fi
 
 (
     cd "$WITH_DIR"
-    JAVA_HOME=/Users/erenalpaslan/Library/Java/JavaVirtualMachines/jbr-17.0.8.1/Contents/Home \
-    JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -Djava.io.tmpdir=/tmp/claude" \
+    JAVA_HOME="$SEGVOCAB_JAVA_HOME" \
+    JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -Djava.io.tmpdir=$SEGVOCAB_TMPDIR" \
         "$CLI_BIN" index . 1>&2
 )
 

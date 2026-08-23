@@ -1,5 +1,5 @@
 #!/bin/sh
-# Deliverable 1: the frozen private corpus (agent-team/tasks/02-measurement-rig.md).
+# The frozen private corpus.
 #
 # Copies excalidraw's pristine, never-indexed working tree out of the shared corpus at
 # /tmp/claude/benchmark-corpus into two independent private copies this run owns outright:

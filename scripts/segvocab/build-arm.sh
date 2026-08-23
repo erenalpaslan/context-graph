@@ -3,16 +3,17 @@
 # indexing; the benchmark module, for the retrieval runner) from whatever code is currently
 # checked out, and snapshots both into a private directory this run owns.
 #
-# Snapshotting matters because this worktree is shared with a concurrent slice (04) that is
-# editing modules/storage-sqlite and modules/core while this rig runs. Once this script
-# returns, measure-arm.sh's cold-index and retrieval steps run entirely against the copied
-# `bin/`+`lib/` trees below -- never against modules/*/build/, which slice 04's next
-# `compileKotlin` can rewrite out from under an in-flight measurement. Two calls into the same
-# snapshot therefore measure the same bytecode even if the source tree changes between them.
+# Snapshotting matters because this worktree can be shared with a concurrent editor of
+# modules/storage-sqlite and modules/core while this rig runs (another agent or developer
+# working the same branch). Once this script returns, measure-arm.sh's cold-index and retrieval
+# steps run entirely against the copied `bin/`+`lib/` trees below -- never against
+# modules/*/build/, which a concurrent `compileKotlin` can rewrite out from under an in-flight
+# measurement. Two calls into the same snapshot therefore measure the same bytecode even if the
+# source tree changes between them.
 #
-# An arm, per D14, is a code state applied and reverted with git -- so the normal use is:
-# checkout the arm's tree, run this script once, then run measure-arm.sh against the printed
-# snapshot path as many times as wanted without rebuilding.
+# An arm here is a code state applied and reverted with git, not a runtime flag -- so the normal
+# use is: checkout the arm's tree, run this script once, then run measure-arm.sh against the
+# printed snapshot path as many times as wanted without rebuilding.
 #
 # Usage: build-arm.sh <label> [source-root]
 #   <label>        a short name for this code state (e.g. "a0c-cold-baseline",
@@ -20,12 +21,12 @@
 #                  snapshot directory name.
 #   [source-root]  which git worktree to build from. Defaults to this rig's own repo root
 #                  (the live worktree every other script in this directory reads from) --
-#                  that default is what a real arm must use, since D14's arms are code
-#                  states applied and reverted with git *in this worktree*. The override
-#                  exists only for building against a different, already-checked-out tree
-#                  (e.g. a scratch `git worktree add` pinned to a specific commit) when the
-#                  live worktree is mid-edit by someone else and will not compile yet -- see
-#                  this rig's README for when that applies.
+#                  that default is what a real arm must use, since an arm is a code state
+#                  applied and reverted with git *in this worktree*. The override exists only
+#                  for building against a different, already-checked-out tree (e.g. a scratch
+#                  `git worktree add` pinned to a specific commit) when the live worktree is
+#                  mid-edit by someone else and will not compile yet -- see this rig's README
+#                  for when that applies.
 #
 # Prints the absolute snapshot directory path as the last line of stdout on success.
 set -eu

@@ -1,8 +1,8 @@
 #!/bin/sh
-# Bonus, not one of the four required deliverables but direct evidence for the acceptance
-# criterion "the shared corpus is provably unmodified after the rig runs": re-stats the same
-# two databases record-shared-corpus-baseline.sh recorded, and PASS/FAILs on exact
-# (sizeBytes, mtimeEpoch) equality. Slice 08 re-runs this at the end of the whole run.
+# Direct evidence that the shared corpus is provably unmodified after this rig runs: re-stats
+# the same two databases record-shared-corpus-baseline.sh recorded, and PASS/FAILs on exact
+# (sizeBytes, mtimeEpoch) equality. Run after every arm this rig measures, and again at the end
+# of the whole run.
 #
 # Usage: check-shared-corpus-unmodified.sh
 set -eu

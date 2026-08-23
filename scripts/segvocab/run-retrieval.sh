@@ -7,7 +7,8 @@
 #
 # Points --questions-dir at the tracked modules/benchmark/questions/ directory, unmodified --
 # nothing is filtered or copied, so there is no risk of this rig quietly becoming a second copy
-# of the gold question set that could drift from the one under prohibition (AC-14).
+# of the gold question set that could drift from the one under the "do not tune against the
+# gold answers" prohibition every arm this rig measures is bound by.
 #
 # Usage: run-retrieval.sh <snapshot-dir>
 # Prints the absolute path to the written retrieval-<epoch>.json as the last line of stdout.
@@ -21,12 +22,17 @@ BENCH_LIB="$SNAPSHOT_DIR/benchmark/lib"
 
 mkdir -p "$SEGVOCAB_RESULTS_ROOT"
 
+# ripgrep and codegraph binaries, overridable for the same reason lib.sh's Java/Gradle paths
+# are: /opt/homebrew is this machine's (Apple Silicon Homebrew's) prefix, not a portable one.
+SEGVOCAB_RG_PATH="${SEGVOCAB_RG_PATH:-/opt/homebrew/bin/rg}"
+SEGVOCAB_CODEGRAPH_PATH="${SEGVOCAB_CODEGRAPH_PATH:-/opt/homebrew/bin/codegraph}"
+
 segvocab_log "scoring retrieval: corpus-root=$SEGVOCAB_CORPUS_ROOT questions=$SEGVOCAB_REPO_ROOT/modules/benchmark/questions"
 # java.io.tmpdir pinned explicitly: the JBR JVM reads macOS's per-process temp dir via
-# confstr(_CS_DARWIN_USER_TEMP_DIR) rather than $TMPDIR, and the sandbox denies writes there
-# (capabilities.json's gradleInSandbox.denialsReproducedHere, reproduced here identically for
-# a bare `java` launch -- sqlite-jdbc and JNA both try to extract native libs into it).
-JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -Djava.io.tmpdir=/tmp/claude" \
+# confstr(_CS_DARWIN_USER_TEMP_DIR) rather than $TMPDIR, so a sandboxed run that denies writes
+# there needs this pin (reproduced here identically for a bare `java` launch -- sqlite-jdbc and
+# JNA both try to extract native libs into the per-process temp dir on first use).
+JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -Djava.io.tmpdir=$SEGVOCAB_TMPDIR" \
 "$SEGVOCAB_JAVA" \
     -Dcontextgraph.benchmark.repoRoot="$SEGVOCAB_REPO_ROOT" \
     -cp "$BENCH_LIB/*" \
@@ -34,8 +40,8 @@ JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -Djava.io.tmpdir=/tmp/claude"
     --corpus-root "$SEGVOCAB_CORPUS_ROOT" \
     --questions-dir "$SEGVOCAB_REPO_ROOT/modules/benchmark/questions" \
     --output-dir "$SEGVOCAB_RESULTS_ROOT" \
-    --rg-path /opt/homebrew/bin/rg \
-    --codegraph-path /opt/homebrew/bin/codegraph \
+    --rg-path "$SEGVOCAB_RG_PATH" \
+    --codegraph-path "$SEGVOCAB_CODEGRAPH_PATH" \
     1>&2
 
 # RetrievalRun.writeTo names the file "$runId.json" and runId embeds Clock.System.now() --
