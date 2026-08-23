@@ -18,19 +18,19 @@ a post-ship correctness/performance fix moved that forward without changing thes
 §14 for the fix and its re-measurement, and for the commit this document was current against
 when written.
 
-**But read §6 before trusting the size of that gain.** A live probe against the shipped code
-(re-run and its output saved for this document at `scripts/segvocab/probe-a2-scene.txt` — the
-original run of it was never saved anywhere durable) confirms the mechanism §6 describes is
-real: full-text search's ranked window can fill with results that are not the caller's best
-answer — via a confirmed, unrelated defect *and* via an ordinary pattern the original probe's
-own output could not tell apart from that defect — before a segment candidate ever gets a
-chance to add one. The measurement is sound and the comparison is fair (every arm was
-cold-indexed against the same instrument), but the *mechanism*'s value is not shown to be
-independent of what already fills that window, and this run has no data on how much of A2's
-gain either contributing cause accounts for. A reader should not leave this document thinking
-the gain is the vocabulary table's alone, uncontaminated by what else was going on in the index
-it was measured against — nor should a reader take the size of that contamination as known,
-because it is not.
+**§6's caveat was real, and it is now resolved rather than merely disclosed.** A live probe
+against the shipped code confirmed the mechanism §6 describes — full-text search's ranked window
+can genuinely fill with results that are not the caller's single best answer, via a confirmed
+`nodes_fts` duplicate-row defect — is real. What was missing was the experiment that measures
+whether A2's gain actually depends on it. §15 runs that experiment: de-duplicating the FTS ids
+`searchNodes` reads (a small, separable, now-shipped read-path fix — commit `3294605`) and
+re-measuring both the cold baseline and A2 on top of it, five cycles each. **The result: zero
+change, on both arms, on every metric, across all ten cycles.** A2's gain over the baseline is
+therefore not attributable to the duplicate-row defect on this corpus and this question set —
+the verdict strengthens rather than needing a caveat. §15 also reports a second experiment the
+same close-out round ran: the rarity guard removed entirely also changes nothing on these nine
+questions. Both null results, and what they do and do not license a reader to conclude, are in
+§15; §6 is left in place below as the honest record of what was uncertain before §15 ran.
 
 ## 2. What was actually new here
 
@@ -206,15 +206,23 @@ or the other.
 
 **This does not invalidate §4's numbers.** Every arm in that table was cold-indexed and scored
 against the identical instrument, so the comparison between arms is sound regardless of what is
-happening inside any one of them. What it means is narrower and still important: **the
-mechanism's measured value is not shown to be independent of what already fills FTS's ranked
-window**, and this run has no data on how much either the confirmed duplicate-row defect or the
-label-collision pattern above contributes to A2's gain over A0c — both are real, neither is
-quantified. Fixing the duplicate-row defect was explicitly out of scope (it is scoped out in the
-spec's non-goals, and cold-indexing every arm was the allowed way to neutralise its *growth* for
-measurement, not a reason to leave it fixed, and not evidence of how much it matters). Whoever
-picks up `nodes_fts`'s duplicate-row bug next should read this section first — and should not
-assume the "scene" example above is a demonstration of it.
+happening inside any one of them. What it meant, until §15 ran, was narrower and still
+important: the mechanism's measured value was not *shown* to be independent of what already
+fills FTS's ranked window, and this document had no data on how much either the confirmed
+duplicate-row defect or the label-collision pattern above contributes to A2's gain over A0c.
+
+**§15 supplies that data, and the answer is: none of it, measurably.** De-duplicating the ids
+`searchNodes` reads out of `nodes_fts` before they consume a result slot — the direct read-path
+countermeasure to the defect described above — and re-measuring both A0c and A2 on top of that
+fix, five cold cycles each, reproduced both arms' original numbers exactly, on every cycle. If
+the duplicate-row defect were responsible for any material share of A2's gain, removing its
+effect on the read path would have narrowed the gap between A0c and A2; it did not narrow at
+all. Fixing the *write*-path defect itself — `INSERT OR REPLACE INTO nodes_fts` still never
+replaces — remains out of scope and open (§12), but whoever picks up that bug next now has a
+direct answer to the question this section used to leave open: on this corpus and this question
+set, its presence or absence does not move A2's measured gain. The "scene" example above stays
+in this document as the honest record of what one probe did and did not show, not as evidence
+for a magnitude nothing here ever measured.
 
 ## 7. What else bounds these numbers
 
@@ -377,23 +385,26 @@ green.
 
 ## 12. Non-goals, unchanged
 
-- **`nodes_fts`'s duplicate-row bug is not fixed here.** §6 explains why that matters more than a
-  usual non-goal note: this run's headline number is partly explained by it. It stays open and
-  unassigned.
+- **`nodes_fts`'s duplicate-row bug itself is not fixed here.** `INSERT OR REPLACE INTO
+  nodes_fts` still never replaces, and the search index still grows on every reindex. §15 fixes
+  and ships a *read*-path countermeasure (`searchNodes` de-duplicates the ids it reads back,
+  commit `3294605`) specifically to measure whether the write-path defect was inflating A2's
+  gain — it was not, measurably (§15) — but the write-path defect that produces the duplicate
+  rows in the first place stays open and unassigned, exactly as before.
 - **Keycloak's ContextGraph side is not unblocked.** Extending extraction to cover
   `META-INF/services/` resources would widen the denominator from 9 to 17 questions and is
   tempting, but whether a service registry belongs in a gold set about code structure is a human
-  judgement this run declined to make as a side effect of an unrelated change (decision D2).
+  judgement this run declined to make as a side effect of an unrelated change.
 - **No ranking constants changed.** This change adds a candidate source at the end of
-  `searchNodes`'s existing return order (AC-11); it does not touch `QueryRelevance` or anything
-  run A's ablation (`docs/retrieval-ranking-ablation.md`) already settled.
-- **No configuration flag.** Arms were code states applied and reverted with git throughout
-  (decision D14); the shipped code has no way to turn this off short of reverting the commit.
+  `searchNodes`'s existing return order; it does not touch `QueryRelevance` or anything an
+  earlier ranking-ablation run (`docs/retrieval-ranking-ablation.md`) already settled.
+- **No configuration flag.** Arms were code states applied and reverted with git throughout; the
+  shipped code has no way to turn this off short of reverting the commit.
 
 ## 13. Reproducing a row
 
-Check out `9aa58dc` (or any arm's commit — see this run's `decisions.jsonl` and
-`agent-team/tasks/06-*.md` / `07-*.md` for which commit is which arm) and run:
+Check out `9aa58dc` (or any arm's commit — §4, §14 and §15 name each arm's commit and dirty-file
+state inline) and run:
 
 ```bash
 scripts/segvocab/measure-arm.sh <label>
@@ -458,3 +469,94 @@ worked-on host, consistent with §7's caveat about this run's conditions general
 was checked immediately before this document was finalised and carried no line outside a comment,
 so the measurement above still describes `HEAD`'s actual behaviour at the commit named in §11's
 verification block, even though that commit's hash is later than the two measured above.
+
+**One caveat on the two rows above, resolved by §15 rather than restated here:** `95cb23b`
+already contains the `nodes_fts` read-side de-duplication fix §15 describes — it was committed
+(`3294605`) before `95cb23b`, not after — so neither `a2-final` nor `a2-final-pinned` is a
+measurement of A2 *without* that fix. Both rows are correct as measurements of what ships; they
+are not, on their own, evidence about what the de-duplication fix changed. §15 is the section
+that isolates that question with its own dedicated arms.
+
+## 15. The separating experiment and the guard-removed arm (second close-out round, 2026-08-23)
+
+Two more experiments this rework round requires before the caveats above can be resolved rather
+than merely restated: does any of A2's gain trace to the `nodes_fts` duplicate-row defect (§6),
+and does the rarity guard (§2 item 3) contribute anything measurable on this corpus? Both are
+answered here, both with a null result, and both nulls make the shipped verdict more solid, not
+less — a gain that survives removing a real confound, and a guard whose absence changes nothing,
+are both good news for the arm that ships.
+
+**The separating experiment.** `searchNodes`'s FTS branch now de-duplicates the ids it reads back
+from `nodes_fts` before mapping them to nodes (`.distinct()`, keeping the first — highest-ranked
+— occurrence of each id), committed at `3294605` and described in that commit's own message: a
+read-path countermeasure to the write-path defect in §6, kept in its own commit exactly so it
+can be isolated like this. `3294605` was committed *before* `95cb23b`, so it is already part of
+both `a2-final` rows in §14 above (the caveat immediately above this section says so) — meaning
+neither of those two rows, nor a fresh build of current `HEAD`, can show what A2 looks like
+*without* the fix. The genuinely new comparison this experiment needed is on the other side: what
+does the **baseline** (no segment vocabulary at all) look like with only the de-duplication patch
+applied, isolated from every other change on this branch? That state does not exist anywhere else
+in this document, so it was built for this section alone: the pinned pre-feature commit
+(`22713e3`) with only the one-line de-duplication patch applied on top, in an isolated `git
+worktree` per this rig's README (never touching the live branch, never committed). Five cold
+cycles, same corpus, same protocol as every other arm in §4:
+
+| label | code state | MRR | R@5 | R@10 | Cycles | Excalidraw ingest | Excalidraw index size |
+|---|---|---|---|---|---|---|---|
+| `a0c-dedup` | pinned `22713e3` + the de-duplication patch only, no segment vocabulary, applied in an isolated worktree, never committed | 0.4815 | 0.3426 (4/5 cycles; 0.3148 in 1/5 — the same noise band §7 already documents for A0c) | 0.3704 | 5 | 6.2–8.2 s | 27,488,256–27,529,216 B |
+| `a2-dedup` | `95cb23b` (the same commit as §14's `a2-final-pinned`, which already carries the de-duplication fix — see above), ordinary live-worktree build, re-measured here as an independent confirmation rather than a fresh isolation | 0.5556 | 0.3981 | 0.4259 | 5 | 6.3–7.5 s | 32,645,120–32,780,288 B |
+
+**`a0c-dedup` is identical, metric for metric, to A0c's own un-de-duplicated 0.4815 / 0.3426
+(mode) / 0.3704 (§4).** De-duplicating the FTS read path changed nothing on the baseline side, on
+any of its five cycles. `a2-dedup` reproduces §14's own `a2-final-pinned` row exactly (as it
+should — same commit), which is itself the confirmation on the A2 side: A2's *original*, entirely
+pre-de-duplication measurement (§4, commit `9aa58dc`) already reads 0.5556 / 0.3981 / 0.4259, the
+identical figures A2 reads *with* de-duplication applied (§14, §15). De-duplicating the read path
+therefore changed nothing on **either** side of the comparison this experiment needed, which is a
+direct answer to §6's open question: if the duplicate-row defect were responsible for any
+material share of A2's gain over the baseline, removing its effect on the read path would have
+narrowed the 0.4815 → 0.5556 gap; it did not narrow it at all, on either endpoint. **A2's gain is
+not attributable to the `nodes_fts` duplicate-row defect, on this corpus and this question set.**
+The defect is still real (§6's counts stand — 219 excess rows, one id repeated 33 times), and the
+write-path bug that produces it is still open (§12); it simply is not where this measurement's
+headline number comes from.
+
+**The guard-removed arm.** `SEGMENT_RARITY_MAX_FRACTION` (§2 item 3, corrected in this rework to
+say what it actually catches — a handful of high-frequency domain words, not a stopword
+substitute) was set to `1.0` — disabling the guard entirely, since `reached / totalNames <= 1.0`
+is then true for every segment with at least one match — in the same kind of isolated,
+throwaway `git worktree` as above, on top of `HEAD`. Five cold cycles:
+
+| label | code state | MRR | R@5 | R@10 | Cycles | Excalidraw ingest | Excalidraw index size |
+|---|---|---|---|---|---|---|---|
+| `a2-guard-removed` | `HEAD` (`95cb23b`) with `SEGMENT_RARITY_MAX_FRACTION = 1.0`, applied in an isolated worktree, never committed | 0.5556 | 0.3981 | 0.4259 | 5 | 6.4–7.1 s | 32,743,424–32,804,864 B |
+
+**Identical to A2 on every metric, every cycle.** The guard was live and had the opportunity to
+matter: `element` — the guard's largest catch, reaching 359 of excalidraw's 4,764 distinct names,
+well past the 238-name cut — appears as a literal word in the raw text of three of the nine
+questions (`excalidraw-q1`, `-q3`, `-q4`). Removing the guard did not change which candidates
+made it into the scored top-k anyway. Read together with the A2-growth null (§8) — the candidate
+budget past a full FTS page is usually zero, because the FTS branch usually fills the page on its
+own — the same explanation applies here: the conservative candidate budget, not the rarity
+guard, is the binding constraint on this corpus. On a corpus or question set where the FTS branch
+returns a shorter page (more budget left for segment candidates), the guard could plausibly bind
+where it does not here; this run has no data on that case, and does not claim to.
+
+**Reading §1's headline against both nulls.** Neither experiment moves the ship decision: A2
+still beats A0c on MRR without losing R@5 or R@10, unconditionally, and the two mechanisms this
+close-out round measured — the duplicate-row defect's contribution, and the rarity guard's
+contribution — both come back at zero on this corpus. The gain is not a measurement artefact of
+either one. **The verdict in §1 strengthens accordingly: it ships, and neither of the two
+caveats this document carried is a live discount on that gain any more.**
+
+**Provenance, verification, and what this measurement does and does not have.** All three new
+arms' cold-index and retrieval steps ran through the unmodified rig (`scripts/segvocab/measure-arm.sh`);
+`check-shared-corpus-unmodified.sh` passed before, during and after every one of them, confirming
+the shared corpus at `/tmp/claude/benchmark-corpus` was never opened for writing. `a0c-dedup` and
+`a2-guard-removed` are built from isolated, detached `git worktree`s and were never committed to
+this branch — the patches that produced them exist only for the duration of the measurement, per
+this rig's README's own guidance for building a pinned or patched state without touching the live
+tree. `a2-dedup` is an ordinary live-worktree build of a real commit already on this branch. None
+of the four arms above added, removed or reordered a query term, file path or symbol name from
+any question set — the de-duplication fix and the guard's disabling constant are both general
+code changes, not tuned to these nine questions.
