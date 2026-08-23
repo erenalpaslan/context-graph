@@ -4,9 +4,7 @@
 -- identifier with no separator as a single token and never indexes its parts on their own (see
 -- SqliteStorageAdapter.ftsLabelFor for the index-time workaround this table complements).
 --
--- Keyed on (segment, name), not (segment, node_id): node ids in this codebase average hundreds
--- of characters (an id concatenates two declaration-site ids -- see the comment above
--- BULK_CHUNK_SIZE in SqliteStorageAdapter.kt), and thousands of nodes can share one label, so
+-- Keyed on (segment, name), not (segment, node_id): thousands of nodes can share one label, so
 -- keying on the id would make the table roughly an order of magnitude larger for a statistic
 -- that only needs each name mentioned once. WITHOUT ROWID because (segment, name) is already a
 -- natural, covering key -- no separate rowid index is needed to look a row up by it.
@@ -20,9 +18,15 @@
 -- duplicates the symbols declared inside it and would skew segment rarity -- how many distinct
 -- names a segment reaches), and a node removed by a later index leaves its rows behind as
 -- orphans on purpose -- there is no cascade, because this database never enables
--- PRAGMA foreign_keys (see deleteNodesForArtifact's comment in SqliteStorageAdapter.kt).
--- Callers re-verify against nodes(label) at query time; idx_nodes_label (V3) already covers
--- that join without a full scan, so no further index is added here.
+-- PRAGMA foreign_keys: edges.source_id and edges.target_id both declare
+-- "REFERENCES nodes(id) ON DELETE CASCADE" (V1__init.sql:20-21), yet
+-- SqliteStorageAdapter.deleteNodesForArtifact deletes edges by hand rather than relying on that
+-- cascade to fire -- a real foreign-key pragma would make that hand-deletion redundant, not
+-- merely defensive. Callers of this table re-verify against nodes(label) at query time instead;
+-- idx_nodes_label (V3) already covers that join without a full scan, so no further index is
+-- added here. (Note: the rarity denominator this enables -- COUNT(DISTINCT name), read by
+-- SqliteStorageAdapter.totalVocabNames -- counts orphaned names too, since it does not join
+-- back to nodes; see that function's own comment for why that is left as is.)
 CREATE TABLE IF NOT EXISTS name_segment_vocab (
     segment TEXT NOT NULL,
     name TEXT NOT NULL,
