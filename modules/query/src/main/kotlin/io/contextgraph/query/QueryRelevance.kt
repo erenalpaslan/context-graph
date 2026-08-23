@@ -139,10 +139,14 @@ class QueryRelevance private constructor(
             return QueryRelevance(
                 queryText = queryText,
                 words = IdentifierSplitter.split(queryText).map { it.lowercase() }.distinct(),
-                // An exact-name match enters at the top of the range, as if it had been the best
-                // search hit -- which restores its chance at a slot, not its claim on one. It has
-                // to win the rest of the comparison like everything else.
-                seedRelevance = exactNameMatches.associateWith { 1.0 } +
+                // An exact-name match enters at the *bottom* of the search-hit range, not the top.
+                // CodeGraph injects at the top and lets its name ladder sort the arrivals out; that
+                // ladder was measured here and removed, so injecting at the top left an exact-name
+                // match standing in front of hits that were ranked correctly -- MRR 0.4259 ->
+                // 0.3148. The supplement's job is to make a buried name present, not to give it
+                // precedence over the query's own best answers, so it enters ranked last among the
+                // hits and ahead of the expansion, and argues for itself from there.
+                seedRelevance = exactNameMatches.associateWith { if (n == 0) 1.0 else 1.0 / n } +
                     seedsInRankOrder
                         .mapIndexed { i, id -> id to (n - i).toDouble() / n }
                         .toMap()
