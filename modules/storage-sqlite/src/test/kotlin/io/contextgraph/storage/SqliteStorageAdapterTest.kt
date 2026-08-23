@@ -395,18 +395,6 @@ class SqliteStorageAdapterTest : FunSpec({
     }
 
     context("findNodesByLabel") {
-
-        test("findNodesByLabelsIgnoreCase answers a whole query's words at once, whatever their case") {
-            storage.upsertNode(makeNode("A", "Checkout"))
-            storage.upsertNode(makeNode("B", "Basket"))
-            storage.upsertNode(makeNode("C", "CheckoutController"))
-
-            val found = storage.findNodesByLabelsIgnoreCase(listOf("checkout", "BASKET", "absent"))
-
-            // Exact names only: CheckoutController merely starts with one, which is what the FTS
-            // search is for. And case is irrelevant on both sides of the comparison.
-            found.map { it.id } shouldContainExactlyInAnyOrder listOf(NodeId("A"), NodeId("B"))
-        }
         test("returns every node with an exact label match, across types") {
             storage.upsertNode(makeNode("N1", "shared", type = NodeType.Method))
             storage.upsertNode(makeNode("N2", "shared", type = NodeType.Class))

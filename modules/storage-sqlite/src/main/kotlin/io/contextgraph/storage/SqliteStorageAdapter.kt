@@ -36,8 +36,8 @@ private val jsonSerializer = Json { encodeDefaults = true; ignoreUnknownKeys = t
 
 private val FTS_TOKEN_REGEX = Regex("[\\p{L}\\p{N}_]+")
 
-/** Values per `IN (...)`, comfortably under SQLite's 999-parameter default. */
-private const val IN_LIST_CHUNK = 500
+/** Entity ids per `IN (...)`, comfortably under SQLite's 999-parameter default. */
+private const val PROVENANCE_LOOKUP_CHUNK = 500
 
 object ArtifactsTable : Table("artifacts") {
     val id = text("id")
@@ -339,7 +339,7 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         // Chunked because SQLite's default SQLITE_MAX_VARIABLE_NUMBER caps a single IN list, and a
         // ranking candidate set is unbounded from this layer's point of view.
         entityIds.distinct()
-            .chunked(IN_LIST_CHUNK)
+            .chunked(PROVENANCE_LOOKUP_CHUNK)
             .flatMap { chunk ->
                 ProvenanceTable.selectAll()
                     .where { ProvenanceTable.entityId inList chunk }
@@ -372,21 +372,6 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
 
     override fun findNodesByLabel(label: String): List<GraphNode> = transaction {
         NodesTable.selectAll().where { NodesTable.label eq label }.map { it.toGraphNode() }
-    }
-
-    override fun findNodesByLabelsIgnoreCase(labels: Collection<String>): List<GraphNode> = transaction {
-        val lowered = labels.map { it.lowercase() }.distinct()
-        if (lowered.isEmpty()) return@transaction emptyList()
-        // One pass for the whole query's worth of words rather than one per word. `lower(label)`
-        // cannot use idx_nodes_label, which is case-sensitive, so this is a scan; a single scan
-        // answering thirty words is the shape that keeps that affordable. An index on
-        // lower(label) would remove even that, at the cost of a migration that would rewrite
-        // every already-prepared graph the moment it was opened.
-        lowered.chunked(IN_LIST_CHUNK).flatMap { chunk ->
-            NodesTable.selectAll()
-                .where { NodesTable.label.lowerCase() inList chunk }
-                .map { it.toGraphNode() }
-        }
     }
 
     override fun insertUnresolvedReference(reference: UnresolvedReference): Unit = transaction {

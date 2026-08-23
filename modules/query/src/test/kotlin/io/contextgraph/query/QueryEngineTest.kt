@@ -59,26 +59,6 @@ class QueryEngineTest : FunSpec({
         bundle.nodes.map { it.id } shouldContain NodeId("A")
     }
 
-    test("buildContext finds a node named after one of the question's words that the seed search excluded") {
-        // Below the seed search's confidence floor and connected to nothing, so neither the seed
-        // query nor the expansion can reach it: without the exact-name supplement it is absent
-        // from the candidate set entirely, and no amount of re-ranking recovers an absent node.
-        storage.upsertNode(GraphNode(NodeId("buried"), NodeType.Class, "Checkout", confidence = 0.1))
-        storage.upsertNode(node("A", "ShoppingCartService"))
-
-        val bundle = engine.buildContext("how does the shopping cart service handle checkout")
-
-        bundle.nodes.map { it.id } shouldContain NodeId("buried")
-    }
-
-    test("buildContext matches an exact name case-insensitively, as a question written in prose spells it") {
-        storage.upsertNode(GraphNode(NodeId("buried"), NodeType.Class, "Checkout", confidence = 0.1))
-
-        val bundle = engine.buildContext("what happens at checkout")
-
-        bundle.nodes.map { it.id } shouldContain NodeId("buried")
-    }
-
     test("buildContext does not throw on a task sentence containing FTS5 special characters") {
         storage.upsertNode(node("A", "ErrorRetryHandler"))
 
