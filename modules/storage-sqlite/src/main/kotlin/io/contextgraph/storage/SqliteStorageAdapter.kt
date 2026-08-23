@@ -635,11 +635,12 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
      * query term against a `LOWER(segment)`-wrapped column left any non-ASCII uppercase segment
      * (Cyrillic, Greek, a Latin letter with a diacritic outside `A`-`Z`, ...) permanently
      * unreachable no matter how the query was cased. Folding at write time closes that gap by
-     * construction, since both sides then go through the same fold. A side effect worth naming:
-     * this also shrinks the table itself, since two labels differing only in case now collapse
-     * onto the same `(segment, name)` row-per-name pair (e.g. `Get` and `GET` both write a
-     * `"get"` segment row) wherever the same *name* happens to appear in more than one casing --
-     * fewer distinct segment values overall, not just a faster comparison.
+     * construction, since both sides then go through the same fold. A narrow side effect worth
+     * naming: the fold runs *before* the `.distinct()` below, so a label whose split happens to
+     * produce two segments that are case-variants of one another (e.g. an identifier containing
+     * the same word once in an acronym run and once lower-cased) now collapses to one row for
+     * that label instead of two -- a small reduction in row count, on top of the primary
+     * motivation above (searchability and correctness, not size).
      *
      * A label with no internal boundary still gets a row: [IdentifierSplitter.split] returns
      * such a label unchanged as the sole element of its result, so that becomes the label's
