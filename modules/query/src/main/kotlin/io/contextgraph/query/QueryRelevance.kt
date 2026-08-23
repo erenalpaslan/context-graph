@@ -41,7 +41,7 @@ class QueryRelevance private constructor(
      * state, not an error, and every path-derived term simply does not fire for it).
      */
     fun score(node: GraphNode, path: String?): Double =
-        searchHitPoints(node) + kindPoints(node) + pathPoints(path) + deprioritisationPoints(node, path)
+        searchHitPoints(node) + pathPoints(path) + deprioritisationPoints(node, path)
 
     /**
      * What the search layer already knew and the sort used to throw away: this candidate's place
@@ -53,16 +53,6 @@ class QueryRelevance private constructor(
      */
     private fun searchHitPoints(node: GraphNode): Double =
         SEARCH_HIT_POINTS * (seedRelevance[node.id] ?: 0.0)
-
-    /**
-     * What *kind* of thing usually answers a question about code: behaviour above structure,
-     * structure above containers, containers above nothing.
-     *
-     * A file scores zero, which is the point of the signal rather than a rounding of it. A file
-     * node is a container for the thing being asked about, never the thing itself, and file nodes
-     * are exactly the class that centrality used to float to the top.
-     */
-    private fun kindPoints(node: GraphNode): Double = kindPointsOf(node.type)
 
     /**
      * Where the query's words fall in the candidate's path -- how a human narrows a repository
@@ -165,36 +155,6 @@ private const val DEPRIORITISED_POINTS = 15.0
 // taking a few words, which is the surface CodeGraph built it for; if this project grows one, the
 // tiers are in this file's history at 1e9bf24.
 
-/**
- * The kind ladder, CodeGraph's rungs mapped onto this project's [NodeType]s. Exhaustive on
- * purpose -- a `when` with no `else`, so a node type added later has to be placed deliberately
- * instead of silently scoring zero.
- *
- * Two groups sit at zero, for the same reason and not by omission. **File-level types**, because a
- * file is the container of the answer and never the answer, and floating file nodes is the failure
- * this signal exists to stop. **Non-code entities** (concepts, claims, people, requirements),
- * because this ladder ranks code symbol kinds and they are not one; giving them a rung would be
- * inventing a signal rather than adopting one. Neither is pushed *below* zero -- nothing here
- * penalises, it only distinguishes.
- */
-private fun kindPointsOf(type: NodeType): Double = when (type) {
-    NodeType.Function, NodeType.Method -> 10.0
-    NodeType.API, NodeType.Route -> 9.0
-    NodeType.Class, NodeType.Component -> 8.0
-    NodeType.Module, NodeType.Package, NodeType.CodeModule -> 4.0
-    NodeType.DatabaseTable -> 3.0
-    NodeType.Column -> 2.0
-
-    NodeType.CodeFile, NodeType.TestFile, NodeType.MarkdownFile, NodeType.Document,
-    NodeType.PDF, NodeType.Image, NodeType.Diagram, NodeType.DatabaseSchema,
-    NodeType.ConfigFile, NodeType.ResearchPaper, NodeType.PackageFile -> 0.0
-
-    NodeType.Concept, NodeType.Claim, NodeType.Methodology, NodeType.Dataset,
-    NodeType.Experiment, NodeType.Requirement, NodeType.Decision,
-    NodeType.Person, NodeType.Organization -> 0.0
-
-    is NodeType.Custom -> 0.0
-}
 
 // Path relevance, CodeGraph's constants: the most specific position a query word reaches, once.
 private const val PATH_FILENAME_POINTS = 10.0
