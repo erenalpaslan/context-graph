@@ -1,19 +1,30 @@
 #!/bin/sh
-# Deliverable 4: the prohibition checker (agent-team/tasks/02-measurement-rig.md, AC-14).
+# The prohibition checker: verifies, rather than asserts, that this branch never touched the
+# benchmark harness it is measured against.
 #
 # Reports an explicit PASS or FAIL, runnable at any point during this run (not only at the
 # end), on three independent checks:
 #
 #   1. `git diff --name-only <base> --` over the six named harness files and the question YAML
-#      files is empty (run A's check, reused).
+#      files is empty.
 #   2. Every one of those same files' current blob hash (git hash-object, working tree)
 #      matches the hash recorded before-any-code-was-written, not re-derived from `git diff`
 #      at review time. Catches the case git diff would miss: a staged-then-unstaged edit, or
 #      a checkout of a *different* commit that happens to carry the same paths unchanged
 #      relative to that commit but not relative to the true starting point.
-#   3. `git diff --stat <base> -- modules/benchmark/src` is empty -- run A's stronger,
-#      self-imposed line: nothing under modules/benchmark/src at all, not just the eight
-#      specifically-named files.
+#   3. `git diff --stat <base> -- modules/benchmark/src` is empty, and
+#      `git ls-files --others --exclude-standard -- modules/benchmark/src` finds no untracked
+#      file either -- the stronger, self-imposed line: nothing new or changed under
+#      modules/benchmark/src at all, not just the eight specifically-named files. The `git diff`
+#      half alone is blind to a file that was created but never `git add`ed; the `ls-files` half
+#      is what actually backs a claim of "no file created".
+#
+# All three checks fail loudly rather than silently reading a git error as a clean diff: an
+# earlier version of this script ended every `git diff` call in `|| true`, so `git` failing to
+# resolve `<base>` at all (a typo, a deleted branch) produced an empty diff and therefore a PASS.
+# Reproduced: `check-prohibited.sh no-such-branch-xyz` printed `VERDICT: PASS`. This version
+# verifies `<base>` resolves to a real commit before running any check, and no longer swallows a
+# `git diff` failure into an empty string.
 #
 # Check 2's baseline lives in this directory's own prohibited-files-baseline.json, tracked by
 # git -- not in .harness/runs/<id>/capabilities.json, which the run that wrote it also
@@ -33,6 +44,15 @@ BASE=${1:-main}
 BASELINE_JSON="$SCRIPT_DIR/prohibited-files-baseline.json"
 
 cd "$SEGVOCAB_REPO_ROOT"
+
+# A git error (most commonly: $BASE does not resolve to anything) must never be read as "no
+# differences". Every `git diff` call below used to end in `|| true`, which collapses both
+# outcomes -- a real empty diff, and git itself failing to run -- into the same empty string,
+# so a typo'd or deleted base revision silently produced VERDICT: PASS instead of a loud error.
+# Reproduced: `check-prohibited.sh no-such-branch-xyz` printed PASS on every check. Failing here,
+# before any of the three checks run, is what makes that impossible: a base that does not
+# resolve is a usage error, not a clean bill of health.
+git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null || segvocab_die "base revision '$BASE' does not resolve to a commit -- refusing to treat a git error as a clean diff"
 
 R=modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval
 C=modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/corpus
@@ -56,7 +76,7 @@ modules/benchmark/questions/keycloak.yaml
 PASS=1
 
 echo "=== check 1: git diff --name-only $BASE -- <named files> ==="
-DIFF_NAMES=$(git diff --name-only "$BASE" -- $NAMED_FILES || true)
+DIFF_NAMES=$(git diff --name-only "$BASE" -- $NAMED_FILES) || segvocab_die "git diff failed for check 1 against '$BASE' -- see stderr above, not treating this as an empty diff"
 if [ -n "$DIFF_NAMES" ]; then
     echo "FAIL: the following named file(s) differ from $BASE:"
     echo "$DIFF_NAMES" | sed 's/^/  /'
@@ -102,13 +122,22 @@ fi
 echo
 
 echo "=== check 3: git diff --stat $BASE -- modules/benchmark/src (run A's stronger line) ==="
-BENCH_SRC_DIFF=$(git diff --stat "$BASE" -- modules/benchmark/src || true)
-if [ -n "$BENCH_SRC_DIFF" ]; then
+BENCH_SRC_DIFF=$(git diff --stat "$BASE" -- modules/benchmark/src) || segvocab_die "git diff failed for check 3 against '$BASE' -- see stderr above, not treating this as an empty diff"
+# `git diff` only ever sees tracked content -- a brand-new file sitting in modules/benchmark/src
+# that was never `git add`ed is invisible to it, so "identical to $BASE" on the diff alone would
+# be true even with an untracked file created there. `git ls-files --others` is what actually
+# answers "created", which is half of what this check's message used to assert without checking.
+BENCH_SRC_UNTRACKED=$(git ls-files --others --exclude-standard -- modules/benchmark/src)
+if [ -n "$BENCH_SRC_DIFF" ] || [ -n "$BENCH_SRC_UNTRACKED" ]; then
     echo "FAIL: modules/benchmark/src differs from $BASE:"
-    echo "$BENCH_SRC_DIFF" | sed 's/^/  /'
+    [ -n "$BENCH_SRC_DIFF" ] && echo "$BENCH_SRC_DIFF" | sed 's/^/  /'
+    if [ -n "$BENCH_SRC_UNTRACKED" ]; then
+        echo "  untracked (created, never committed):"
+        echo "$BENCH_SRC_UNTRACKED" | sed 's/^/    /'
+    fi
     PASS=0
 else
-    echo "PASS: modules/benchmark/src is byte-for-byte identical to $BASE (no file created, modified or removed)"
+    echo "PASS: modules/benchmark/src is byte-for-byte identical to $BASE, and no untracked file sits there either (no file created, modified or removed)"
 fi
 echo
 
