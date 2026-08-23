@@ -127,8 +127,43 @@ private const val FTS_CHUNK_SIZE = 250
  */
 private const val BULK_CHUNK_SIZE = 10_000
 
+/**
+ * The rarity guard: a segment reaching more than this fraction of every distinct name in
+ * `name_segment_vocab` contributes no candidates to a search. A fixed fraction of the corpus's
+ * own total, computed from this project's vocabulary (cached per adapter instance -- see
+ * `cachedTotalVocabNames` -- and invalidated on every write) -- not a word list.
+ *
+ * **What this measurably is: a high-frequency domain-word guard, not a stopword substitute.**
+ * Measured on excalidraw's built index (4,764 distinct names, so the 5% cut sits at 238 names
+ * reached): this guard suppresses `element` (reaching 359 names), `get` (343) and `2` (269) --
+ * three genuinely high-frequency identifier sub-words, each well past the 238 cut. It does
+ * **not** suppress the project's own name, `excalidraw` (199 -- under the cut), nor any of the
+ * ordinary English words a natural-language question tends to contain: `is` (163), `to` (155),
+ * `a` (136), `on` (112), `from` (73), `the` (24), `how` (4), `does` (2). Every one of those is
+ * rare *as an identifier sub-word* on this corpus, however common it is in English prose, and a
+ * query containing it is harmless for that reason -- not because this guard caught it. Do not
+ * read this constant as a stopword list's replacement; it catches a handful of genuinely
+ * overrepresented domain words and nothing resembling general English stopwords, and a caller
+ * relying on it to suppress a project's own name in particular should not.
+ */
+private const val SEGMENT_RARITY_MAX_FRACTION = 0.05
+
 class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     private val jdbcUrl: String
+
+    /**
+     * Cached `COUNT(DISTINCT name)` from `name_segment_vocab`, read by [totalVocabNames].
+     *
+     * That count is a full-table scan regardless of any index -- `COUNT(DISTINCT ...)` needs
+     * every row, primary key or not -- and recomputing it on every [segmentCandidates] call
+     * measured at ~960 ms at Keycloak scale (600K rows), the single largest share of that
+     * function's cost. It changes only when [writeSegmentVocab] writes, which invalidates this
+     * unconditionally (an `INSERT OR IGNORE` batch may or may not add a name the count has not
+     * seen before, and recomputing once on the next read is far cheaper than risking a stale
+     * rarity denominator). `@Volatile` for cross-thread visibility only; a redundant recompute
+     * from a rare concurrent miss is harmless, so no further synchronisation is needed.
+     */
+    @Volatile private var cachedTotalVocabNames: Long? = null
 
     init {
         dbPath.parent?.let { Files.createDirectories(it) }
@@ -202,6 +237,8 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         try {
             exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES ('${sqlQuote(node.id.value)}', '${sqlQuote(ftsLabelFor(node.label))}', '${sqlQuote(propsJson)}')")
         } catch (_: Exception) {}
+
+        writeSegmentVocab(listOf(node))
     }
 
     override fun upsertEdge(edge: GraphEdge): Unit = transaction {
@@ -312,6 +349,8 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                     exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES $values")
                 } catch (_: Exception) {}
             }
+
+            writeSegmentVocab(nodes)
         }
     }
 
@@ -417,7 +456,35 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             emptyList()
         }
 
-        results
+        // Segment-vocabulary candidates are appended after every full-text hit, never
+        // interleaved. `results` above is already in MATCH rank order, and QueryRelevance.of
+        // turns a candidate's position in this returned list directly into its seed score, so
+        // appending means a segment candidate can only add a slot at the tail -- it can never
+        // demote anything full-text search already found.
+        //
+        // Conservative bound: a segment candidate can only fill a short result, never grow one
+        // that is already full -- `budget` is what is missing from a full page of `limit`, zero
+        // once that page is already full. The full-text query ORs every query word, so it
+        // frequently returns a full page on its own; when it does, this line makes the
+        // vocabulary a deliberate no-op here rather than a source of hidden growth. A wider,
+        // fixed-size budget that keeps proposing candidates even past a full page was measured
+        // as its own code state (arm "A2-growth": budget widened from `limit - results.size` to
+        // a flat 5) and changed nothing -- not MRR, not R@5, not R@10, across 5 cold cycles,
+        // identical to this conservative bound to four decimal places (see
+        // docs/identifier-segment-vocabulary.md, "The A2-growth null"). The rarity guard and the
+        // re-verification join were the binding constraints, not the budget shape, so the
+        // conservative bound is what ships: it is the one that can only help or do nothing,
+        // never one that grows a result for no measured benefit.
+        val segmentBudget = (limit - results.size).coerceAtLeast(0)
+        val segmentResults = segmentCandidates(
+            terms = terms,
+            excludeIds = results.mapTo(mutableSetOf()) { it.id.value },
+            budget = segmentBudget,
+            types = types,
+            minConfidence = minConfidence
+        )
+
+        results + segmentResults
     }
 
     override fun getNode(id: NodeId): GraphNode? = transaction {
@@ -538,8 +605,245 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         return if (words.size > 1) (listOf(label) + words).joinToString(" ") else label
     }
 
+    /**
+     * Writes one `name_segment_vocab` row per distinct sub-word of each of [nodes]' labels,
+     * lower-cased in Kotlin before it is written, skipping file nodes ([NodeType.isFileType])
+     * entirely. Both `upsertNode` and `upsertNodes` funnel through this single function, so the
+     * single-node and bulk write paths are provably the same write rather than two
+     * implementations that happen to agree today.
+     *
+     * Lower-cased *here*, in Kotlin, rather than compared case-insensitively in SQL
+     * (`COLLATE NOCASE` or a `LOWER(segment)` wrapper at query time): `segment` is never read
+     * back out as text -- it appears only in `WHERE`/`GROUP BY` -- so folding it once at write
+     * time is lossless, and it is what lets [segmentCandidates] compare with a plain
+     * `segment IN (...)` instead of wrapping the indexed column in a function call that stops
+     * SQLite from using the primary key (see that function's own comment). It is also the only
+     * fold that is symmetric with the query side: Kotlin's `String.lowercase()` is full Unicode,
+     * but SQLite's built-in `LOWER()` folds ASCII `A`-`Z` only -- so comparing a Kotlin-lowered
+     * query term against a `LOWER(segment)`-wrapped column left any non-ASCII uppercase segment
+     * (Cyrillic, Greek, a Latin letter with a diacritic outside `A`-`Z`, ...) permanently
+     * unreachable no matter how the query was cased. Folding at write time closes that gap by
+     * construction, since both sides then go through the same fold. A narrow side effect worth
+     * naming: the fold runs *before* the `.distinct()` below, so a label whose split happens to
+     * produce two segments that are case-variants of one another (e.g. an identifier containing
+     * the same word once in an acronym run and once lower-cased) now collapses to one row for
+     * that label instead of two -- a small reduction in row count, on top of the primary
+     * motivation above (searchability and correctness, not size).
+     *
+     * A label with no internal boundary still gets a row: [IdentifierSplitter.split] returns
+     * such a label unchanged as the sole element of its result, so that becomes the label's
+     * one segment (itself, lower-cased) rather than the label being silently skipped.
+     *
+     * `INSERT OR IGNORE` against the table's real `(segment, name)` primary key (see
+     * `V6__name_segment_vocab.sql`) is what makes re-running this over an unchanged project
+     * leave the row count identical -- unlike `nodes_fts`'s `INSERT OR REPLACE` above, which
+     * never replaces because FTS5 gives that table no unique index for the conflict clause to
+     * target.
+     *
+     * A `Transaction` extension, like `exec` itself, so it can only be called from inside an
+     * open `transaction { }` block -- the same one already wrapping every call site below --
+     * rather than opening (and committing) one of its own.
+     */
+    private fun Transaction.writeSegmentVocab(nodes: Collection<GraphNode>) {
+        val rows = nodes.asSequence()
+            .filter { !NodeType.isFileType(it.type) }
+            .flatMap { node ->
+                IdentifierSplitter.split(node.label).asSequence()
+                    .map { it.lowercase() }
+                    .distinct()
+                    .map { it to node.label }
+            }
+            .toList()
+        if (rows.isEmpty()) return
+
+        // This write is about to (maybe) add a name totalVocabNames() has not counted yet --
+        // invalidate unconditionally rather than trying to detect whether INSERT OR IGNORE
+        // below actually added a new one; the next read recomputes once, which is far cheaper
+        // than a search silently working from a stale rarity denominator.
+        cachedTotalVocabNames = null
+
+        // Chunked at the same size and for the same reason as the nodes_fts writes above --
+        // SQLite treats a multi-row VALUES list as a compound SELECT, capped by
+        // SQLITE_MAX_COMPOUND_SELECT (500 by default). Chunking by row (not by node) keeps
+        // this safe even for the rare identifier that splits into many segments, since a
+        // node-based chunk size would only bound row count if every node produced exactly
+        // one row, which nodes_fts's writes do and this one does not.
+        rows.chunked(FTS_CHUNK_SIZE).forEach { chunk ->
+            val values = chunk.joinToString(",") { (segment, name) ->
+                "('${sqlQuote(segment)}','${sqlQuote(name)}')"
+            }
+            try {
+                exec("INSERT OR IGNORE INTO name_segment_vocab(segment, name) VALUES $values")
+            } catch (e: Exception) {
+                // Logged rather than swallowed, for the same reason the FTS MATCH catch in
+                // searchNodes stopped being bare: a silent catch here would make a genuine
+                // failure -- e.g. V6 not applied, a malformed statement -- indistinguishable
+                // from "no segments in this chunk", and this table is the one this run's
+                // verdict depends on. A silently-empty vocabulary must never be mistaken for an
+                // honest null result.
+                logger.warn(e) { "name_segment_vocab write failed for a chunk of ${chunk.size} row(s); first pair='${chunk.firstOrNull()}'" }
+            }
+        }
+    }
+
+    /**
+     * `COUNT(DISTINCT name)` in `name_segment_vocab`, cached on [cachedTotalVocabNames] and
+     * invalidated by every [writeSegmentVocab] write. See that field's own comment for why: the
+     * query is a full scan no matter what, so the cache is what keeps [segmentCandidates] from
+     * paying for it on every call.
+     *
+     * This counts every distinct `name` the table holds, including orphans left behind by a
+     * node a later index removed ([writeSegmentVocab]'s row-count property, `V6__name_segment_vocab.sql`'s
+     * "rows are proposals" note) -- there is no join back to `nodes` here, unlike
+     * [segmentCandidates]'s own re-verification join. The rarity guard's denominator therefore
+     * grows monotonically as a project is edited and re-indexed over time, even for names whose
+     * only node was deleted; a segment's reach as a *fraction* of this count can only shrink
+     * relative to what it would be against a denominator of live names alone, making the guard
+     * strictly more permissive (never less) as orphans accumulate. Left uncorrected deliberately:
+     * joining against `nodes` here would turn a cached full-table-scan cost into an uncached
+     * full-table-*join* cost on every cache miss, for a correction that only ever loosens the
+     * guard, never tightens it past what was already measured.
+     */
+    private fun Transaction.totalVocabNames(): Long {
+        cachedTotalVocabNames?.let { return it }
+        val n = exec("SELECT COUNT(DISTINCT name) AS n FROM name_segment_vocab") { rs ->
+            if (rs.next()) rs.getLong("n") else 0L
+        } ?: 0L
+        cachedTotalVocabNames = n
+        return n
+    }
+
+    /**
+     * Segment-vocabulary candidates for [terms] that are not already present in [excludeIds], up
+     * to [budget] of them -- the read half of the identifier segment vocabulary, re-verified
+     * against live nodes, appended strictly after full-text hits, and suppressed by a rarity
+     * guard. Called from inside [searchNodes]'s own `transaction { }`, like [writeSegmentVocab].
+     *
+     * Every candidate comes out of exactly one join from `name_segment_vocab` to `nodes` on
+     * `label = name`. Re-verifying that a vocabulary row still names a live node is not a check
+     * bolted onto the result afterwards -- it *is* this join: a row naming an identifier no
+     * longer carried by any node (the node was removed by a later index; `V6__name_segment_vocab.sql`
+     * explains why the orphaned row is deliberately left behind rather than swept) simply has no
+     * join partner in `nodes` and contributes nothing. There is no separate existence check to
+     * forget.
+     *
+     * The rarity guard ([SEGMENT_RARITY_MAX_FRACTION]) is computed here, from this corpus's own
+     * vocabulary (via [totalVocabNames]) -- a segment reaching more than that fraction of every
+     * distinct name in the table is suppressed before it ever reaches the join above, so it
+     * costs nothing and proposes nothing.
+     *
+     * `terms` is expected already extracted via [ftsTerms] -- the same discipline [searchNodes]
+     * uses to keep the FTS MATCH expression safe applies unchanged here, since every term is
+     * already guaranteed free of anything that could break out of a quoted SQL literal.
+     */
+    private fun Transaction.segmentCandidates(
+        terms: List<String>,
+        excludeIds: Set<String>,
+        budget: Int,
+        types: List<NodeType>,
+        minConfidence: Double
+    ): List<GraphNode> {
+        if (budget <= 0 || terms.isEmpty()) return emptyList()
+
+        val totalNames = totalVocabNames()
+        if (totalNames <= 0L) return emptyList()
+
+        // Segments are stored lower-cased in Kotlin at write time (writeSegmentVocab), precisely
+        // so this comparison never has to wrap the *column* in SQLite's own LOWER() -- which
+        // folds ASCII A-Z only, unlike Kotlin's String.lowercase(), which is full Unicode.
+        // Lower-casing the term here and comparing with a plain `segment IN (...)` keeps the
+        // fold symmetric with the write side and, as a direct consequence, leaves `segment`
+        // unwrapped so SQLite can search it by its primary key instead of scanning the whole
+        // table into a temp b-tree (EXPLAIN QUERY PLAN, before: SCAN name_segment_vocab USING
+        // TEMP B-TREE; after: SEARCH v USING PRIMARY KEY -- see
+        // docs/identifier-segment-vocabulary.md).
+        val lowerTerms = terms.map { it.lowercase() }.distinct()
+        val termList = sqlInList(lowerTerms)
+
+        // One grouped query for every term's reach at once, rather than one query per term: how
+        // many distinct names each candidate segment reaches.
+        val namesReached: Map<String, Long> = exec(
+            "SELECT segment AS seg, COUNT(DISTINCT name) AS cnt FROM name_segment_vocab " +
+                "WHERE segment IN ($termList) GROUP BY segment"
+        ) { rs ->
+            val m = mutableMapOf<String, Long>()
+            while (rs.next()) m[rs.getString("seg")] = rs.getLong("cnt")
+            m
+        } ?: emptyMap()
+
+        val acceptedTerms = lowerTerms.filter { term ->
+            val reached = namesReached[term] ?: 0L
+            reached > 0L && reached.toDouble() / totalNames <= SEGMENT_RARITY_MAX_FRACTION
+        }
+        if (acceptedTerms.isEmpty()) return emptyList()
+
+        val acceptedList = sqlInList(acceptedTerms)
+        val typeClause = if (types.isEmpty()) "" else
+            " AND n.type IN (${sqlInList(types.map { NodeType.stringify(it) })})"
+        val excludeClause = if (excludeIds.isEmpty()) "" else
+            " AND n.id NOT IN (${sqlInList(excludeIds)})"
+
+        // minConfidence is a caller-supplied Double, not a value this function derives from the
+        // corpus -- interpolating it into raw SQL text the way the ids/types/segments above are
+        // (all of them this function's own strings, already sanitised by sqlQuote) risks NaN or
+        // Infinity rendering as a bare, unquoted identifier and throwing a SQL parse error out of
+        // this unguarded exec. Unlike the FTS MATCH path above, which is wrapped in a try/catch
+        // and logs on failure, that would surface as an uncaught exception out of searchNodes
+        // itself. Applying the filter in the Exposed re-fetch below instead -- which already
+        // re-reads every row of this query's result -- avoids the raw-SQL risk entirely, at the
+        // cost of a candidate below minConfidence occupying a budget slot here that a passing
+        // one could otherwise have used -- minConfidence defaults to 0.0 for every caller today,
+        // so in practice this branch filters nothing.
+        //
+        // ORDER BY n.id is an arbitrary but deterministic tie-break, kept deliberately rather
+        // than by omission: a first pass of this fix ordered by count of accepted segments
+        // matched, descending, then id -- correctness-wise a stronger proposal, since a
+        // candidate matching three accepted segments is more likely relevant than one matching
+        // a single one -- but measuring it end to end (five cold cycles, excalidraw's 9
+        // questions, see docs/identifier-segment-vocabulary.md) moved this arm's R@5 and R@10
+        // below the cold baseline (MRR 0.5000, R@5 0.3148, R@10 0.3426 against baseline's
+        // 0.4815/0.3426/0.3704) -- a real regression, not noise: all 5 cycles agreed exactly,
+        // and the baseline's own recorded noise band never touches R@10. `ORDER BY n.id` is
+        // what A2 originally shipped and measured at MRR 0.5556/R@5 0.3981/R@10 0.4259, so it is
+        // kept -- this fix's job is SEARCH-vs-SCAN and the Unicode fold, not a ranking change,
+        // and this codebase does not ship an unmeasured ranking change on the strength of an
+        // untested intuition alone (see the "Do not touch QueryRelevance" guardrail this sits
+        // beside).
+        val ids = exec(
+            "SELECT DISTINCT n.id FROM name_segment_vocab v " +
+                "JOIN nodes n ON n.label = v.name " +
+                "WHERE v.segment IN ($acceptedList)" +
+                typeClause + excludeClause +
+                " ORDER BY n.id LIMIT $budget"
+        ) { rs ->
+            val out = mutableListOf<String>()
+            while (rs.next()) out.add(rs.getString("id"))
+            out
+        } ?: emptyList()
+        if (ids.isEmpty()) return emptyList()
+
+        // Same fetch-by-id-list shape as the FTS re-verification above: the join already proved
+        // these ids are live nodes; minConfidence is applied here (see the comment above) rather
+        // than in the raw SQL, and this Exposed query already re-reads every row regardless.
+        val byId = NodesTable.selectAll().where {
+            (NodesTable.id inList ids) and (NodesTable.confidence greaterEq minConfidence)
+        }.associateBy({ it[NodesTable.id] }, { it.toGraphNode() })
+        // `inList` does not preserve the order ids were supplied in -- re-impose it from `ids`
+        // (already in the SQL's own ORDER BY n.id order) rather than trusting Exposed's row
+        // order, the same reason the FTS branch above re-imposes order from `ftsResults`.
+        return ids.mapNotNull { byId[it] }
+    }
+
     /** SQL single-quote escaping, for the FTS statements that are built as literal text. */
     private fun sqlQuote(value: String): String = value.replace("'", "''")
+
+    /**
+     * `'a','b','c'` -- a quoted, comma-joined `IN (...)` list body, for the raw-SQL statements
+     * built as literal text. [segmentCandidates] alone needed this shape four times (terms,
+     * accepted segments, type names, excluded ids); extracted here so there is exactly one place
+     * that decides how a `Collection<String>` becomes SQL list syntax.
+     */
+    private fun sqlInList(values: Collection<String>): String = values.joinToString(",") { "'${sqlQuote(it)}'" }
 
     // Mirrors FTS5's own unicode61 tokenizer (split on non-alphanumeric, i.e. exactly the
     // characters that are also MATCH syntax) so every term this extracts is guaranteed free of

@@ -1,0 +1,15 @@
+{
+  "note": "The ten prohibited-file blob hashes, recorded before any code in this run was touched (HEAD == main == 22713e311765714be635e485719d34d9892e9a8f, worktree clean at the time). Committed here -- unlike .harness/runs/<id>/capabilities.json, which check-prohibited.sh originally read this from -- because .harness/runs/ is gitignored: once that run directory is cleaned up, a check that reads only from there hard-FAILs for everyone, including whoever is running this checker after the run that wrote it is gone. This file is the same ten (path, blob-sha) pairs, copied verbatim from that run's capabilities.json.prohibitedFilesBaseline.blobs so the check keeps working after the run record does not.",
+  "blobs": {
+    "modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RetrievalMetrics.kt": "462b2448fe0887ba61098ec3aebecdc9ca2f7ba4",
+    "modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/ExpectedFileSet.kt": "d7bcc1a64db7fd9050dd4f4091506f34bdb3df96",
+    "modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/corpus/IndexIntegrityGate.kt": "97d85aea5b5f8fd27665df1475d70d0147d13592",
+    "modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepQueryDeriver.kt": "93eae3fe83cc3c3b7a94e5cbafbd09d78b86e682",
+    "modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepBaselineRunner.kt": "2b3cdd462c6dd127b6d6905427ada3910aee3294",
+    "modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepProcess.kt": "40eb47bdb656ba883f16c9b0dfed0b186c7dfade",
+    "modules/benchmark/questions/calcom.yaml": "7e8f69d8fd296dc2c43ebf38469db06d72a52ed5",
+    "modules/benchmark/questions/excalidraw.yaml": "78f1f511079cd9e7dbf73bc454b590e4768f0704",
+    "modules/benchmark/questions/gin.yaml": "8eeb363542e44e104b78559af613004f1ba0a730",
+    "modules/benchmark/questions/keycloak.yaml": "d13dcbd1f42e5bd6815d41e6e7977937432f357c"
+  }
+}

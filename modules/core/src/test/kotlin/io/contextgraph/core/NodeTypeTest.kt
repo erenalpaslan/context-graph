@@ -54,4 +54,25 @@ class NodeTypeTest : FunSpec({
         NodeType.fromString(NodeType.stringify(NodeType.CodeModule)) shouldBe NodeType.CodeModule
         NodeType.fromString("CodeModule") shouldBe NodeType.CodeModule
     }
+
+    test("isFileType is true for exactly the artifact-level types") {
+        val fileTypes = listOf(
+            NodeType.CodeFile, NodeType.Document, NodeType.MarkdownFile, NodeType.PDF,
+            NodeType.Image, NodeType.Diagram, NodeType.DatabaseSchema, NodeType.ConfigFile,
+            NodeType.ResearchPaper, NodeType.TestFile, NodeType.PackageFile
+        )
+        fileTypes.forEach { NodeType.isFileType(it) shouldBe true }
+    }
+
+    test("isFileType is false for entity-level types and for Custom") {
+        val nonFileTypes = listOf(
+            NodeType.Function, NodeType.Class, NodeType.Method, NodeType.Module,
+            NodeType.Package, NodeType.CodeModule, NodeType.API, NodeType.Route,
+            NodeType.Component, NodeType.DatabaseTable, NodeType.Column, NodeType.Concept,
+            NodeType.Claim, NodeType.Methodology, NodeType.Dataset, NodeType.Experiment,
+            NodeType.Requirement, NodeType.Decision, NodeType.Person, NodeType.Organization,
+            NodeType.Custom("Widget")
+        )
+        nonFileTypes.forEach { NodeType.isFileType(it) shouldBe false }
+    }
 })
