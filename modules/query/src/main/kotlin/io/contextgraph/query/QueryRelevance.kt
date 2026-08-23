@@ -70,8 +70,6 @@ class QueryRelevance private constructor(
         val labelWords = IdentifierSplitter.split(node.label).map { it.lowercase() }.toSet()
 
         if (label == queryLower) return NAME_EXACT_POINTS
-        // A question is many words; a name that is exactly one of them was named by the asker.
-        if (words.size > 1 && label in words) return NAME_QUERY_WORD_POINTS
         if (label.startsWith(queryLower)) {
             return NAME_PREFIX_BASE_POINTS +
                 NAME_PREFIX_RATIO_POINTS * (queryLower.length.toDouble() / label.length)
@@ -136,11 +134,19 @@ class QueryRelevance private constructor(
  */
 private const val DEPRIORITISED_POINTS = 15.0
 
-// The name ladder, CodeGraph's constants. Read top to bottom: the name is the query; the name is
-// one word the query used; the name begins with the query, scaled by how much of the name that is;
-// every word of the query is somewhere in the name; the name merely contains the query.
+// The name ladder, CodeGraph's constants. Read top to bottom: the name is the query; the name
+// begins with the query, scaled by how much of the name that is; every word of the query is
+// somewhere in the name; the name merely contains the query.
+//
+// CodeGraph has a fifth tier between the first two -- 60 points when a multi-word query contains
+// one word that is exactly the name. It is not here because it was measured and it is actively
+// harmful on questions asked in prose: a thirty-word question shares a common word with almost
+// any repository (`position`, `canvas`, `scene`), and 60 points outranks even the best full-text
+// hit's 40, so a component named `Position` displaced the file that answered the question. MRR
+// fell from 0.4259 to 0.3000 with it in. Their query is a search box's few words, where the tier
+// is a strong signal; ours is a sentence,
+// where it is a coincidence detector.
 private const val NAME_EXACT_POINTS = 80.0
-private const val NAME_QUERY_WORD_POINTS = 60.0
 private const val NAME_PREFIX_BASE_POINTS = 10.0
 private const val NAME_PREFIX_RATIO_POINTS = 30.0
 private const val NAME_ALL_SUBTERMS_POINTS = 15.0

@@ -38,18 +38,23 @@ class QueryRelevanceTest : FunSpec({
     context("the name ladder") {
         test("each tier scores strictly above the one below it") {
             val exact = relevance("cartservice").score(node("CartService"), null)
-            val queryWord = relevance("where does cartservice charge the card").score(node("CartService"), null)
             val prefix = relevance("cart").score(node("CartService"), null)
             val allSubterms = relevance("cart service").score(node("ShoppingCartServiceFactory"), null)
             val substring = relevance("arts").score(node("CartService"), null)
             val nothing = relevance("unrelated").score(node("CartService"), null)
 
-            exact shouldBeGreaterThan queryWord
-            queryWord shouldBeGreaterThan prefix
+            exact shouldBeGreaterThan prefix
             prefix shouldBeGreaterThan allSubterms
             allSubterms shouldBeGreaterThan substring
             substring shouldBeGreaterThan nothing
             nothing shouldBe 0.0
+        }
+
+        test("a name that is merely one word of a long question is not a match") {
+            // The tier this replaces gave 60 points here -- more than the best full-text hit --
+            // on the strength of one word a thirty-word question happened to share with a
+            // component's name. Measured: MRR 0.4259 -> 0.3000.
+            relevance("how does the cart decide which items to keep").score(node("Cart"), null) shouldBe 0.0
         }
 
         test("the prefix tier scales with how much of the name the query is") {
@@ -64,9 +69,10 @@ class QueryRelevanceTest : FunSpec({
                 relevance("cartservice").score(node("CartService"), null)
         }
 
-        test("a name that is exactly a word of the question outranks the best search hit") {
-            // What makes an exact-name match rescuable at all: 60 beats the 40 a top hit carries.
-            val r = relevance("how does the cart decide", seeds = listOf(NodeId("top-hit")))
+        test("a name that is the whole query outranks the best search hit") {
+            // What makes an exact-name match rescuable at all: 80 beats the 40 a top hit carries,
+            // so a node the candidate limit nearly buried can still reach the front on its name.
+            val r = relevance("cart", seeds = listOf(NodeId("top-hit")))
             r.score(node("Cart", id = "named"), null) shouldBeGreaterThan r.score(node("Other", id = "top-hit"), null)
         }
     }
