@@ -455,16 +455,18 @@ Both read the same size and mtime this entire run has recorded for the shared co
 start — unmodified across every arm, every cost measurement, and this round's revert.
 
 **Full diff against `main`, recomputed for this round** (git-tracked files only; includes this
-document's own edits and §16's two new scripts and saved probe output):
-**20 files changed, 2,782 insertions(+), 1 deletion(-)**. `SqliteStorageAdapterTest.kt` no longer
-appears in this diff at all — the de-duplication pinning case it carried in the previous round was
-the entirety of its difference from `main`, and reverting that case (§16.1) brought the file back
-to byte-identical with `main`. `SqliteStorageAdapter.kt` drops from the previous round's +320 to
-+306, the same `.distinct()`-and-comment removal. `docs/identifier-segment-vocabulary.md` itself
-is now +748 against `main` (up from +440, reflecting every section added or rewritten across all
-three close-out rounds). The two new files under `scripts/segvocab/` — the synthetic-scale
-builder and the cost-measurement script — plus the saved measurement output account for the rest
-of the growth in that directory.
+document's own edits and §16's two new scripts and saved probe output): **23 files changed,
+~3,260 insertions(+), 1 deletion(-)**, as close as this line can get to exact — a diff-stat that
+quotes its own file's size necessarily describes the tree from just before the edit that adds the
+quote, the same self-reference §14 already flagged for its own diff-stat. `SqliteStorageAdapterTest.kt`
+no longer appears in this diff at all — the de-duplication pinning case it carried in the previous
+round was the entirety of its difference from `main`, and reverting that case (§16.1) brought the
+file back to byte-identical with `main`. `SqliteStorageAdapter.kt` drops from the previous round's
++320 to +306, the same `.distinct()`-and-comment removal. `docs/identifier-segment-vocabulary.md`
+itself is roughly +830 against `main` (up from +440 two rounds ago, reflecting every section added
+or rewritten across all three close-out rounds). Three new files account for the rest of this
+round's growth in `scripts/segvocab/`: the synthetic-scale builder and cost-measurement script
+(§16.2), and the saved measurement output they produced.
 
 **Full `check`**, re-run for this round with `:modules:storage-sqlite:cleanTest` forced before
 `check` (so `:modules:storage-sqlite:test` executes rather than reusing a stale `UP-TO-DATE`
