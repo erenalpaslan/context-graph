@@ -35,55 +35,92 @@ class QueryRelevanceTest : FunSpec({
         }
     }
 
+    context("the name ladder") {
+        test("each tier scores strictly above the one below it") {
+            val exact = relevance("cartservice").score(node("CartService"), null)
+            val queryWord = relevance("where does cartservice charge the card").score(node("CartService"), null)
+            val prefix = relevance("cart").score(node("CartService"), null)
+            val allSubterms = relevance("cart service").score(node("ShoppingCartServiceFactory"), null)
+            val substring = relevance("arts").score(node("CartService"), null)
+            val nothing = relevance("unrelated").score(node("CartService"), null)
+
+            exact shouldBeGreaterThan queryWord
+            queryWord shouldBeGreaterThan prefix
+            prefix shouldBeGreaterThan allSubterms
+            allSubterms shouldBeGreaterThan substring
+            substring shouldBeGreaterThan nothing
+            nothing shouldBe 0.0
+        }
+
+        test("the prefix tier scales with how much of the name the query is") {
+            val nearlyWhole = relevance("cartservic").score(node("CartService"), null)
+            val bareBeginning = relevance("ca").score(node("CartServiceRegistryFactory"), null)
+
+            nearlyWhole shouldBeGreaterThan bareBeginning
+        }
+
+        test("matching ignores case, because a prose question does not carry an identifier's casing") {
+            relevance("CARTSERVICE").score(node("CartService"), null) shouldBe
+                relevance("cartservice").score(node("CartService"), null)
+        }
+
+        test("a name that is exactly a word of the question outranks the best search hit") {
+            // What makes an exact-name match rescuable at all: 60 beats the 40 a top hit carries.
+            val r = relevance("how does the cart decide", seeds = listOf(NodeId("top-hit")))
+            r.score(node("Cart", id = "named"), null) shouldBeGreaterThan r.score(node("Other", id = "top-hit"), null)
+        }
+    }
+
+    // Every comparison in this block holds the label fixed and varies only the file, so it is the
+    // path rule under test and never the name ladder leaking in.
     context("documentation and tests are de-prioritised") {
         val r = relevance("how does the widget move")
+        val plain = "src/thing.kt"
 
         test("a prose file scores below an ordinary source file") {
-            r.score(node("Guide"), "src/guide.md") shouldBeGreaterThan Double.NEGATIVE_INFINITY
-            r.score(node("Widget"), "src/widget.kt") shouldBeGreaterThan r.score(node("Guide"), "src/guide.md")
+            r.score(node("Thing"), plain) shouldBeGreaterThan r.score(node("Thing"), "src/thing.md")
         }
 
         test("a compound documentation directory is recognised without being named") {
             // dev-docs, developer_docs, api-documentation: one rule about the words of a path
             // segment, not a list of the directory names one repository happens to use.
-            listOf("dev-docs/page.html", "developer_docs/page.html", "api-documentation/page.html")
+            listOf("dev-docs/thing.html", "developer_docs/thing.html", "api-documentation/thing.html")
                 .forEach { path ->
-                    r.score(node("Page"), "src/widget.kt") shouldBeGreaterThan r.score(node("Page"), path)
+                    r.score(node("Thing"), plain) shouldBeGreaterThan r.score(node("Thing"), path)
                 }
         }
 
         test("a test file scores below an ordinary source file") {
-            listOf("src/WidgetTest.kt", "src/widget.test.kt", "test/widget.kt", "src/__tests__/widget.kt")
+            listOf("src/ThingTest.kt", "src/thing.test.kt", "test/thing.kt", "src/__tests__/thing.kt")
                 .forEach { path ->
-                    r.score(node("Widget"), "src/widget.kt") shouldBeGreaterThan r.score(node("Widget"), path)
+                    r.score(node("Thing"), plain) shouldBeGreaterThan r.score(node("Thing"), path)
                 }
         }
 
         test("a filename that merely ends in those letters is not a test") {
-            // `latest` ends in "test"; `contest` contains it. Whole words only.
-            r.score(node("Latest"), "src/latest.kt") shouldBe r.score(node("Latest"), "src/widget.kt")
+            // `latest` ends in "test". Whole words only.
+            r.score(node("Thing"), "src/latest.kt") shouldBe r.score(node("Thing"), plain)
         }
 
-        test("the artefact type alone is enough, with or without a path") {
-            r.score(node("Readme", NodeType.MarkdownFile), null) shouldBeGreaterThan Double.NEGATIVE_INFINITY
-            r.score(node("Widget"), null) shouldBeGreaterThan r.score(node("Readme", NodeType.MarkdownFile), null)
+        test("the artefact type alone is enough, with no path at all") {
+            r.score(node("Thing"), null) shouldBeGreaterThan r.score(node("Thing", NodeType.MarkdownFile), null)
         }
     }
 
     context("the waiver") {
         test("a query about documentation does not de-prioritise documentation") {
             val asking = relevance("where is the setup documentation")
-            asking.score(node("Guide"), "src/guide.md") shouldBe asking.score(node("Widget"), "src/widget.kt")
+            asking.score(node("Thing"), "src/thing.md") shouldBe asking.score(node("Thing"), "src/thing.kt")
         }
 
         test("a query about tests does not de-prioritise tests") {
             val asking = relevance("which test covers the widget")
-            asking.score(node("Widget"), "src/WidgetTest.kt") shouldBe asking.score(node("Widget"), "src/widget.kt")
+            asking.score(node("Thing"), "src/ThingTest.kt") shouldBe asking.score(node("Thing"), "src/thing.kt")
         }
 
         test("the waivers are independent -- asking about tests still de-prioritises documentation") {
             val asking = relevance("which test covers the widget")
-            asking.score(node("Widget"), "src/widget.kt") shouldBeGreaterThan asking.score(node("Guide"), "src/guide.md")
+            asking.score(node("Thing"), "src/thing.kt") shouldBeGreaterThan asking.score(node("Thing"), "src/thing.md")
         }
     }
 })

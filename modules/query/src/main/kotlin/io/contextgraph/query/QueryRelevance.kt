@@ -26,9 +26,12 @@ import io.contextgraph.core.NodeType
  * exactly as it did before any of this existed.
  */
 class QueryRelevance private constructor(
+    private val queryText: String,
     private val words: List<String>,
     private val seedRelevance: Map<NodeId, Double>
 ) {
+
+    private val queryLower = queryText.trim().lowercase()
 
     private val asksAboutDocumentation = words.any { it in DOCUMENTATION_QUERY_WORDS }
     private val asksAboutTests = words.any { it in TEST_QUERY_WORDS }
@@ -38,7 +41,7 @@ class QueryRelevance private constructor(
      * state, not an error, and every path-derived term simply does not fire for it).
      */
     fun score(node: GraphNode, path: String?): Double =
-        searchHitPoints(node) + deprioritisationPoints(node, path)
+        searchHitPoints(node) + nameMatchPoints(node) + deprioritisationPoints(node, path)
 
     /**
      * What the search layer already knew and the sort used to throw away: this candidate's place
@@ -50,6 +53,33 @@ class QueryRelevance private constructor(
      */
     private fun searchHitPoints(node: GraphNode): Double =
         SEARCH_HIT_POINTS * (seedRelevance[node.id] ?: 0.0)
+
+    /**
+     * How much of the query *is* this candidate's name -- the first thing a human checks, and the
+     * heaviest signal in the stack.
+     *
+     * A ladder, best tier wins and the tiers do not stack. The length ratio on the prefix tier is
+     * the subtle part: a two-letter query prefixing a forty-character name is weak evidence and
+     * has to score like it, while a query that is nearly the whole name is nearly an exact match.
+     */
+    private fun nameMatchPoints(node: GraphNode): Double {
+        val label = node.label.lowercase()
+        if (label.isEmpty() || queryLower.isEmpty()) return 0.0
+        // Split the label as written, not lowercased: lowercasing first erases the camelCase
+        // boundaries the splitter exists to find.
+        val labelWords = IdentifierSplitter.split(node.label).map { it.lowercase() }.toSet()
+
+        if (label == queryLower) return NAME_EXACT_POINTS
+        // A question is many words; a name that is exactly one of them was named by the asker.
+        if (words.size > 1 && label in words) return NAME_QUERY_WORD_POINTS
+        if (label.startsWith(queryLower)) {
+            return NAME_PREFIX_BASE_POINTS +
+                NAME_PREFIX_RATIO_POINTS * (queryLower.length.toDouble() / label.length)
+        }
+        if (words.isNotEmpty() && labelWords.containsAll(words)) return NAME_ALL_SUBTERMS_POINTS
+        if (label.contains(queryLower)) return NAME_SUBSTRING_POINTS
+        return 0.0
+    }
 
     /**
      * A penalty for candidates whose file is documentation or a test, waived when the query is
@@ -89,6 +119,7 @@ class QueryRelevance private constructor(
         fun of(queryText: String, seedsInRankOrder: List<NodeId>): QueryRelevance {
             val n = seedsInRankOrder.size
             return QueryRelevance(
+                queryText = queryText,
                 words = IdentifierSplitter.split(queryText).map { it.lowercase() }.distinct(),
                 seedRelevance = seedsInRankOrder
                     .mapIndexed { i, id -> id to (n - i).toDouble() / n }
@@ -104,6 +135,16 @@ class QueryRelevance private constructor(
  * file which is genuinely the best search hit (40) still outranks a mediocre one.
  */
 private const val DEPRIORITISED_POINTS = 15.0
+
+// The name ladder, CodeGraph's constants. Read top to bottom: the name is the query; the name is
+// one word the query used; the name begins with the query, scaled by how much of the name that is;
+// every word of the query is somewhere in the name; the name merely contains the query.
+private const val NAME_EXACT_POINTS = 80.0
+private const val NAME_QUERY_WORD_POINTS = 60.0
+private const val NAME_PREFIX_BASE_POINTS = 10.0
+private const val NAME_PREFIX_RATIO_POINTS = 30.0
+private const val NAME_ALL_SUBTERMS_POINTS = 15.0
+private const val NAME_SUBSTRING_POINTS = 10.0
 
 private val DOCUMENTATION_QUERY_WORDS = setOf("doc", "docs", "documentation", "readme", "changelog")
 private val TEST_QUERY_WORDS = setOf("test", "tests", "testing", "spec", "specs", "fixture", "fixtures")
