@@ -36,6 +36,9 @@ private val jsonSerializer = Json { encodeDefaults = true; ignoreUnknownKeys = t
 
 private val FTS_TOKEN_REGEX = Regex("[\\p{L}\\p{N}_]+")
 
+/** Entity ids per `IN (...)`, comfortably under SQLite's 999-parameter default. */
+private const val PROVENANCE_LOOKUP_CHUNK = 500
+
 object ArtifactsTable : Table("artifacts") {
     val id = text("id")
     val type = text("type")
@@ -330,6 +333,19 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
 
     override fun getProvenance(entityId: String): List<Provenance> = transaction {
         ProvenanceTable.selectAll().where { ProvenanceTable.entityId eq entityId }.map { it.toProvenance() }
+    }
+
+    override fun getProvenanceFor(entityIds: Collection<String>): Map<String, List<Provenance>> = transaction {
+        // Chunked because SQLite's default SQLITE_MAX_VARIABLE_NUMBER caps a single IN list, and a
+        // ranking candidate set is unbounded from this layer's point of view.
+        entityIds.distinct()
+            .chunked(PROVENANCE_LOOKUP_CHUNK)
+            .flatMap { chunk ->
+                ProvenanceTable.selectAll()
+                    .where { ProvenanceTable.entityId inList chunk }
+                    .map { it[ProvenanceTable.entityId] to it.toProvenance() }
+            }
+            .groupBy({ it.first }, { it.second })
     }
 
     override fun getAllNodes(minConfidence: Double): List<GraphNode> = transaction {

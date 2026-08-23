@@ -275,6 +275,29 @@ class SqliteStorageAdapterTest : FunSpec({
             results shouldHaveSize 1
             results.single().lineStart shouldBe 10
         }
+
+        test("getProvenanceFor answers for many entities exactly as getProvenance does one at a time") {
+            listOf("A", "B", "C").forEach { id ->
+                storage.upsertNode(makeNode(id, "Node$id"))
+                storage.upsertProvenance(
+                    id, "node",
+                    Provenance(ArtifactId("/src/$id.kt"), "/src/$id.kt", lineStart = 1, extractor = "code", extractedAt = now())
+                )
+            }
+            // A second provenance row for one node: the batch must not collapse an entity's rows.
+            storage.upsertProvenance(
+                "A", "node",
+                Provenance(ArtifactId("/src/A2.kt"), "/src/A2.kt", lineStart = 2, extractor = "code", extractedAt = now())
+            )
+
+            // "D" has no provenance at all -- the contract is that it is absent, not empty.
+            val batch = storage.getProvenanceFor(listOf("A", "B", "C", "D"))
+
+            batch.keys shouldContainExactlyInAnyOrder listOf("A", "B", "C")
+            listOf("A", "B", "C").forEach { id ->
+                batch.getValue(id).map { it.path } shouldBe storage.getProvenance(id).map { it.path }
+            }
+        }
     }
 
     context("deleteNodesForArtifact") {
