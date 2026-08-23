@@ -16,10 +16,13 @@ benchmark harness was never touched.
 
 **`probe-index.sh` is read-only by construction.** Every connection is a `file:...?mode=ro`
 URI, so it can be pointed at the shared corpus at `/tmp/claude/benchmark-corpus` — which no
-script in this run may ever open for writing — without any care at the call site. That is why
-it reports FTS5's `integrity-check` as `skipped-read-only` rather than running it: the check is
-issued as an `INSERT` command, which a read-only connection refuses, and opening the database
-for writing to run it would trade a real guarantee for a diagnostic.
+script in this run may ever open for writing — without any care at the call site.
+
+That is also why it does not attempt FTS5's `integrity-check`. The check is issued as an
+`INSERT` command, so a read-only connection refuses it outright, and a field that can only ever
+report "skipped" advertises a check that never runs. Opening the database for writing to run it
+would trade a real guarantee for a diagnostic. The disagreement it would catch is asserted in
+the test suite instead, where the database is writable and disposable.
 
 It reports two counts that a single total cannot replace. A search row with no live node behind
 it and a node with no search row are different faults, and one of each sums to a total that

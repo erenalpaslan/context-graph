@@ -1,7 +1,7 @@
 #!/bin/sh
 # What a built graph database says about its own search index.
 #
-# Answers the four questions this run's measurement needs, from a real index, as one JSON
+# Answers the three questions this run's measurement needs, from a real index, as one JSON
 # object on stdout:
 #
 #   1. `nodes` vs `nodes_fts` row counts -- the headline symptom. Before search rows were keyed
@@ -15,14 +15,17 @@
 #      what an external-content or contentless FTS5 design would stop storing. Run C left index
 #      size an open question and this run deliberately does not take that win (decision D12), so
 #      it publishes the number instead of a hypothesis.
-#   4. FTS5's own `integrity-check`, which catches an index disagreeing with its content -- the
-#      failure a half-replaced row would produce and that no row count would reveal.
-#
 # **Read-only, always.** Every connection is opened through a `file:...?mode=ro` URI, so this
 # can be pointed at the shared corpus (which no script in this run may ever open for writing)
-# without any care being needed at the call site. `integrity-check` is an FTS5 command issued
-# through an INSERT, which a read-only connection refuses; that is reported as `skipped` rather
-# than worked around by opening the database for writing.
+# without any care being needed at the call site.
+#
+# That guarantee is also why FTS5's own `integrity-check` is deliberately *not* one of the
+# questions here. It is a command issued through an INSERT, so a read-only connection refuses it
+# outright ("attempt to write a readonly database"), and a field that can only ever report
+# "skipped" advertises a check that never runs. The index-versus-content disagreement it would
+# catch -- the failure a half-replaced row produces, which no row count reveals -- is asserted in
+# the test suite instead, against a writable, disposable database: see `NodesFtsOneRowPerNodeTest`.
+# What this script contributes read-only is the pair of directional counts in (2).
 #
 # Usage: probe-index.sh <path-to-graph.db>
 set -eu
@@ -57,15 +60,7 @@ else
     NODES_BYTES=null
 fi
 
-if query "INSERT INTO nodes_fts(nodes_fts) VALUES('integrity-check');" >/dev/null 2>&1; then
-    INTEGRITY='"ok"'
-else
-    # Expected on a read-only connection; a genuine corruption shows up as a non-zero
-    # orphaned/unindexed count or a row-count mismatch above, which are read-only questions.
-    INTEGRITY='"skipped-read-only"'
-fi
-
 printf '{"db":"%s","nodes":%s,"nodesFts":%s,"orphanedFtsRows":%s,"nodesWithoutFtsRow":%s,' \
     "$ABS" "$NODES" "$FTS" "$ORPHANED" "$UNINDEXED"
-printf '"dbBytes":%s,"nodesTableBytes":%s,"ftsShadowBytes":%s,"ftsContentBytes":%s,"integrityCheck":%s}\n' \
-    "$DB_BYTES" "$NODES_BYTES" "$FTS_TOTAL_BYTES" "$FTS_CONTENT_BYTES" "$INTEGRITY"
+printf '"dbBytes":%s,"nodesTableBytes":%s,"ftsShadowBytes":%s,"ftsContentBytes":%s}\n' \
+    "$DB_BYTES" "$NODES_BYTES" "$FTS_TOTAL_BYTES" "$FTS_CONTENT_BYTES"
