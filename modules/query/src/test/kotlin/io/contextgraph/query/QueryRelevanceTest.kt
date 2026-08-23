@@ -35,46 +35,19 @@ class QueryRelevanceTest : FunSpec({
         }
     }
 
-    context("the name ladder") {
-        test("each tier scores strictly above the one below it") {
-            val exact = relevance("cartservice").score(node("CartService"), null)
-            val prefix = relevance("cart").score(node("CartService"), null)
-            val allSubterms = relevance("cart service").score(node("ShoppingCartServiceFactory"), null)
-            val substring = relevance("arts").score(node("CartService"), null)
-            val nothing = relevance("unrelated").score(node("CartService"), null)
-
-            exact shouldBeGreaterThan prefix
-            prefix shouldBeGreaterThan allSubterms
-            allSubterms shouldBeGreaterThan substring
-            substring shouldBeGreaterThan nothing
-            nothing shouldBe 0.0
-        }
-
-        test("a name that is merely one word of a long question is not a match") {
-            // The tier this replaces gave 60 points here -- more than the best full-text hit --
-            // on the strength of one word a thirty-word question happened to share with a
-            // component's name. Measured: MRR 0.4259 -> 0.3000.
+    context("a candidate's name is deliberately not a signal") {
+        test("sharing one word with a long question earns nothing") {
+            // CodeGraph awards 60 here -- more than the best full-text hit's 40 -- and on a
+            // question asked in prose that is a coincidence detector rather than a match:
+            // measured, MRR 0.4259 -> 0.3000 with the tier in. See the note in QueryRelevance.kt.
             relevance("how does the cart decide which items to keep").score(node("Cart"), null) shouldBe 0.0
         }
 
-        test("the prefix tier scales with how much of the name the query is") {
-            val nearlyWhole = relevance("cartservic").score(node("CartService"), null)
-            val bareBeginning = relevance("ca").score(node("CartServiceRegistryFactory"), null)
-
-            nearlyWhole shouldBeGreaterThan bareBeginning
+        test("nor does a name the query is a prefix or substring of") {
+            relevance("cart").score(node("CartService"), null) shouldBe 0.0
+            relevance("cartservice").score(node("CartService"), null) shouldBe 0.0
         }
 
-        test("matching ignores case, because a prose question does not carry an identifier's casing") {
-            relevance("CARTSERVICE").score(node("CartService"), null) shouldBe
-                relevance("cartservice").score(node("CartService"), null)
-        }
-
-        test("a name that is the whole query outranks the best search hit") {
-            // What makes an exact-name match rescuable at all: 80 beats the 40 a top hit carries,
-            // so a node the candidate limit nearly buried can still reach the front on its name.
-            val r = relevance("cart", seeds = listOf(NodeId("top-hit")))
-            r.score(node("Cart", id = "named"), null) shouldBeGreaterThan r.score(node("Other", id = "top-hit"), null)
-        }
     }
 
     // Every comparison in this block holds the label fixed and varies only the file, so it is the

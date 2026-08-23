@@ -41,7 +41,7 @@ class QueryRelevance private constructor(
      * state, not an error, and every path-derived term simply does not fire for it).
      */
     fun score(node: GraphNode, path: String?): Double =
-        searchHitPoints(node) + nameMatchPoints(node) + deprioritisationPoints(node, path)
+        searchHitPoints(node) + deprioritisationPoints(node, path)
 
     /**
      * What the search layer already knew and the sort used to throw away: this candidate's place
@@ -53,31 +53,6 @@ class QueryRelevance private constructor(
      */
     private fun searchHitPoints(node: GraphNode): Double =
         SEARCH_HIT_POINTS * (seedRelevance[node.id] ?: 0.0)
-
-    /**
-     * How much of the query *is* this candidate's name -- the first thing a human checks, and the
-     * heaviest signal in the stack.
-     *
-     * A ladder, best tier wins and the tiers do not stack. The length ratio on the prefix tier is
-     * the subtle part: a two-letter query prefixing a forty-character name is weak evidence and
-     * has to score like it, while a query that is nearly the whole name is nearly an exact match.
-     */
-    private fun nameMatchPoints(node: GraphNode): Double {
-        val label = node.label.lowercase()
-        if (label.isEmpty() || queryLower.isEmpty()) return 0.0
-        // Split the label as written, not lowercased: lowercasing first erases the camelCase
-        // boundaries the splitter exists to find.
-        val labelWords = IdentifierSplitter.split(node.label).map { it.lowercase() }.toSet()
-
-        if (label == queryLower) return NAME_EXACT_POINTS
-        if (label.startsWith(queryLower)) {
-            return NAME_PREFIX_BASE_POINTS +
-                NAME_PREFIX_RATIO_POINTS * (queryLower.length.toDouble() / label.length)
-        }
-        if (words.isNotEmpty() && labelWords.containsAll(words)) return NAME_ALL_SUBTERMS_POINTS
-        if (label.contains(queryLower)) return NAME_SUBSTRING_POINTS
-        return 0.0
-    }
 
     /**
      * A penalty for candidates whose file is documentation or a test, waived when the query is
@@ -134,23 +109,20 @@ class QueryRelevance private constructor(
  */
 private const val DEPRIORITISED_POINTS = 15.0
 
-// The name ladder, CodeGraph's constants. Read top to bottom: the name is the query; the name
-// begins with the query, scaled by how much of the name that is; every word of the query is
-// somewhere in the name; the name merely contains the query.
+// There is no name-match ladder here, and its absence is a measurement rather than an oversight.
+// CodeGraph's five tiers (name == query 80, one query word == name 60, prefix 10 + 30r, all query
+// sub-terms in the name 15, substring 10) were implemented exactly and measured on the same nine
+// questions: MRR fell 0.4259 -> 0.3000. The 60-point tier was the cause -- a thirty-word question
+// shares a common word with almost any repository, and 60 outranks the 40 the best full-text hit
+// carries, so a component named `Position` displaced the file that answered a question containing
+// the word "position". Removing that tier returned every metric to exactly where it had been
+// (0.4259 / 0.3148 / 0.3426 / 32.00%), digit for digit, because the other four are inert on prose:
+// no sentence is ever equal to, a prefix of, or a substring of an identifier, and no identifier
+// contains all thirty of a sentence's words.
 //
-// CodeGraph has a fifth tier between the first two -- 60 points when a multi-word query contains
-// one word that is exactly the name. It is not here because it was measured and it is actively
-// harmful on questions asked in prose: a thirty-word question shares a common word with almost
-// any repository (`position`, `canvas`, `scene`), and 60 points outranks even the best full-text
-// hit's 40, so a component named `Position` displaced the file that answered the question. MRR
-// fell from 0.4259 to 0.3000 with it in. Their query is a search box's few words, where the tier
-// is a strong signal; ours is a sentence,
-// where it is a coincidence detector.
-private const val NAME_EXACT_POINTS = 80.0
-private const val NAME_PREFIX_BASE_POINTS = 10.0
-private const val NAME_PREFIX_RATIO_POINTS = 30.0
-private const val NAME_ALL_SUBTERMS_POINTS = 15.0
-private const val NAME_SUBSTRING_POINTS = 10.0
+// So the ladder is worth nothing here and cost something in one form. It belongs to a search box
+// taking a few words, which is the surface CodeGraph built it for; if this project grows one, the
+// tiers are in this file's history at 1e9bf24.
 
 private val DOCUMENTATION_QUERY_WORDS = setOf("doc", "docs", "documentation", "readme", "changelog")
 private val TEST_QUERY_WORDS = setOf("test", "tests", "testing", "spec", "specs", "fixture", "fixtures")
