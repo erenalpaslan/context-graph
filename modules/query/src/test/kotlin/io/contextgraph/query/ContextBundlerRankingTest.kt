@@ -53,6 +53,33 @@ class ContextBundlerRankingTest : FunSpec({
         ranked.nodes.map { it.id.value } shouldBe listOf("high", "mid", "low")
     }
 
+    test("the search layer's own ordering survives into the final order") {
+        // Deliberately inverted against the graph: the best search hit is the least central
+        // candidate. Before the query reached this sort, "best" here lost to "worst" every time.
+        val best = unlinked("best-search-hit", 0.2)
+        val worst = unlinked("worst-search-hit", 0.9)
+        val nodes = listOf(worst, best)
+
+        val ranked = bundler.bundle(
+            nodes,
+            relevance = QueryRelevance.of("anything", seedsInRankOrder = listOf(best.id, worst.id))
+        )
+
+        ranked.nodes.map { it.id.value } shouldBe listOf("best-search-hit", "worst-search-hit")
+    }
+
+    test("a candidate that was never a search hit ranks below one that was") {
+        val hit = unlinked("search-hit", 0.1)
+        val neighbour = unlinked("expanded-neighbour", 1.0)
+
+        val ranked = bundler.bundle(
+            listOf(neighbour, hit),
+            relevance = QueryRelevance.of("anything", seedsInRankOrder = listOf(hit.id))
+        )
+
+        ranked.nodes.map { it.id.value } shouldBe listOf("search-hit", "expanded-neighbour")
+    }
+
     test("ranking the same candidates twice gives the same order") {
         val nodes = listOf(unlinked("a", 0.5), unlinked("b", 0.5), unlinked("c", 0.5))
         val relevance = QueryRelevance.of("node", nodes.map { it.id })
