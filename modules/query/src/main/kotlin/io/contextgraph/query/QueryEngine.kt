@@ -34,8 +34,19 @@ class QueryEngine(private val storage: StorageAdapter) {
             QueryIntent.GENERAL -> emptyList()
         }
         val seeds = searcher.search(task, typeFilter, minConfidence = 0.5, limit = 10)
-        val (nodes, edges) = expander.expand(seeds.map { it.id }, depth)
-        return bundler.bundle(nodes, relevance = QueryRelevance.of(task, seeds.map { it.id }))
+        val (expanded, _) = expander.expand(seeds.map { it.id }, depth)
+
+        // A node whose name is one of the question's words, that neither the seed limit nor the
+        // expansion reached, is absent rather than ranked low -- and no amount of re-ranking can
+        // recover a candidate that was never in the set. It joins as a candidate only: it does not
+        // seed a further expansion, so the set grows by what was found and nothing more.
+        val alreadyPresent = expanded.map { it.id }.toSet()
+        val supplement = searcher.exactNameMatches(task).filterNot { it.id in alreadyPresent }
+
+        return bundler.bundle(
+            expanded + supplement,
+            relevance = QueryRelevance.of(task, seeds.map { it.id }, supplement.map { it.id })
+        )
     }
 
     fun expandNode(

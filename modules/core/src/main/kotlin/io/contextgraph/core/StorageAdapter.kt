@@ -41,6 +41,21 @@ interface StorageAdapter {
     /** Declarations, indexed by exact [GraphNode.label] -- the symbol table pass 2 probes. */
     fun findNodesByLabel(label: String): List<GraphNode>
 
+    /**
+     * Every node whose label equals any of [labels], compared without regard to case.
+     *
+     * Ranking uses this to rescue an exact name match the candidate limit excluded: a question
+     * asked in prose lower-cases the identifier it is about, so exact-case equality would find the
+     * name only when the asker already typed its capitalisation -- the case that needs rescuing
+     * least. Takes a collection rather than one label because the caller has a whole query's worth
+     * of words and an adapter can answer them all in one pass.
+     *
+     * The default implementation answers the exact-case subset, which is part of the right answer
+     * rather than a wrong one; an adapter that can compare case-insensitively should override it.
+     */
+    fun findNodesByLabelsIgnoreCase(labels: Collection<String>): List<GraphNode> =
+        labels.flatMap { findNodesByLabel(it) }
+
     /** Persists one pass-1 unresolved reference, replacing nothing -- see [deleteUnresolvedReferencesForArtifact]. */
     fun insertUnresolvedReference(reference: UnresolvedReference)
 

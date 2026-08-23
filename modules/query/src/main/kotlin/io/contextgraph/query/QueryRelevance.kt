@@ -130,14 +130,22 @@ class QueryRelevance private constructor(
          * search hits, best first. Candidates absent from that list entered by graph expansion:
          * they are neighbours, not matches, and score nothing from having been found.
          */
-        fun of(queryText: String, seedsInRankOrder: List<NodeId>): QueryRelevance {
+        fun of(
+            queryText: String,
+            seedsInRankOrder: List<NodeId>,
+            exactNameMatches: List<NodeId> = emptyList()
+        ): QueryRelevance {
             val n = seedsInRankOrder.size
             return QueryRelevance(
                 queryText = queryText,
                 words = IdentifierSplitter.split(queryText).map { it.lowercase() }.distinct(),
-                seedRelevance = seedsInRankOrder
-                    .mapIndexed { i, id -> id to (n - i).toDouble() / n }
-                    .toMap()
+                // An exact-name match enters at the top of the range, as if it had been the best
+                // search hit -- which restores its chance at a slot, not its claim on one. It has
+                // to win the rest of the comparison like everything else.
+                seedRelevance = exactNameMatches.associateWith { 1.0 } +
+                    seedsInRankOrder
+                        .mapIndexed { i, id -> id to (n - i).toDouble() / n }
+                        .toMap()
             )
         }
     }
