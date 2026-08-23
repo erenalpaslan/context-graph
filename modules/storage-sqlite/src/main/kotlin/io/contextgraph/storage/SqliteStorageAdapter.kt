@@ -404,7 +404,19 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${matchExpr.replace("'", "''")}' ORDER BY rank LIMIT $limit") { rs ->
                     val ids = mutableListOf<String>()
                     while (rs.next()) ids.add(rs.getString("id"))
-                    ids
+                    // `.distinct()` (keeps first occurrence, i.e. the highest-ranked one) is a
+                    // read-path guard against a write-path defect this change does not fix:
+                    // nodes_fts is FTS5 with `id UNINDEXED`, so `INSERT OR REPLACE` above has no
+                    // unique index to target a conflict on and every re-upsert of a node appends
+                    // a second search row rather than replacing the first. Left undeduplicated,
+                    // a node written twice can occupy two (or more) of this query's LIMIT slots
+                    // by itself, at the direct expense of a distinct node that would otherwise
+                    // have been found -- a defect in what gets returned, not just a wasted slot,
+                    // since `limit` bounds the row count fetched *before* any de-duplication runs.
+                    // Deliberately separable from that write-path defect (still open, see
+                    // docs/identifier-segment-vocabulary.md section 6): this only changes how the
+                    // rows already returned are consumed.
+                    ids.distinct()
                 } ?: emptyList()
             } catch (e: Exception) {
                 // This used to be a bare `catch (_: Exception) {}`, which made a genuine FTS5
