@@ -14,23 +14,34 @@ excalidraw's nine questions, the only denominator ContextGraph is scored on here
 excalidraw's ingest roughly 15.3 s → 18.7–22.5 s and its index roughly 27.6 MB → 32.1 MB, about
 +17%; on Keycloak, measured once at this document's final cost step (§5), it costs 5 m 15.1 s →
 6 m 39.1 s (+27%) and 1,550,897,152 B → 1,580,851,200 B (+1.9%). The code shipped at `9aa58dc`;
-a post-ship correctness/performance fix moved that forward without changing these numbers — see
-§14 for the fix and its re-measurement, and for the commit this document was current against
-when written.
+a post-ship correctness/performance fix moved that forward without changing these numbers (§14).
+A second close-out round (decision D18, §16) then reverted a read-path de-duplication fix that
+had shown no measurable benefit anywhere it was tested, and separately kept the rarity guard
+after confirming — at a scale these nine questions cannot exercise — that it saves real
+wall-clock. That round moved the shipped commit forward again without changing any of the
+headline numbers above; §16 has the final commit and its own five-cycle re-measurement.
 
-**§6's caveat was real, and it is now resolved rather than merely disclosed.** A live probe
-against the shipped code confirmed the mechanism §6 describes — full-text search's ranked window
-can genuinely fill with results that are not the caller's single best answer, via a confirmed
-`nodes_fts` duplicate-row defect — is real. What was missing was the experiment that measures
-whether A2's gain actually depends on it. §15 runs that experiment: de-duplicating the FTS ids
-`searchNodes` reads (a small, separable, now-shipped read-path fix — commit `3294605`) and
-re-measuring both the cold baseline and A2 on top of it, five cycles each. **The result: zero
-change, on both arms, on every metric, across all ten cycles.** A2's gain over the baseline is
-therefore not attributable to the duplicate-row defect on this corpus and this question set —
-the verdict strengthens rather than needing a caveat. §15 also reports a second experiment the
-same close-out round ran: the rarity guard removed entirely also changes nothing on these nine
-questions. Both null results, and what they do and do not license a reader to conclude, are in
-§15; §6 is left in place below as the honest record of what was uncertain before §15 ran.
+**Two mechanisms this run checked against real measurements rather than intuition: one earned
+nothing and was reverted, the other earned something real and was kept.** A read-path fix that
+de-duplicates the ids `searchNodes` reads back from `nodes_fts` (a countermeasure to the
+write-path duplicate-row defect §6 describes) was built and measured against both the cold
+baseline and A2, five cold cycles each, and changed nothing — not one metric, on either arm, on
+any cycle. Because it earned nothing under this run's own ship rule, and the brief's escape
+clause for touching `nodes_fts` ("unless it blocks the measurement") never applied, it was
+reverted rather than shipped (§15, §16). The rarity guard (`SEGMENT_RARITY_MAX_FRACTION`) was
+*also* retrieval-neutral on these nine questions with the guard removed entirely — but a
+synthetic, Keycloak-scale measurement built specifically because retrieval metrics cannot see
+this dimension (§16) found the guard saves real wall-clock, up to three orders of magnitude on
+`segmentCandidates`'s own join query when a query term happens to be a common identifier
+sub-word: the conservative candidate budget bounds how many rows come *back*, but SQLite still
+has to walk and sort a common segment's entire posting list to find out, and the guard is what
+lets it skip that walk instead. The guard stays.
+
+**§6 itself needed a correction, not just a caveat.** An earlier version of this document
+credited part of A2's gain to the `nodes_fts` duplicate-row defect, illustrated with a live probe
+that was, on re-examination, misread. §6 below is the corrected account: the defect is real, the
+probe was not evidence of it, and the separating experiment this run actually ran (§15) found
+A2's gain does not depend on the defect either way.
 
 ## 2. What was actually new here
 
@@ -169,32 +180,35 @@ section ran. `scripts/segvocab/check-shared-corpus-unmodified.sh` passed both be
 this measurement, and again after the deletion — the shared corpus at
 `/tmp/claude/benchmark-corpus` was never opened for writing (§11).
 
-## 6. The most important caveat: part of this gain is compensating for what fills FTS's window
+## 6. Corrected: the duplicate-row defect is real, but A2's gain does not depend on it
 
-`docs/retrieval-improvements.md` and `docs/ingest-cost.md` both name a defect here, and it stays
-open and unassigned in this document too: `INSERT OR REPLACE INTO nodes_fts` never actually
-replaces, because `nodes_fts` is FTS5 with `id UNINDEXED` and therefore has no unique index for a
-conflict clause to target. Every re-upsert of a node **appends a duplicate search row**, so a
-node that has been written more than once can occupy several ranks in the same result set. This
-is real and confirmed present in this run's own final cold index, not merely asserted from
-elsewhere: `nodes_fts` carries 10,602 rows against `nodes`' 10,383 (219 excess), and one id alone
-(a `CHANGELOG.md` section) occupies 33 of them by itself
-(`scripts/segvocab/probe-a2-scene.txt`).
+An earlier version of this document credited part of A2's gain to a defect this section names:
+`INSERT OR REPLACE INTO nodes_fts` never actually replaces, because `nodes_fts` is FTS5 with `id
+UNINDEXED` and therefore has no unique index for a conflict clause to target. Every re-upsert of
+a node **appends a duplicate search row**, so a node that has been written more than once can
+occupy several ranks in the same result set. `docs/retrieval-improvements.md` and
+`docs/ingest-cost.md` both name this defect too, and it stays open and unassigned in this
+document as well. **That part of the original claim stands, confirmed present in this run's own
+final cold index, not merely asserted from elsewhere:** `nodes_fts` carries 10,602 rows against
+`nodes`' 10,383 (219 excess), and one id alone (a `CHANGELOG.md` section) occupies 33 of them by
+itself (`scripts/segvocab/probe-a2-scene.txt`).
 
-Slice 07's original liveness probe ran `SqliteStorageAdapter.searchNodes("scene",
+**What did not hold up is the illustration, and the inference this document originally drew from
+it.** Slice 07's original liveness probe ran `SqliteStorageAdapter.searchNodes("scene",
 types=[Function], limit=3)` against a built A2 index and got back the same *label* three times
 ("Module | ../scene/Scene"), read at the time as the same node three times exhausting the
-`limit` before any other candidate was considered. Re-run for this document
-(`scripts/segvocab/probe-a2-scene.txt` — the original's output was never saved anywhere
-durable) with the underlying node ids also printed, those three rows turn out to be **three
-distinct nodes**: three different import sites (`frame.ts`, `mutateElement.ts`,
-`dragElements.ts`), each with its own id, that legitimately share the label "../scene/Scene"
-because excalidraw imports that module from many files. That is *not* the `nodes_fts`
-id-duplication defect — it is ordinary label collision among genuinely different nodes — and the
-original probe's output (type and label only, never an id) could not have told the two apart.
-The defect itself is separately confirmed present in the same index (previous paragraph); it
-just is not what this specific illustrative example demonstrated, and the original wording
-overstated what a type-and-label-only probe had actually shown.
+`limit` before any other candidate was considered — offered as a concrete case of the defect
+narrowing FTS's ranked window and giving the segment vocabulary's appended candidates room to
+add anything. Re-run for this document (`scripts/segvocab/probe-a2-scene.txt` — the original's
+output was never saved anywhere durable) with the underlying node ids also printed, those three
+rows turn out to be **three distinct nodes**: three different import sites (`frame.ts`,
+`mutateElement.ts`, `dragElements.ts`), each with its own id, that legitimately share the label
+"../scene/Scene" because excalidraw imports that module from many files. That is *not* the
+`nodes_fts` id-duplication defect — it is ordinary label collision among genuinely different
+nodes — and the original probe's output (type and label only, never an id) could not have told
+the two apart. The defect itself is separately confirmed present in the same index (previous
+paragraph); this specific illustrative example simply was not evidence of it in action, and the
+original wording overstated what a type-and-label-only probe had actually shown.
 
 `QueryEngine.buildContext` already narrows the FTS search to a `typeFilter`'d top-N *post hoc*;
 either mechanism — a genuinely repeated id, or several distinct nodes that happen to share a
@@ -204,25 +218,37 @@ candidates (§2's item 2 and 3) get a chance to add anything: the budget opens b
 the list was already spent on something that was not the best *distinct* answer, for one reason
 or the other.
 
-**This does not invalidate §4's numbers.** Every arm in that table was cold-indexed and scored
+**This never invalidated §4's numbers.** Every arm in that table was cold-indexed and scored
 against the identical instrument, so the comparison between arms is sound regardless of what is
-happening inside any one of them. What it meant, until §15 ran, was narrower and still
-important: the mechanism's measured value was not *shown* to be independent of what already
-fills FTS's ranked window, and this document had no data on how much either the confirmed
-duplicate-row defect or the label-collision pattern above contributes to A2's gain over A0c.
+happening inside any one of them. What was missing, until this run's own close-out measured it
+directly, was the experiment that isolates whether A2's gain actually *depends* on the defect —
+rather than reasoning from one probe's misread output either way.
 
-**§15 supplies that data, and the answer is: none of it, measurably.** De-duplicating the ids
-`searchNodes` reads out of `nodes_fts` before they consume a result slot — the direct read-path
-countermeasure to the defect described above — and re-measuring both A0c and A2 on top of that
-fix, five cold cycles each, reproduced both arms' original numbers exactly, on every cycle. If
+**§15 runs that experiment, and the answer is: A2's gain does not depend on it, measurably.**
+De-duplicating the ids `searchNodes` reads out of `nodes_fts` before they consume a result slot —
+the direct read-path countermeasure to the defect described above — and re-measuring both A0c and
+A2 on top of that fix, five cold cycles each, reproduced both arms' original numbers exactly, on
+every cycle: A0c stayed 0.4815 / 0.3426 (mode) / 0.3704 and A2 stayed 0.5556 / 0.3981 / 0.4259. If
 the duplicate-row defect were responsible for any material share of A2's gain, removing its
-effect on the read path would have narrowed the gap between A0c and A2; it did not narrow at
-all. Fixing the *write*-path defect itself — `INSERT OR REPLACE INTO nodes_fts` still never
-replaces — remains out of scope and open (§12), but whoever picks up that bug next now has a
-direct answer to the question this section used to leave open: on this corpus and this question
-set, its presence or absence does not move A2's measured gain. The "scene" example above stays
-in this document as the honest record of what one probe did and did not show, not as evidence
-for a magnitude nothing here ever measured.
+effect on the read path would have narrowed the gap between A0c and A2; it did not narrow at all.
+**A2's gain is therefore not attributable to the `nodes_fts` duplicate-row defect, on this corpus
+and this question set.**
+
+Because that read-path fix earned nothing measurable, and the brief scoped `nodes_fts` work out
+of this run entirely "unless it blocks the measurement" — which this experiment shows it does
+not — the fix itself was reverted rather than shipped (decision D18; the revert and the final
+re-measurement on top of it are in §16). Fixing the *write*-path defect itself — `INSERT OR
+REPLACE INTO nodes_fts` still never replaces — remains out of scope and open (§12); whoever picks
+up that bug next now has a direct answer to the question this section used to leave open, on this
+corpus and this question set. The "scene" example above stays in this document as the honest
+record of what one probe did and did not show, not as evidence for a magnitude nothing here ever
+measured.
+
+**This is a correction, not a footnote.** This document originally shipped with the "scene" probe
+read as evidence for a claim it did not actually establish. The value of saying so here plainly is
+larger than the cost of admitting it: a reader can see that this run checked its own headline
+caveat against real evidence and found its first reading of that evidence wrong, before finding,
+independently, that the underlying worry does not change the verdict either way.
 
 ## 7. What else bounds these numbers
 
@@ -383,13 +409,100 @@ path, the watcher, or the CLI's freshness command. Every other module's `check` 
 `extractors`, `tree-sitter`, `mcp-server`, `report`, `visualization`, `eval`, `benchmark` — is
 green.
 
+### Re-run for close-out round 3 (decision D18)
+
+Every check above was re-run against the tree as it stands after §16's revert and this document's
+own edits, at commit `2e815afd81236f8a93e62931f47b5bcf31e04ab1` for the product code (the
+document's own commit is necessarily later, since a diff-stat and a `check` result cannot describe
+a commit that has not been made yet — the same structural point §14 already made about its own
+close-out commit).
+
+**Prohibited-file check**, re-run:
+
+```
+=== check 1: git diff --name-only main -- <named files> ===
+PASS: all named files byte-for-byte identical to main
+
+=== check 2: working-tree blob hash vs scripts/segvocab/prohibited-files-baseline.json's blobs ===
+  ok   modules/benchmark/questions/calcom.yaml
+  ok   modules/benchmark/questions/excalidraw.yaml
+  ok   modules/benchmark/questions/gin.yaml
+  ok   modules/benchmark/questions/keycloak.yaml
+  ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/corpus/IndexIntegrityGate.kt
+  ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/ExpectedFileSet.kt
+  ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RetrievalMetrics.kt
+  ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepBaselineRunner.kt
+  ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepProcess.kt
+  ok   modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval/RipgrepQueryDeriver.kt
+
+=== check 3: git diff --stat main -- modules/benchmark/src (run A's stronger line) ===
+PASS: modules/benchmark/src is byte-for-byte identical to main, and no untracked file sits there
+either (no file created, modified or removed)
+
+=== VERDICT: PASS -- all prohibitions hold against main ===
+```
+
+**Shared-corpus check**, re-run:
+
+```
+  ok   excalidraw: /tmp/claude/benchmark-corpus/excalidraw/with/.contextgraph/graph.local.db unchanged (size=27525120, mtime=1787489009)
+  ok   keycloak: /tmp/claude/benchmark-corpus/keycloak/with/.contextgraph/graph.local.db unchanged (size=1550520320, mtime=1787488612)
+
+VERDICT: PASS -- shared corpus unmodified
+```
+
+Both read the same size and mtime this entire run has recorded for the shared corpus from the
+start — unmodified across every arm, every cost measurement, and this round's revert.
+
+**Full diff against `main`, recomputed for this round** (git-tracked files only; includes this
+document's own edits and §16's two new scripts and saved probe output):
+**20 files changed, 2,782 insertions(+), 1 deletion(-)**. `SqliteStorageAdapterTest.kt` no longer
+appears in this diff at all — the de-duplication pinning case it carried in the previous round was
+the entirety of its difference from `main`, and reverting that case (§16.1) brought the file back
+to byte-identical with `main`. `SqliteStorageAdapter.kt` drops from the previous round's +320 to
++306, the same `.distinct()`-and-comment removal. `docs/identifier-segment-vocabulary.md` itself
+is now +748 against `main` (up from +440, reflecting every section added or rewritten across all
+three close-out rounds). The two new files under `scripts/segvocab/` — the synthetic-scale
+builder and the cost-measurement script — plus the saved measurement output account for the rest
+of the growth in that directory.
+
+**Full `check`**, re-run for this round with `:modules:storage-sqlite:cleanTest` forced before
+`check` (so `:modules:storage-sqlite:test` executes rather than reusing a stale `UP-TO-DATE`
+result from before the revert): **BUILD FAILED in 1 m 26 s, 56 actionable tasks (15 executed, 41
+up-to-date), exactly one failure anywhere** —
+
+```
+io.contextgraph.cli.FreshnessTest > FileWatcher: with the watcher enabled, creating a source file updates the graph with no explicit command FAILED
+    io.kotest.assertions.AssertionFailedError at FreshnessTest.kt:206
+
+20 tests completed, 1 failed
+
+> Task :modules:cli:test FAILED
+
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':modules:cli:test'.
+> There were failing tests. See the report at: file:///Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-23-145625-materialise-identifier-segments-at-index/modules/cli/build/reports/tests/test/index.html
+```
+
+The same pre-existing `FreshnessTest` FileWatcher failure as every earlier `check` in this
+document, for the same FSEvents-denial reason (previous paragraph) — nothing about this round's
+revert touches the ingest path, the watcher, or the CLI's freshness command. `:modules:storage-sqlite:test`
+executed fresh (confirmed via its test-result XML timestamps, not reused `UP-TO-DATE`) and
+reported **59/59 tests green** — one fewer than the previous round's 60, exactly the removed
+de-duplication pinning case, with `SegmentVocabularyTest` (10/10) and `SegmentCandidatesTest`
+(5/5) both still green and untouched by this round. Every other module is green.
+
 ## 12. Non-goals, unchanged
 
 - **`nodes_fts`'s duplicate-row bug itself is not fixed here.** `INSERT OR REPLACE INTO
-  nodes_fts` still never replaces, and the search index still grows on every reindex. §15 fixes
-  and ships a *read*-path countermeasure (`searchNodes` de-duplicates the ids it reads back,
-  commit `3294605`) specifically to measure whether the write-path defect was inflating A2's
-  gain — it was not, measurably (§15) — but the write-path defect that produces the duplicate
+  nodes_fts` still never replaces, and the search index still grows on every reindex. §15 built
+  and measured a *read*-path countermeasure (`searchNodes` de-duplicating the ids it reads back,
+  commit `3294605`) specifically to test whether the write-path defect was inflating A2's gain —
+  it was not, measurably (§15) — so the countermeasure itself was reverted rather than shipped
+  (§16, decision D18): it earned nothing under this run's own ship rule, and the brief's escape
+  clause for touching `nodes_fts` ("unless it blocks the measurement") never applied once the
+  measurement showed it did not block anything. The write-path defect that produces the duplicate
   rows in the first place stays open and unassigned, exactly as before.
 - **Keycloak's ContextGraph side is not unblocked.** Extending extraction to cover
   `META-INF/services/` resources would widen the denominator from 9 to 17 questions and is
@@ -403,8 +516,8 @@ green.
 
 ## 13. Reproducing a row
 
-Check out `9aa58dc` (or any arm's commit — §4, §14 and §15 name each arm's commit and dirty-file
-state inline) and run:
+Check out `9aa58dc` (or any arm's commit — §4, §14, §15 and §16 name each arm's commit and
+dirty-file state inline) and run:
 
 ```bash
 scripts/segvocab/measure-arm.sh <label>
@@ -473,9 +586,13 @@ verification block, even though that commit's hash is later than the two measure
 **One caveat on the two rows above, resolved by §15 rather than restated here:** `95cb23b`
 already contains the `nodes_fts` read-side de-duplication fix §15 describes — it was committed
 (`3294605`) before `95cb23b`, not after — so neither `a2-final` nor `a2-final-pinned` is a
-measurement of A2 *without* that fix. Both rows are correct as measurements of what ships; they
-are not, on their own, evidence about what the de-duplication fix changed. §15 is the section
-that isolates that question with its own dedicated arms.
+measurement of A2 *without* that fix. Both rows are correct as measurements of what shipped at
+that point; they are not, on their own, evidence about what the de-duplication fix changed. §15
+is the section that isolates that question with its own dedicated arms, and §16 records that the
+fix was subsequently reverted once §15's own measurement showed it earned nothing — this
+section's `SEARCH`-vs-`SCAN` and Unicode-fold fix is a separate change and is unaffected by that
+revert; both `a2-final` rows above remain valid measurements of the commits they name, they are
+simply no longer measurements of `HEAD`.
 
 ## 15. The separating experiment and the guard-removed arm (second close-out round, 2026-08-23)
 
@@ -486,14 +603,16 @@ answered here, both with a null result, and both nulls make the shipped verdict 
 less — a gain that survives removing a real confound, and a guard whose absence changes nothing,
 are both good news for the arm that ships.
 
-**The separating experiment.** `searchNodes`'s FTS branch now de-duplicates the ids it reads back
-from `nodes_fts` before mapping them to nodes (`.distinct()`, keeping the first — highest-ranked
-— occurrence of each id), committed at `3294605` and described in that commit's own message: a
-read-path countermeasure to the write-path defect in §6, kept in its own commit exactly so it
-can be isolated like this. `3294605` was committed *before* `95cb23b`, so it is already part of
-both `a2-final` rows in §14 above (the caveat immediately above this section says so) — meaning
-neither of those two rows, nor a fresh build of current `HEAD`, can show what A2 looks like
-*without* the fix. The genuinely new comparison this experiment needed is on the other side: what
+**The separating experiment.** For the duration of this experiment, `searchNodes`'s FTS branch was
+changed to de-duplicate the ids it reads back from `nodes_fts` before mapping them to nodes
+(`.distinct()`, keeping the first — highest-ranked — occurrence of each id), committed at
+`3294605` and described in that commit's own message: a read-path countermeasure to the
+write-path defect in §6, kept in its own commit exactly so it can be isolated like this (and, per
+§16, later reverted on exactly the strength of what this experiment found). `3294605` was
+committed *before* `95cb23b`, so it was already part of both `a2-final` rows in §14 above (the
+caveat immediately above this section says so) — meaning neither of those two rows, nor a build of
+`HEAD` at that point in the run, could show what A2 looked like *without* the fix. The genuinely
+new comparison this experiment needed is on the other side: what
 does the **baseline** (no segment vocabulary at all) look like with only the de-duplication patch
 applied, isolated from every other change on this branch? That state does not exist anywhere else
 in this document, so it was built for this section alone: the pinned pre-feature commit
@@ -542,12 +661,21 @@ guard, is the binding constraint on this corpus. On a corpus or question set whe
 returns a shorter page (more budget left for segment candidates), the guard could plausibly bind
 where it does not here; this run has no data on that case, and does not claim to.
 
-**Reading §1's headline against both nulls.** Neither experiment moves the ship decision: A2
-still beats A0c on MRR without losing R@5 or R@10, unconditionally, and the two mechanisms this
-close-out round measured — the duplicate-row defect's contribution, and the rarity guard's
-contribution — both come back at zero on this corpus. The gain is not a measurement artefact of
-either one. **The verdict in §1 strengthens accordingly: it ships, and neither of the two
-caveats this document carried is a live discount on that gain any more.**
+**Reading §1's headline against both nulls.** Neither experiment moves the ship decision for A2
+itself: A2 still beats A0c on MRR without losing R@5 or R@10, unconditionally, and the two
+mechanisms this close-out round measured — the duplicate-row defect's contribution, and the
+rarity guard's contribution on these nine questions — both come back at zero on this corpus. The
+gain is not a measurement artefact of either one. But a null result is still a result, and this
+run's ship rule applies to each mechanism on its own record, not just to A2 as a whole: the
+de-duplication fix earned nothing anywhere it was measured (retrieval, here) and was reverted
+rather than kept as dead code (§16, decision D18). The rarity guard also earned nothing on
+retrieval here, but — unlike the de-duplication fix — retrieval is not the only dimension a code
+change can earn its place on; §16 measures the guard on a dimension these nine questions cannot
+exercise (candidate-set size and latency at Keycloak scale) and finds it does earn something real
+there, so it stays. **The verdict in §1 for A2 strengthens accordingly: it ships, and neither of
+the two caveats this document carried is a live discount on that gain any more — and each of the
+two side-mechanisms this round checked was judged on its own measured merit, not carried along for
+free.**
 
 **Provenance, verification, and what this measurement does and does not have.** All three new
 arms' cold-index and retrieval steps ran through the unmodified rig (`scripts/segvocab/measure-arm.sh`);
@@ -560,3 +688,145 @@ tree. `a2-dedup` is an ordinary live-worktree build of a real commit already on 
 of the four arms above added, removed or reordered a query term, file path or symbol name from
 any question set — the de-duplication fix and the guard's disabling constant are both general
 code changes, not tuned to these nine questions.
+
+## 16. Close-out round 3 (decision D18): the de-duplication reverted, the rarity guard cost-tested and kept
+
+§15's two experiments both came back null on retrieval. This section acts on them: one null
+result is grounds to revert the code that produced it, the other is grounds to measure a
+dimension retrieval cannot see before deciding anything — and once that measurement ran, it
+changed the decision.
+
+### 16.1 The de-duplication fix: reverted
+
+The brief scoped `nodes_fts` work out of this run entirely, "unless it blocks the measurement."
+§15's separating experiment is the direct test of that clause: de-duplicating the FTS read path
+and re-measuring both A0c and A2, five cold cycles each, moved neither, on any metric, on any
+cycle. The escape clause never applied — the read-path fix does not block the measurement, so it
+does not belong in this run's diff. Keeping a change with no measured benefit, on any arm, on any
+dimension this document has data for, is exactly the dead code path this run's own decisions warn
+against.
+
+Reverted: `searchNodes`'s FTS branch back to plain `ids` (no `.distinct()`), the same line
+`4e341d1` already held before `3294605` added the call, plus the KDoc-style comment that
+justified it; and `SqliteStorageAdapterTest`'s "searchNodes with duplicate nodes_fts rows" case,
+which existed only to pin the reverted behaviour. **The write-path defect itself is untouched and
+stays open and unassigned** — `INSERT OR REPLACE INTO nodes_fts` still never replaces (§6, §12).
+
+### 16.2 The rarity guard: cost-tested at Keycloak scale, and kept
+
+§15 established the guard is retrieval-neutral on these nine questions. That is not the same
+question as whether it is *worthless* — the note in this run's own brief is exactly right that the
+budget (`limit - results.size`) already bounds how many candidates *return*, so the only thing the
+guard can possibly change is which candidates are *considered* before that bound applies: whether
+`segmentCandidates`' join has to walk and sort a common segment's entire posting list before
+`ORDER BY n.id LIMIT budget` trims it down, or skips that walk entirely. Excalidraw's ~5,000-row
+vocabulary is too small for that cost to be visible — this document's own KDoc-quoted numbers
+already put the scale where it matters at Keycloak's ~600K rows — and D5 caps this run at two real
+Keycloak indexes, both spent, with nothing here touching a cost column that would justify a third.
+So the measurement was built synthetically instead.
+
+**The synthetic database.** `scripts/segvocab/guard-cost-build-synthetic.py` builds a scratch
+SQLite database with the real V6 schema (`name_segment_vocab`, `WITHOUT ROWID`, PK
+`(segment, name)`; `nodes` with `idx_nodes_label`, matching `V1__init.sql`), no `ANALYZE` (grepped:
+production never runs one either), and a deliberately skewed frequency distribution instead of a
+uniform one — 600,000 `(segment, name)` rows (the same order this codebase's own
+`cachedTotalVocabNames` KDoc already cites for Keycloak scale) over ~120,000 distinct names, with
+five Java/Keycloak-flavoured segments (`service`=32,000, `get`=27,000, `config`=21,000,
+`provider`=16,000, `user`=12,500 — all comfortably over the 5% cut, which lands at 5,962 names at
+this scale) and a long tail of tens of thousands of segments reaching from a couple of hundred
+names down to a single one, the same shape this document's KDoc already reports for excalidraw at
+1/25th the scale (`element` reaching 359 of 4,764 names). One node per name (1:1) is the
+conservative floor for this measurement: it cannot make the join artificially cheaper than reality
+would by collapsing lookups onto fewer distinct labels than a real corpus has.
+
+**The measurement.** `scripts/segvocab/guard-cost-measure.py` runs the exact two queries
+`segmentCandidates` issues — the reach-count query and the `JOIN ... ORDER BY n.id LIMIT budget`
+query that actually proposes candidates — against that database, guard-on (only the terms the
+rarity filter accepts, exactly what production sends once filtering has run) vs guard-off (every
+term, unfiltered, as `SEGMENT_RARITY_MAX_FRACTION = 1.0` would produce), across five query shapes:
+a single common term alone, a realistic mix of one common term and five rare ones (at both
+`budget=5` and the `ExploreEngine.matchSymbols` ceiling of `budget=25`), a stress case of three
+common terms, and an all-rare query where the guard has nothing to catch. Timed with Python's
+`sqlite3` module (median of 25 repetitions per query, page cache warmed first) and independently
+cross-checked with `/usr/bin/sqlite3`'s own `.timer`, which agreed on direction and order of
+magnitude. Full output saved at `scripts/segvocab/guard-cost-probe.txt`.
+
+| scenario | budget | rows considered, guard OFF | rows considered, guard ON | wall-clock median, guard OFF | wall-clock median, guard ON | ratio |
+|---|---|---|---|---|---|---|
+| single common term ("get") | 5 | 27,000 | 0 (short-circuits — `acceptedTerms` empty) | 12.28 ms | 0 ms | guard drops the query entirely |
+| single common term ("get") | 25 | 27,000 | 0 | 12.02 ms | 0 ms | guard drops the query entirely |
+| mixed: 1 common + 5 rare | 5 | 27,206 | 206 | 12.54 ms | 0.122 ms | ~103× |
+| mixed: 1 common + 5 rare | 25 | 27,206 | 206 | 12.87 ms | 0.132 ms | ~97× |
+| stress: 3 common + 2 rare | 5 | 80,006 | 6 | 40.80 ms | 0.012 ms | ~3,400× |
+| all-rare (nothing to suppress) | 5 | 206 | 206 | 0.120 ms | 0.114 ms | ~identical, as expected |
+
+`EXPLAIN QUERY PLAN` is identical in shape guard-on and guard-off in every scenario —
+`SEARCH v USING PRIMARY KEY (segment=?)`, `SEARCH n USING INDEX idx_nodes_label (label=?)`,
+`USE TEMP B-TREE FOR DISTINCT` — which is itself the finding: the plan *shape* does not show the
+guard's value, because SQLite still has to fully materialise every matching row into that temp
+b-tree for `DISTINCT` + `ORDER BY n.id` before `LIMIT` can trim it, regardless of how few rows
+survive to the final result. A common segment's posting list gets walked and sorted in full even
+though only `budget` rows of it will ever be returned — exactly the cost the guard exists to skip,
+and exactly the cost no `EXPLAIN QUERY PLAN` line names directly. The all-rare scenario is the
+control: guard-on and guard-off read the identical plan, the identical row count, and the same
+wall-clock within noise, because the guard has nothing to filter there — consistent with §15's own
+finding that a natural-language query touching this guard's actual catch (a handful of
+high-frequency domain words) is the exception, not the rule.
+
+**Decision: the guard stays.** On excalidraw's nine questions it is retrieval-neutral, exactly as
+§15 measured — but at Keycloak scale, on a query containing even one common identifier sub-word,
+it is the difference between `segmentCandidates` costing a fraction of a millisecond and costing
+tens of milliseconds, and `ExploreEngine.matchSymbols` pays this once per query token. This is
+real, load-bearing latency at the scale the guard was written for, on a dimension this run's own
+nine-question retrieval instrument structurally cannot see — not because the guard is a stopword
+list (§2 item 3 already corrected that framing) but because it is what lets a common segment's
+long posting list go unwalked when there is no retrieval benefit waiting at the end of it anyway.
+No code changes as a result of this measurement: `SEGMENT_RARITY_MAX_FRACTION` and its call site
+are unchanged from what §5's cost figures and §7's caveats already describe.
+
+### 16.3 The final re-measurement
+
+§16.1 is the only code change in this round — §16.2 concluded "keep, unchanged." The revert
+landed at commit `2e815afd81236f8a93e62931f47b5bcf31e04ab1`. Re-measured with the unmodified rig,
+five cold cycles, ordinary live-worktree build:
+
+| label | commit | MRR | R@5 | R@10 | coverage | dirty | ingest | index size |
+|---|---|---|---|---|---|---|---|---|
+| `d18-final` (×5) | `2e815afd81236f8a93e62931f47b5bcf31e04ab1` | 0.5556 (all 5 cycles) | 0.3981 (all 5) | 0.4259 (all 5) | 21/21 (all 5) | 0 (all 5) | 6.65–7.19 s | 32,673,792–32,813,056 B |
+
+Identical to A2's original 0.5556 / 0.3981 / 0.4259 on every one of the five cycles — the expected
+result, since §15 already measured the de-duplication fix as retrieval-neutral on both arms
+individually, and this round's only code change is removing it; the rarity guard is unchanged.
+**The combination confirms rather than contradicts what the two pieces measured separately: no
+divergence to report.** Ingest duration and index size are not re-measured here beyond what the
+five cycles above already show in passing — this revert touches only `searchNodes`'s read path,
+not ingest, so §5's cost figures (measured at `9aa58dc`, before either the LOWER()/Unicode fix or
+this round's revert) remain the right numbers for what shipping A2 costs; nothing in this round
+changes them.
+
+### 16.4 The three findings from this close-out, together
+
+Each of these is a result in its own right, not an absence of one:
+
+1. **The de-duplication null.** De-duplicating the FTS read path changed nothing, on either A0c
+   or A2, across ten cold cycles (§15) — so the fix was reverted (§16.1) rather than kept as code
+   with no measured benefit.
+2. **The rarity-guard finding.** Disabling the guard changed nothing on these nine questions
+   (§15) — but at Keycloak scale it saves real wall-clock, up to ~3,400× on `segmentCandidates`'
+   own join query when a query term is a common identifier sub-word (§16.2). Both halves are true
+   at once: retrieval-neutral here, cost-relevant at scale. The guard stays.
+3. **The A0 = A0c identity.** As-found and cold baselines were identical on all three retrieval
+   metrics (§4) — which contradicts the brief's own assumption that duplicate-row growth in a
+   stale, as-found index would move these questions' scores. It does not, on this corpus and this
+   question set.
+
+### 16.5 Verification for this round
+
+`scripts/segvocab/check-shared-corpus-unmodified.sh` passed after every one of the five
+`d18-final` cycles. `scripts/segvocab/guard-cost-build-synthetic.py` and
+`scripts/segvocab/guard-cost-measure.py` never touch `/tmp/claude/benchmark-corpus` or any
+tracked corpus — both read and write only a throwaway database under `/tmp/claude/segvocab-run/`,
+outside this rig's own private-root convention only because they measure a schema shape, not a
+real index. §11 above (the run's full `check`, prohibition check, and shared-corpus check) was
+re-run after this round's own commits and reflects this round's product-code and test changes;
+its verbatim output is current as of the commit named there.
