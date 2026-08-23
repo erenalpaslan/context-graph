@@ -232,4 +232,18 @@ constants can be read on their own to check that claim. The one place where a ge
 corpus coincide is `dev-docs/`, which is caught because `dev-docs` splits to the word `docs`, not
 because it is named anywhere.
 
-**No new Gradle dependency**; `./gradlew check` passes, and no benchmark task is wired into it.
+**No new Gradle dependency.**
+
+**`./gradlew check`: one failure, pre-existing and unrelated — and it does not pass in this
+environment.** Stated plainly rather than rounded up. The whole of `check` is green except
+`FreshnessTest > FileWatcher: with the watcher enabled, creating a source file updates the graph
+with no explicit command`, which waits fifteen seconds for a `java.nio.file.WatchService` event
+after writing a file. It fails identically with `main`'s sources checked out over this same
+worktree, which is how it was established to be pre-existing rather than caused by this change --
+and nothing in this change touches the ingest path, the watcher, or the CLI. The plausible cause is
+this machine: macOS's `WatchService` is a poller, and two other Gradle builds plus a concurrent
+re-indexing run were competing for it throughout. That is a hypothesis, not a diagnosis; what was
+actually established is only that the failure predates this branch.
+
+No benchmark task is pulled into `check` -- verified, not assumed: no `runRetrieval`,
+`prepareCorpus`, `runBenchmark` or kappa task appears in the task list of either full `check` run.
