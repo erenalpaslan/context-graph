@@ -7,14 +7,22 @@
 #   1. `git diff --name-only <base> --` over the six named harness files and the question YAML
 #      files is empty (run A's check, reused).
 #   2. Every one of those same files' current blob hash (git hash-object, working tree)
-#      matches the hash recorded in capabilities.json's prohibitedFilesBaseline.blobs --
-#      i.e. before-any-code-was-written, not re-derived from `git diff` at review time.
-#      Catches the case git diff would miss: a staged-then-unstaged edit, or a checkout of a
-#      *different* commit that happens to carry the same paths unchanged relative to that
-#      commit but not relative to the true starting point.
+#      matches the hash recorded before-any-code-was-written, not re-derived from `git diff`
+#      at review time. Catches the case git diff would miss: a staged-then-unstaged edit, or
+#      a checkout of a *different* commit that happens to carry the same paths unchanged
+#      relative to that commit but not relative to the true starting point.
 #   3. `git diff --stat <base> -- modules/benchmark/src` is empty -- run A's stronger,
 #      self-imposed line: nothing under modules/benchmark/src at all, not just the eight
 #      specifically-named files.
+#
+# Check 2's baseline lives in this directory's own prohibited-files-baseline.json, tracked by
+# git -- not in .harness/runs/<id>/capabilities.json, which the run that wrote it also
+# recorded the same ten hashes into (as prohibitedFilesBaseline.blobs) but which is gitignored
+# (.harness/runs/**) and so does not survive that run directory being cleaned up. A checker
+# whose one non-trivial check silently starts hard-FAILing the day someone tidies up an old
+# run directory is not a checker anyone but the run that wrote it can trust; committing the
+# same ten (path, blob-sha) pairs here is what makes this script work for a reader who is not
+# us, on a fresh clone, indefinitely.
 #
 # Usage: check-prohibited.sh [base-revision]   (default: main)
 set -eu
@@ -22,15 +30,15 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
 . "$SCRIPT_DIR/lib.sh"
 
 BASE=${1:-main}
-CAPABILITIES_JSON="/Users/erenalpaslan/Projects/context-graph/.harness/runs/2026-08-23-145625-materialise-identifier-segments-at-index/capabilities.json"
+BASELINE_JSON="$SCRIPT_DIR/prohibited-files-baseline.json"
 
 cd "$SEGVOCAB_REPO_ROOT"
 
 R=modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/retrieval
 C=modules/benchmark/src/main/kotlin/io/contextgraph/benchmark/corpus
 
-# The six named harness files + the question YAMLs (D-list from capabilities.json's
-# prohibitedFilesBaseline.blobs, gin/calcom included even though never prepared -- their
+# The six named harness files + the question YAMLs (same ten paths as this directory's own
+# prohibited-files-baseline.json, gin/calcom included even though never prepared -- their
 # YAMLs are still a named prohibited path).
 NAMED_FILES="
 $R/RetrievalMetrics.kt
@@ -58,21 +66,25 @@ else
 fi
 echo
 
-echo "=== check 2: working-tree blob hash vs capabilities.json's prohibitedFilesBaseline.blobs ==="
-if [ ! -f "$CAPABILITIES_JSON" ]; then
-    echo "FAIL: capabilities.json not found at $CAPABILITIES_JSON -- cannot verify the pre-edit baseline"
-    PASS=0
+echo "=== check 2: working-tree blob hash vs $BASELINE_JSON's blobs ==="
+if [ ! -f "$BASELINE_JSON" ]; then
+    # Absent, not wrong: a checked-out tree missing this tracked file is a checkout problem,
+    # not evidence of a prohibited-file edit -- checks 1 and 3 above still ran and still hold
+    # the line on their own. SKIP rather than FAIL so a missing baseline (this file deleted,
+    # or run against some other tree that never had it) is reported as exactly what it is,
+    # not conflated with a genuine violation.
+    echo "SKIP: $BASELINE_JSON not found -- cannot verify the pre-edit baseline (checks 1 and 3 above are unaffected)"
 else
     BASELINE=$(python3 -c "
 import json, sys
-with open('$CAPABILITIES_JSON') as f:
+with open('$BASELINE_JSON') as f:
     d = json.load(f)
-blobs = d.get('prohibitedFilesBaseline', {}).get('blobs', {})
+blobs = d.get('blobs', {})
 for path, sha in sorted(blobs.items()):
     print(f'{path}\t{sha}')
 ")
     if [ -z "$BASELINE" ]; then
-        echo "FAIL: capabilities.json has no prohibitedFilesBaseline.blobs entries"
+        echo "FAIL: $BASELINE_JSON has no blobs entries"
         PASS=0
     else
         echo "$BASELINE" | while IFS="$(printf '\t')" read -r path expected_sha; do
