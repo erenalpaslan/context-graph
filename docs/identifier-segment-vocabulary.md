@@ -320,15 +320,24 @@ VERDICT: PASS -- shared corpus unmodified
 **No new Gradle dependency.** `git diff main -- '**/build.gradle.kts' build.gradle.kts
 settings.gradle.kts` against this branch's tip is empty — no build script changed at all.
 
-**Full diff against `main`**: 17 files, 1,685 insertions, 1 deletion — `core/NodeType.kt` (+18,
-the file-type predicate AC-7 needs), a matching `NodeTypeTest.kt` (+21), `SqliteStorageAdapter.kt`
-(+180, the write and read paths), the `V6__name_segment_vocab.sql` migration (+30), two new test
-files (`SegmentCandidatesTest.kt` +195, `SegmentVocabularyTest.kt` +251), and the measurement rig
-itself under `scripts/segvocab/` (+991, this document's instrument, outside `modules/benchmark/`
-entirely). Nothing under `modules/benchmark/src` differs from `main` at all (confirmed above).
+**Full diff against `main`** (recomputed after this document's own close-out edits, so it
+includes itself): **21 files, 2,461 insertions, 2 deletions** — `core/NodeType.kt` (+18, the
+file-type predicate AC-7 needs), a matching `NodeTypeTest.kt` (+21), `SqliteStorageAdapter.kt`
+(+320, the write and read paths plus the close-out rework's SEARCH-vs-SCAN and Unicode-fold
+fixes), the `V6__name_segment_vocab.sql` migration (+34), `SqliteStorageAdapterTest.kt` (+18, the
+`nodes_fts` read-side de-duplication case added during this close-out window),
+`SegmentCandidatesTest.kt` (+235) and `SegmentVocabularyTest.kt` (+255, the two dedicated test
+files), this document itself (+440, all thirteen original sections plus §14), and the measurement
+rig under `scripts/segvocab/` (13 files, +1,122 — including this close-out's own
+`prohibited-files-baseline.json` and the probe re-run's saved output,
+`probe-a2-scene.txt`). Nothing under `modules/benchmark/src` differs from `main` at all
+(confirmed above).
 
-**Full `check`** (`--continue check`, all 13 modules, 55 actionable tasks: 13 executed, 42
-up-to-date): **BUILD FAILED in 3 m 43 s, exactly one failure anywhere** —
+**Full `check`**, re-run for this close-out rework with `:modules:storage-sqlite:test` and
+`:modules:cli:test` forced to actually execute (`cleanTest` first) rather than reused
+`UP-TO-DATE` from an earlier invocation (`--continue check`, all 13 modules, 55 actionable tasks:
+2 executed, 53 up-to-date once the forced two had already run): **BUILD FAILED in 46 s, exactly
+one failure anywhere** —
 
 ```
 io.contextgraph.cli.FreshnessTest > FileWatcher: with the watcher enabled, creating a source file updates the graph with no explicit command FAILED
@@ -339,8 +348,19 @@ io.contextgraph.cli.FreshnessTest > FileWatcher: with the watcher enabled, creat
 FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':modules:cli:test'.
-> There were failing tests. See the report at: file://.../modules/cli/build/reports/tests/test/index.html
+> There were failing tests. See the report at: file:///Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-23-145625-materialise-identifier-segments-at-index/modules/cli/build/reports/tests/test/index.html
 ```
+
+`:modules:storage-sqlite:test` executed (not `UP-TO-DATE`) and reported all 60 tests green,
+including `SegmentVocabularyTest` (10/10) and `SegmentCandidatesTest` (5/5, the new non-ASCII
+reachability case among them). A first attempt at this same re-run, before this forcing, hit a
+second, spurious `FreshnessTest` failure
+(`ReindexPrimitive: two triggers firing close together...`, a Flyway `ZipException` reading a
+JAR mid-write) caused by a concurrent build in this same shared, live worktree — re-running that
+one test alone, and then the full `check` again once the concurrent build had cleared, both came
+back with only the one pre-existing failure below. Not counted as a finding; recorded here
+because it is the same class of interference this section's own build-worktree workaround (§14)
+exists to route around, and a reader re-running `check` on a busy host might see it too.
 
 **Pre-existing, not caused by this change.** `FreshnessTest`'s `FileWatcher` case waits for a
 `java.nio.file.WatchService` event after writing a file; this sandbox denies the FSEvents stream
