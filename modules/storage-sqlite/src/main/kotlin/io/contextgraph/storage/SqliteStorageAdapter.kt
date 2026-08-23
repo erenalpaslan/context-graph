@@ -13,6 +13,7 @@ import io.contextgraph.core.Provenance
 import io.contextgraph.core.StorageAdapter
 import io.contextgraph.core.EdgeType
 import io.contextgraph.core.UnresolvedReference
+import io.contextgraph.storage.migration.V7__Rebuild_nodes_fts_row_keying
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
@@ -104,7 +105,7 @@ object UnresolvedReferencesTable : Table("unresolved_references") {
 }
 
 /**
- * How many nodes share one `INSERT OR REPLACE INTO nodes_fts` statement.
+ * How many nodes share one `nodes_fts` write statement.
  *
  * `nodes_fts` is an FTS5 virtual table, which Exposed cannot describe, so its rows go in as
  * literal SQL text rather than through a prepared statement -- and one statement per node was
@@ -176,6 +177,10 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         Flyway.configure()
             .dataSource(jdbcUrl, "", "")
             .locations("classpath:db/migration")
+            // Registered by instance rather than found by classpath scanning: a repair that
+            // silently fails to be discovered in a packaged distribution is worse than one
+            // that fails loudly. See the class for what it repairs and why re-indexing cannot.
+            .javaMigrations(V7__Rebuild_nodes_fts_row_keying())
             .load()
             .migrate()
         logger.info { "Database migrations applied at $dbPath" }
@@ -203,6 +208,13 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             .selectAll().where { ProvenanceTable.artifactId eq artifactId.value }
             .map { it[ProvenanceTable.entityId] }
             .distinct()
+
+        // Search rows first, while the node rows they are keyed on still exist. `nodes_fts`
+        // rows carry their node's own `nodes.rowid` (see [writeFtsRows]), and that key is only
+        // resolvable from `nodes` -- once the node row is gone there is nothing left to find
+        // its search row by, and it would survive as an orphan no query could ever reach.
+        // Before this ordering existed, nothing deleted from `nodes_fts` at all.
+        deleteFtsRows(nodeIds)
 
         // `calls` edges are pass 2's, not pass 1's: io.contextgraph.ingest.ReferenceResolver
         // owns their entire lifecycle, wiping and recomputing the complete set from the
@@ -234,9 +246,7 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             it[confidence] = node.confidence
         }
 
-        try {
-            exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES ('${sqlQuote(node.id.value)}', '${sqlQuote(ftsLabelFor(node.label))}', '${sqlQuote(propsJson)}')")
-        } catch (_: Exception) {}
+        writeFtsRows(listOf(node), mapOf(node.id.value to propsJson))
 
         writeSegmentVocab(listOf(node))
     }
@@ -339,16 +349,7 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 }
             }
 
-            // Same rows, same escaping, same INSERT OR REPLACE as the single-node path --
-            // only grouped, so one prepare serves a whole chunk instead of one per node.
-            nodes.chunked(FTS_CHUNK_SIZE).forEach { chunk ->
-                val values = chunk.joinToString(",") { node ->
-                    "('${sqlQuote(node.id.value)}','${sqlQuote(ftsLabelFor(node.label))}','${sqlQuote(propsById.getValue(node.id.value))}')"
-                }
-                try {
-                    exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES $values")
-                } catch (_: Exception) {}
-            }
+            writeFtsRows(nodes, propsById)
 
             writeSegmentVocab(nodes)
         }
@@ -590,19 +591,86 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     } catch (_: Exception) { "{}" }
 
     /**
-     * What goes in `nodes_fts.label` for a node labelled [label].
+     * Writes one `nodes_fts` row per node in [nodes], keyed on that node's own `nodes` rowid,
+     * so re-writing a node **replaces** its search row instead of adding another one.
      *
-     * `nodes_fts` is a search index, not a source of truth -- the real label lives in
-     * `nodes`, untouched. FTS5's default tokenizer only splits on non-alphanumeric
-     * characters, so a compound identifier with no separator (camelCase, acronym runs,
-     * digit-adjacent words -- e.g. "RungDistribution") is indexed as a single token and
-     * cannot be found by any of its component words. Appending the split components
-     * alongside the original lets a search for "rung" or "distribution" retrieve
-     * "RungDistribution" without changing what is displayed or stored as truth.
+     * **Read this before changing the statement below.** `nodes_fts` is
+     * `fts5(id UNINDEXED, label, properties)`, and `UNINDEXED` means "not searchable", *not*
+     * "unique". This table has no unique index on `id` -- FTS5 offers no way to declare one --
+     * so the `INSERT OR REPLACE ... VALUES` this function replaced had nothing to conflict
+     * against and therefore never replaced anything: every re-upsert of a node appended
+     * another search row, one node could occupy several ranks of the same result set, and
+     * nothing anywhere ever deleted one. Measured on excalidraw before this fix: 10,602
+     * search rows against 10,383 nodes after one cold index, 10,608 after a second.
+     * `V6__name_segment_vocab.sql`'s header describes the same defect from the other side --
+     * that table could use `INSERT OR IGNORE` precisely because it has a real primary key.
+     *
+     * The one key FTS5 *does* enforce is its rowid, so that is what this uses. The rowid comes
+     * from the node's own row in `nodes` (`id` is a `TEXT PRIMARY KEY`, so its rowid is a 1:1
+     * key for the node), read in the same statement through a join rather than by a separate
+     * lookup pass -- which keeps this one prepared statement per chunk, the property that made
+     * grouped FTS writes worth doing at all (see [FTS_CHUNK_SIZE]). Three consequences fall
+     * out of that join, all of them wanted:
+     *
+     *  - a node written twice occupies one row, carrying the later value, with the superseded
+     *    value's terms removed from the index rather than merely shadowed;
+     *  - a row can only exist for a node that exists in `nodes`, because the join is what
+     *    supplies its key -- so this can never invent a search row for a node that was never
+     *    stored;
+     *  - `COUNT(*)` of the two tables agree, which is the invariant the double-index test
+     *    asserts and the one this defect broke.
+     *
+     * The invariant it rests on is that a node's rowid is stable while the node is: SQLite
+     * only renumbers the rowids of a table whose primary key is not `INTEGER PRIMARY KEY`
+     * during `VACUUM`, and nothing in this project runs one. [deleteFtsRows] covers the other
+     * direction -- a node deleted and later re-inserted gets a *new* rowid, so its old search
+     * row has to go with the node rather than be left behind.
+     *
+     * A failure is logged rather than swallowed, for the reason [writeSegmentVocab] gives for
+     * doing the same: the bare `catch (_: Exception) {}` this replaced is exactly what let a
+     * silently misbehaving search index look like a working one for three runs.
      */
-    private fun ftsLabelFor(label: String): String {
-        val words = IdentifierSplitter.split(label)
-        return if (words.size > 1) (listOf(label) + words).joinToString(" ") else label
+    private fun Transaction.writeFtsRows(nodes: Collection<GraphNode>, propsById: Map<String, String>) {
+        nodes.chunked(FTS_CHUNK_SIZE).forEach { chunk ->
+            val values = chunk.joinToString(",") { node ->
+                "('${sqlQuote(node.id.value)}','${sqlQuote(FtsIndexText.labelFor(node.label))}','${sqlQuote(propsById.getValue(node.id.value))}')"
+            }
+            try {
+                // SQLite names an inline VALUES table's columns column1, column2, ... -- there
+                // is no `AS v(id, label, properties)` alias list in its grammar.
+                exec(
+                    "INSERT OR REPLACE INTO nodes_fts(rowid, id, label, properties) " +
+                        "SELECT n.rowid, v.column1, v.column2, v.column3 " +
+                        "FROM (VALUES $values) v JOIN nodes n ON n.id = v.column1"
+                )
+            } catch (e: Exception) {
+                logger.warn(e) { "nodes_fts write failed for a chunk of ${chunk.size} node(s); first id='${chunk.firstOrNull()?.id?.value}'" }
+            }
+        }
+    }
+
+    /**
+     * Removes the `nodes_fts` rows belonging to [nodeIds]. Must run *before* those nodes leave
+     * `nodes`, since their search rows are keyed on `nodes.rowid` and that key is only
+     * resolvable through `nodes`.
+     *
+     * Deleting by rowid rather than by `id` is not a micro-optimisation. `id` is `UNINDEXED`,
+     * so `DELETE FROM nodes_fts WHERE id IN (...)` plans as `SCAN nodes_fts VIRTUAL TABLE
+     * INDEX 0:` -- a full scan of the search index per statement, which over a chunked reindex
+     * of a repository the size of Keycloak is quadratic. Keyed on rowid the same delete plans
+     * as `INDEX 0:=`, a lookup, with the `id -> rowid` step served by `nodes`' own primary-key
+     * index.
+     */
+    private fun Transaction.deleteFtsRows(nodeIds: Collection<String>) {
+        if (nodeIds.isEmpty()) return
+        nodeIds.chunked(PROVENANCE_LOOKUP_CHUNK).forEach { chunk ->
+            val inList = chunk.joinToString(",") { "'${sqlQuote(it)}'" }
+            try {
+                exec("DELETE FROM nodes_fts WHERE rowid IN (SELECT rowid FROM nodes WHERE id IN ($inList))")
+            } catch (e: Exception) {
+                logger.warn(e) { "nodes_fts delete failed for a chunk of ${chunk.size} node(s); first id='${chunk.firstOrNull()}'" }
+            }
+        }
     }
 
     /**
@@ -636,9 +704,11 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
      *
      * `INSERT OR IGNORE` against the table's real `(segment, name)` primary key (see
      * `V6__name_segment_vocab.sql`) is what makes re-running this over an unchanged project
-     * leave the row count identical -- unlike `nodes_fts`'s `INSERT OR REPLACE` above, which
-     * never replaces because FTS5 gives that table no unique index for the conflict clause to
-     * target.
+     * leave the row count identical. `nodes_fts` reaches the same property by a different
+     * route, because FTS5 gives it no unique index a conflict clause could target: its writes
+     * are keyed on the node's `nodes` rowid instead (see [writeFtsRows], and note that
+     * `V6`'s own header still describes the defect that keying fixed, since an applied
+     * migration's text cannot be edited without breaking Flyway's checksum validation).
      *
      * A `Transaction` extension, like `exec` itself, so it can only be called from inside an
      * open `transaction { }` block -- the same one already wrapping every call site below --
