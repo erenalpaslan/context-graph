@@ -1,7 +1,9 @@
 package io.contextgraph.query
 
 import io.contextgraph.core.GraphNode
+import io.contextgraph.core.IdentifierSplitter
 import io.contextgraph.core.NodeId
+import io.contextgraph.core.NodeType
 
 /**
  * How relevant a candidate is **to the query** -- the term [ContextBundler] adds to the graph's
@@ -24,14 +26,19 @@ import io.contextgraph.core.NodeId
  * exactly as it did before any of this existed.
  */
 class QueryRelevance private constructor(
+    private val words: List<String>,
     private val seedRelevance: Map<NodeId, Double>
 ) {
+
+    private val asksAboutDocumentation = words.any { it in DOCUMENTATION_QUERY_WORDS }
+    private val asksAboutTests = words.any { it in TEST_QUERY_WORDS }
 
     /**
      * Points for [node], whose file is [path] (null when the node has no provenance -- a real
      * state, not an error, and every path-derived term simply does not fire for it).
      */
-    fun score(node: GraphNode, path: String?): Double = searchHitPoints(node)
+    fun score(node: GraphNode, path: String?): Double =
+        searchHitPoints(node) + deprioritisationPoints(node, path)
 
     /**
      * What the search layer already knew and the sort used to throw away: this candidate's place
@@ -43,6 +50,23 @@ class QueryRelevance private constructor(
      */
     private fun searchHitPoints(node: GraphNode): Double =
         SEARCH_HIT_POINTS * (seedRelevance[node.id] ?: 0.0)
+
+    /**
+     * A penalty for candidates whose file is documentation or a test, waived when the query is
+     * asking about exactly that.
+     *
+     * Documentation is the densest cluster in most repositories, which is why PageRank on the
+     * induced subgraph kept promoting it: over a third of the ten best slots went to prose that
+     * could not answer a question about how code behaves. A question about *the documentation*
+     * exists too, though, and for it the same files are the answer -- so this is a de-prioritisation
+     * with a waiver, not a filter. Nothing is ever removed from the candidate set here.
+     */
+    private fun deprioritisationPoints(node: GraphNode, path: String?): Double {
+        var points = 0.0
+        if (!asksAboutDocumentation && isDocumentation(node, path)) points -= DEPRIORITISED_POINTS
+        if (!asksAboutTests && isTest(node, path)) points -= DEPRIORITISED_POINTS
+        return points
+    }
 
     companion object {
 
@@ -65,10 +89,72 @@ class QueryRelevance private constructor(
         fun of(queryText: String, seedsInRankOrder: List<NodeId>): QueryRelevance {
             val n = seedsInRankOrder.size
             return QueryRelevance(
+                words = IdentifierSplitter.split(queryText).map { it.lowercase() }.distinct(),
                 seedRelevance = seedsInRankOrder
                     .mapIndexed { i, id -> id to (n - i).toDouble() / n }
                     .toMap()
             )
         }
     }
+}
+
+/**
+ * The de-prioritisation, in points. CodeGraph's constant, adopted rather than invented: large
+ * enough to sink a documentation file past the code around it, small enough that a documentation
+ * file which is genuinely the best search hit (40) still outranks a mediocre one.
+ */
+private const val DEPRIORITISED_POINTS = 15.0
+
+private val DOCUMENTATION_QUERY_WORDS = setOf("doc", "docs", "documentation", "readme", "changelog")
+private val TEST_QUERY_WORDS = setOf("test", "tests", "testing", "spec", "specs", "fixture", "fixtures")
+
+/** Prose formats. A file in one of these is written for a reader, not for a compiler. */
+private val PROSE_EXTENSIONS = setOf("md", "mdx", "markdown", "rst", "adoc", "asciidoc", "txt")
+
+/**
+ * Words that make a directory a documentation directory. Matched against the *words* of a path
+ * segment rather than the segment itself, which is what makes `dev-docs`, `developer-docs` and
+ * `api_documentation` fall out of one general rule instead of a list of the directory names some
+ * particular repository happens to use.
+ */
+private val DOCUMENTATION_DIRECTORY_WORDS = setOf("doc", "docs", "documentation")
+
+/** Directory words that make a directory a test directory, across several ecosystems' conventions. */
+private val TEST_DIRECTORY_WORDS = setOf("test", "tests", "spec", "specs", "testing", "fixtures", "mocks")
+
+/**
+ * Words that make a *filename* a test's, checked as whole words of the identifier -- `FooTest`,
+ * `foo.test.ts`, `test_foo.py`, `FooSpec` -- so that `latest.ts`, whose last four letters spell
+ * one of them, is not mistaken for one.
+ */
+private val TEST_FILENAME_WORDS = setOf("test", "tests", "spec", "specs")
+
+/** Artefact types the indexer has already classified as prose. */
+private val DOCUMENTATION_NODE_TYPES =
+    setOf(NodeType.MarkdownFile, NodeType.Document, NodeType.PDF, NodeType.ResearchPaper)
+
+private fun isDocumentation(node: GraphNode, path: String?): Boolean {
+    if (node.type in DOCUMENTATION_NODE_TYPES) return true
+    if (path == null) return false
+    val segments = path.split('/').filter { it.isNotEmpty() }
+    if (segments.isEmpty()) return false
+    if (segments.last().substringAfterLast('.', "").lowercase() in PROSE_EXTENSIONS) return true
+    return segments.dropLast(1).any { segment ->
+        IdentifierSplitter.split(segment).any { it.lowercase() in DOCUMENTATION_DIRECTORY_WORDS }
+    }
+}
+
+private fun isTest(node: GraphNode, path: String?): Boolean {
+    if (node.type == NodeType.TestFile) return true
+    if (path == null) return false
+    val segments = path.split('/').filter { it.isNotEmpty() }
+    if (segments.isEmpty()) return false
+    val inTestDirectory = segments.dropLast(1).any { segment ->
+        IdentifierSplitter.split(segment).any { it.lowercase() in TEST_DIRECTORY_WORDS }
+    }
+    if (inTestDirectory) return true
+    // First or last word only: `TestHarness` and `CartTest` are tests, `ContestEntry` is not, and
+    // a word buried mid-identifier (`RequestTestimonial`) is not evidence either.
+    val words = IdentifierSplitter.split(segments.last().substringBeforeLast('.')).map { it.lowercase() }
+    return words.isNotEmpty() && (words.first() in TEST_FILENAME_WORDS || words.last() in TEST_FILENAME_WORDS)
 }
