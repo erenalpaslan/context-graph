@@ -31,7 +31,8 @@ class QueryRelevanceTest : FunSpec({
 
             r.score(first, null) shouldBeGreaterThan r.score(last, null)
             r.score(last, null) shouldBeGreaterThan r.score(neighbour, null)
-            r.score(neighbour, null) shouldBe 0.0
+            // The neighbour keeps whatever its kind is worth and gains nothing for existing.
+            r.score(neighbour, null) shouldBe relevance("anything").score(neighbour, null)
         }
     }
 
@@ -40,14 +41,40 @@ class QueryRelevanceTest : FunSpec({
             // CodeGraph awards 60 here -- more than the best full-text hit's 40 -- and on a
             // question asked in prose that is a coincidence detector rather than a match:
             // measured, MRR 0.4259 -> 0.3000 with the tier in. See the note in QueryRelevance.kt.
-            relevance("how does the cart decide which items to keep").score(node("Cart"), null) shouldBe 0.0
+            val r = relevance("how does the cart decide which items to keep")
+            r.score(node("Cart"), null) shouldBe r.score(node("Unrelated"), null)
         }
 
         test("nor does a name the query is a prefix or substring of") {
-            relevance("cart").score(node("CartService"), null) shouldBe 0.0
-            relevance("cartservice").score(node("CartService"), null) shouldBe 0.0
+            relevance("cart").score(node("CartService"), null) shouldBe
+                relevance("cart").score(node("Unrelated"), null)
+            relevance("cartservice").score(node("CartService"), null) shouldBe
+                relevance("cartservice").score(node("Unrelated"), null)
         }
 
+    }
+
+    context("the kind ladder") {
+        val r = relevance("anything at all")
+
+        test("behaviour ranks above structure, structure above containers, containers above files") {
+            val function = r.score(node("X", NodeType.Function), null)
+            val klass = r.score(node("X", NodeType.Class), null)
+            val module = r.score(node("X", NodeType.Module), null)
+            val file = r.score(node("X", NodeType.CodeFile), null)
+
+            function shouldBeGreaterThan klass
+            klass shouldBeGreaterThan module
+            module shouldBeGreaterThan file
+        }
+
+        test("a file node gets nothing from its kind -- exactly zero, not merely little") {
+            r.score(node("X", NodeType.CodeFile), null) shouldBe 0.0
+        }
+
+        test("a node type nobody anticipated gets nothing rather than an accidental rung") {
+            r.score(node("X", NodeType.Custom("SomethingNew")), null) shouldBe 0.0
+        }
     }
 
     // Every comparison in this block holds the label fixed and varies only the file, so it is the
