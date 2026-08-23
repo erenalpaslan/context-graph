@@ -352,6 +352,18 @@ Measured but not acted on, with the numbers that would justify acting.
    reindex — exactly the six module nodes re-upserted. Pre-existing, on both the single-row and
    the bulk path. It is the search layer, so it belongs to the concurrent retrieval run rather
    than this one, but it means the search index grows without bound across reindexes.
+
+   **Fixed since, and re-measured: see `docs/nodes-fts-one-row-per-node.md`.** Search rows are
+   now keyed on `nodes.rowid`, which is the one key FTS5 does enforce; excalidraw reads 10,383
+   against 10,383 and no longer grows on reindex, and databases built before the fix repair
+   themselves on the next open. Two findings there bear on this document in particular: fixing
+   it changed **no** retrieval metric (so the duplicates were carrying no information the
+   surviving rows were not), and it recovered essentially **no space** — 0.013% on Keycloak,
+   within noise on excalidraw. If the size question in this section is what interests you, the
+   number that matters is the one that document measures instead: `nodes_fts`'s *content* shadow
+   table, the copy of `id`/`label`/`properties` that `nodes` already holds, is 4.42% of the
+   Keycloak index and 6.37% of excalidraw's — which is what an external-content or contentless
+   FTS5 table would actually reclaim, and it is still on the table.
 2. **Edge storage is 56% of the Keycloak index.** `edges` 407 MB, its shadow primary-key index
    `sqlite_autoindex_edges_1` 238 MB, `idx_edges_source` 111 MB, `idx_edges_target` 108 MB. The
    mean `edges.id` is **279 characters**, because an id is the literal concatenation of a type

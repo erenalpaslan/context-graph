@@ -183,6 +183,14 @@ this measurement, and again after the deletion — the shared corpus at
 
 ## 6. Corrected: the duplicate-row defect is real, but A2's gain does not depend on it
 
+> **Later note (2026-08-24).** The write-path defect this section describes as open has since
+> been fixed — search rows are now keyed on `nodes.rowid` — and the conclusion below was put to
+> the direct test this section could not run: a cold-indexed before/after, five cycles per arm,
+> on an index that genuinely holds one row per node. **MRR, R@5 and R@10 did not move at all**
+> (0.5556 / 0.3981 / 0.4259 on every cycle of both arms). This section's verdict is confirmed
+> from the write path, not just the read path. See `docs/nodes-fts-one-row-per-node.md`. The
+> text below is left exactly as it shipped.
+
 An earlier version of this document credited part of A2's gain to a defect this section names:
 `INSERT OR REPLACE INTO nodes_fts` never actually replaces, because `nodes_fts` is FTS5 with `id
 UNINDEXED` and therefore has no unique index for a conflict clause to target. Every re-upsert of
@@ -500,8 +508,13 @@ de-duplication pinning case, with `SegmentVocabularyTest` (10/10) and `SegmentCa
 
 ## 12. Non-goals, unchanged
 
-- **`nodes_fts`'s duplicate-row bug itself is not fixed here.** `INSERT OR REPLACE INTO
-  nodes_fts` still never replaces, and the search index still grows on every reindex. §15 built
+- **`nodes_fts`'s duplicate-row bug itself is not fixed here.** *(Fixed by a later run —
+  `docs/nodes-fts-one-row-per-node.md`. The paragraph below describes the state as it stood when
+  this document shipped, and is left as written; its verdict is confirmed there, not overturned:
+  a cold-indexed before/after over five cycles per arm moved MRR, R@5 and R@10 by nothing at
+  all, which is the same null this section's §15 reached from the read path.)* `INSERT OR
+  REPLACE INTO nodes_fts` still never replaces, and the search index still grows on every
+  reindex. §15 built
   and measured a *read*-path countermeasure (`searchNodes` de-duplicating the ids it reads back,
   commit `3294605`) specifically to test whether the write-path defect was inflating A2's gain —
   it was not, measurably (§15) — so the countermeasure itself was reverted rather than shipped
