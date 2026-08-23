@@ -15,9 +15,9 @@ import io.contextgraph.core.NodeType
  * cross-linked -- in most repositories, the documentation. The measured cost was 35.6% of the top
  * ten going to files that could not be the answer.
  *
- * Scores are points, on the scale CodeGraph publishes for the same job (an exact name match is
- * worth 80, a filename hit 10, a documentation file -15), because those constants are known to
- * work on one real corpus and are a more honest starting point than numbers invented here. They
+ * Scores are points, on the scale CodeGraph publishes for the same job (a filename hit is worth 10,
+ * a documentation file -15), because those constants are known to work on one real corpus and are a
+ * more honest starting point than numbers invented here. They
  * are deliberately far larger than `pageRank * confidence`, which sums to 1.0 across the whole
  * candidate set and is therefore ~1e-3 per node: the graph term survives as the tie-breaker among
  * candidates the query cannot tell apart, and is dominated wherever the query can tell them apart.
@@ -26,12 +26,9 @@ import io.contextgraph.core.NodeType
  * exactly as it did before any of this existed.
  */
 class QueryRelevance private constructor(
-    private val queryText: String,
     private val words: List<String>,
     private val seedRelevance: Map<NodeId, Double>
 ) {
-
-    private val queryLower = queryText.trim().lowercase()
 
     private val asksAboutDocumentation = words.any { it in DOCUMENTATION_QUERY_WORDS }
     private val asksAboutTests = words.any { it in TEST_QUERY_WORDS }
@@ -107,11 +104,12 @@ class QueryRelevance private constructor(
         /**
          * Points for the best search hit, decaying to `SEARCH_HIT_POINTS / n` for the last of n.
          *
-         * Set to half of an exact name match (80, the top tier of the name ladder) and chosen before
-         * any number was measured, for one reason that is worth being able to check later: a
-         * candidate whose name *is* what was asked for should be able to outrank a candidate that
-         * was merely the tenth-best full-text hit, while a search hit should still comfortably
-         * outrank a candidate carrying nothing but a query word buried in its path (3).
+         * The one constant here with no CodeGraph counterpart, so its reasoning is recorded rather
+         * than its provenance -- and it was fixed before anything was measured, never adjusted
+         * afterwards. Half of what an exact name match is worth on their scale (80), so that a
+         * candidate whose name *is* what was asked for could outrank the tenth-best full-text hit,
+         * while a hit still comfortably outranks a candidate carrying nothing but a query word
+         * buried in its path (3).
          */
         private const val SEARCH_HIT_POINTS = 40.0
 
@@ -123,7 +121,6 @@ class QueryRelevance private constructor(
         fun of(queryText: String, seedsInRankOrder: List<NodeId>): QueryRelevance {
             val n = seedsInRankOrder.size
             return QueryRelevance(
-                queryText = queryText,
                 words = IdentifierSplitter.split(queryText).map { it.lowercase() }.distinct(),
                 seedRelevance = seedsInRankOrder
                     .mapIndexed { i, id -> id to (n - i).toDouble() / n }
@@ -154,7 +151,6 @@ private const val DEPRIORITISED_POINTS = 15.0
 // So the ladder is worth nothing here and cost something in one form. It belongs to a search box
 // taking a few words, which is the surface CodeGraph built it for; if this project grows one, the
 // tiers are in this file's history at 1e9bf24.
-
 
 // Path relevance, CodeGraph's constants: the most specific position a query word reaches, once.
 private const val PATH_FILENAME_POINTS = 10.0
