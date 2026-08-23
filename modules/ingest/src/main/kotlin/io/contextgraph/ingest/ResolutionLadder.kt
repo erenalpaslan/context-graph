@@ -73,7 +73,7 @@ object ResolutionLadder {
     fun resolve(
         reference: UnresolvedReference,
         candidates: List<GraphNode>,
-        storage: StorageAdapter
+        importedTokens: ImportedTokens
     ): Pair<ResolutionRung, List<GraphNode>>? {
         if (candidates.isEmpty()) return null
 
@@ -84,8 +84,7 @@ object ResolutionLadder {
         val localScope = candidates.filter { isLocalScope(it, referringId, referringPath, referringScope) }
         if (localScope.isNotEmpty()) return ResolutionRung.LOCAL_SCOPE to localScope
 
-        val importedTokens = importedTokensFor(reference, storage)
-        val fileImports = candidates.filter { isFileImport(it, importedTokens) }
+        val fileImports = candidates.filter { isFileImport(it, importedTokens.of(reference.repoRelativePath)) }
         if (fileImports.isNotEmpty()) return ResolutionRung.FILE_IMPORTS to fileImports
 
         val sameDirectory = candidates.filter { isSameDirectory(it, referringPath) }
@@ -121,15 +120,6 @@ object ResolutionLadder {
         return candidateScope.dropLast(1) == referringType
     }
 
-    private fun importedTokensFor(reference: UnresolvedReference, storage: StorageAdapter): Set<String> {
-        val fileId = NodeId(reference.repoRelativePath)
-        return storage.getEdgesFrom(fileId)
-            .filter { it.type == EdgeType.Imports }
-            .mapNotNull { storage.getNode(it.target)?.label }
-            .flatMap { it.split('.', '/', '\\') }
-            .filterTo(mutableSetOf()) { it.isNotBlank() }
-    }
-
     private fun isFileImport(candidate: GraphNode, importedTokens: Set<String>): Boolean {
         if (importedTokens.isEmpty()) return false
         val baseName = filePathOf(candidate.id).substringAfterLast('/').substringBeforeLast('.')
@@ -148,4 +138,36 @@ object ResolutionLadder {
     }
 
     private fun directoryOf(path: String): String = path.substringBeforeLast('/', "")
+}
+
+/**
+ * What each file imports, in the token form rung 2 compares against, computed once per file.
+ *
+ * This used to be recomputed inside the ladder per *reference*: one query for the referring
+ * file's `Imports` edges, then one more per import edge to read the imported node's label.
+ * Keycloak has 508,017 references over 7,183 code files carrying 105,149 import edges -- so a
+ * file's answer, which cannot change during a pass, was being rebuilt hundreds of times at
+ * ~16 single-statement round trips a go. A flight recording of one ingest put 30% of all
+ * samples in the `getNode` behind that inner loop, more than any other single call.
+ *
+ * Memoised per file rather than loaded eagerly for the whole repo: a reference whose first
+ * rung already matched never asks, and files with no references never appear. Peak memory is
+ * therefore bounded by the files actually consulted, not by the graph -- which matters,
+ * because pass 2 already holds every node in memory twice over for the type hierarchy and
+ * sibling grouping.
+ *
+ * Not thread-safe, and does not need to be: pass 2 runs on the single sequential caller after
+ * pass 1's write channel has drained.
+ */
+class ImportedTokens(private val storage: StorageAdapter) {
+    private val byFile = HashMap<String, Set<String>>()
+
+    fun of(repoRelativePath: String): Set<String> = byFile.getOrPut(repoRelativePath) {
+        val fileId = NodeId(repoRelativePath)
+        storage.getEdgesFrom(fileId)
+            .filter { it.type == EdgeType.Imports }
+            .mapNotNull { storage.getNode(it.target)?.label }
+            .flatMap { it.split('.', '/', '\\') }
+            .filterTo(mutableSetOf()) { it.isNotBlank() }
+    }
 }

@@ -80,26 +80,27 @@ class SiblingGrouper(private val storage: StorageAdapter) {
             .groupBy({ it.first }, { it.second })
             .filterValues { it.size > 1 }
 
-        var edgesCreated = 0
+        // Accumulated and written once rather than one edge at a time: Keycloak's set is over
+        // a hundred thousand edges, and a per-edge write cost a per-edge database connection.
+        // Same edges, same order.
+        val edges = mutableListOf<GraphEdge>()
         for (members in groups.values) {
             val sorted = members.sortedBy { it.id.value }
             val primary = sorted.first()
             for (sibling in sorted.drop(1)) {
-                storage.upsertEdge(
-                    GraphEdge(
-                        id = EdgeId("sibling_of:${sibling.id.value}:${primary.id.value}"),
-                        source = sibling.id,
-                        target = primary.id,
-                        type = EdgeType.SiblingOf,
-                        confidence = ConfidenceDefaults.SIBLING_GROUPING
-                    )
+                edges += GraphEdge(
+                    id = EdgeId("sibling_of:${sibling.id.value}:${primary.id.value}"),
+                    source = sibling.id,
+                    target = primary.id,
+                    type = EdgeType.SiblingOf,
+                    confidence = ConfidenceDefaults.SIBLING_GROUPING
                 )
-                edgesCreated++
             }
         }
+        storage.upsertEdges(edges)
 
-        logger.debug { "Pass 3: linked ${groups.size} fqn group(s) into $edgesCreated SiblingOf edge(s)" }
-        return GroupingStats(groups = groups.size, edges = edgesCreated)
+        logger.debug { "Pass 3: linked ${groups.size} fqn group(s) into ${edges.size} SiblingOf edge(s)" }
+        return GroupingStats(groups = groups.size, edges = edges.size)
     }
 
     private fun fqnOf(node: GraphNode): String? =

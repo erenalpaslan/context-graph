@@ -2,6 +2,7 @@ package io.contextgraph.storage
 
 import io.contextgraph.core.Artifact
 import io.contextgraph.core.ArtifactId
+import io.contextgraph.core.ArtifactWriteBatch
 import io.contextgraph.core.GraphEdge
 import io.contextgraph.core.GraphNode
 import io.contextgraph.core.GraphStats
@@ -35,6 +36,30 @@ private val logger = KotlinLogging.logger {}
 private val jsonSerializer = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 
 private val FTS_TOKEN_REGEX = Regex("[\\p{L}\\p{N}_]+")
+
+/**
+ * How many nodes share one `INSERT OR REPLACE INTO nodes_fts` statement.
+ *
+ * `nodes_fts` is an FTS5 virtual table, which Exposed cannot describe, so its rows go in as
+ * literal SQL text rather than through a prepared statement -- and one statement per node was
+ * a fifth of the ingest profile spent in `sqlite3_prepare`. Grouping is the whole fix.
+ * Bounded rather than unbounded because SQLite caps a compound VALUES list at
+ * SQLITE_MAX_COMPOUND_SELECT (500 by default) and a statement at SQLITE_MAX_SQL_LENGTH; 250
+ * rows of three short columns sits comfortably under both while cutting prepares 250-fold.
+ */
+private const val FTS_CHUNK_SIZE = 250
+
+/**
+ * How many rows one prepared batch statement carries.
+ *
+ * A JDBC batch holds every row's bound arguments in memory until it executes, so an
+ * unbounded batch turns a large edge set into a large heap allocation: pass 2 rebuilds
+ * 286,106 `Calls` edges on Keycloak, whose ids average 279 characters because an id is the
+ * concatenation of two declaration-site ids. Chunking bounds that without giving up anything
+ * -- the chunks run inside the caller's single transaction, so this is still one commit, and
+ * the prepared statement is still reused across every row of a chunk.
+ */
+private const val BULK_CHUNK_SIZE = 10_000
 
 object ArtifactsTable : Table("artifacts") {
     val id = text("id")
@@ -161,12 +186,7 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     }
 
     override fun upsertNode(node: GraphNode): Unit = transaction {
-        val propsJson = try {
-            jsonSerializer.encodeToString(
-                kotlinx.serialization.serializer<Map<String, JsonElement>>(),
-                node.properties
-            )
-        } catch (_: Exception) { "{}" }
+        val propsJson = encodeProperties(node.properties)
 
         NodesTable.upsert {
             it[id] = node.id.value
@@ -176,38 +196,18 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             it[confidence] = node.confidence
         }
 
-        // Update FTS. `nodes_fts` is a search index, not a source of truth -- the real label
-        // lives in NodesTable above, untouched. FTS5's default tokenizer only splits on
-        // non-alphanumeric characters, so a compound identifier with no separator (camelCase,
-        // acronym runs, digit-adjacent words -- e.g. "RungDistribution") is indexed as a single
-        // token and cannot be found by any of its component words. Appending the split
-        // components alongside the original label lets a search for "rung" or "distribution"
-        // retrieve "RungDistribution" without changing what is displayed or stored as truth.
-        val ftsWords = IdentifierSplitter.split(node.label)
-        val ftsLabel = if (ftsWords.size > 1) {
-            (listOf(node.label) + ftsWords).joinToString(" ")
-        } else {
-            node.label
-        }
         try {
-            exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES ('${node.id.value.replace("'", "''")}', '${ftsLabel.replace("'", "''")}', '${propsJson.replace("'", "''")}')")
+            exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES ('${sqlQuote(node.id.value)}', '${sqlQuote(ftsLabelFor(node.label))}', '${sqlQuote(propsJson)}')")
         } catch (_: Exception) {}
     }
 
     override fun upsertEdge(edge: GraphEdge): Unit = transaction {
-        val propsJson = try {
-            jsonSerializer.encodeToString(
-                kotlinx.serialization.serializer<Map<String, JsonElement>>(),
-                edge.properties
-            )
-        } catch (_: Exception) { "{}" }
-
         EdgesTable.upsert {
             it[id] = edge.id.value
             it[sourceId] = edge.source.value
             it[targetId] = edge.target.value
             it[type] = EdgeType.stringify(edge.type)
-            it[properties] = propsJson
+            it[properties] = encodeProperties(edge.properties)
             it[confidence] = edge.confidence
         }
     }
@@ -224,6 +224,107 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             it[textSpan] = provenance.textSpan
             it[extractor] = provenance.extractor
             it[extractedAt] = provenance.extractedAt.toEpochMilliseconds()
+        }
+    }
+
+    // --- Bulk verbs ---------------------------------------------------------------------
+    //
+    // The per-row methods above each open their own `transaction { }`, and Exposed's
+    // `Database.connect(url, driver)` hands every top-level transaction a brand-new JDBC
+    // connection. So one row cost: open a SQLite connection, prepare a statement, step it,
+    // commit (an fsync, in the rollback-journal mode this database is in), close the
+    // connection. A flight recording of one excalidraw ingest found 41% of samples in
+    // `NativeDB.step`, 21% in `NativeDB.prepare_utf8`, and 19% in `_open_utf8`/`_close` --
+    // that last fifth is connection churn doing no work at all.
+    //
+    // These overrides change what a write costs, not what it means. One transaction -- so
+    // one connection, one commit -- and one prepared statement re-bound per row instead of
+    // one per row. Nested `transaction { }` calls inside join the outer one rather than
+    // starting their own (Exposed's default, `useNestedTransactions = false`), so the
+    // per-row methods above remain correct when reached from in here.
+
+    override fun writeArtifactBatch(batch: ArtifactWriteBatch): Unit = transaction {
+        if (batch.clearExisting) {
+            deleteNodesForArtifact(batch.artifact.id)
+            deleteUnresolvedReferencesForArtifact(batch.artifact.id)
+        }
+        upsertArtifact(batch.artifact)
+        upsertNodes(batch.nodes)
+        upsertEdges(batch.edges)
+
+        batch.references.chunked(BULK_CHUNK_SIZE).forEach { references ->
+            UnresolvedReferencesTable.batchInsert(references, shouldReturnGeneratedValues = false) { reference ->
+                this[UnresolvedReferencesTable.artifactId] = reference.artifactId.value
+                this[UnresolvedReferencesTable.repoRelativePath] = reference.repoRelativePath
+                this[UnresolvedReferencesTable.referenceName] = reference.referenceName
+                this[UnresolvedReferencesTable.referringSymbolId] = reference.referringSymbolId.value
+                this[UnresolvedReferencesTable.line] = reference.line
+                this[UnresolvedReferencesTable.receiverType] = reference.receiverType
+                this[UnresolvedReferencesTable.receiverCall] = reference.receiverCall
+            }
+        }
+
+        // Flattened to (nodeId, provenance) pairs so every artifact's provenance is one
+        // statement rather than one per node -- the per-row path's nested forEach produced
+        // the same rows in the same order, which is what keeps this substitutable.
+        val provenanceRows = batch.nodes.flatMap { node -> node.provenance.map { node.id.value to it } }
+        provenanceRows.chunked(BULK_CHUNK_SIZE).forEach { rows ->
+            ProvenanceTable.batchInsert(rows, shouldReturnGeneratedValues = false) { (nodeId, p) ->
+                this[ProvenanceTable.entityId] = nodeId
+                this[ProvenanceTable.entityKind] = "node"
+                this[ProvenanceTable.artifactId] = p.artifactId.value
+                this[ProvenanceTable.path] = p.path
+                this[ProvenanceTable.lineStart] = p.lineStart
+                this[ProvenanceTable.lineEnd] = p.lineEnd
+                this[ProvenanceTable.page] = p.page
+                this[ProvenanceTable.textSpan] = p.textSpan
+                this[ProvenanceTable.extractor] = p.extractor
+                this[ProvenanceTable.extractedAt] = p.extractedAt.toEpochMilliseconds()
+            }
+        }
+    }
+
+    override fun upsertNodes(nodes: Collection<GraphNode>) {
+        if (nodes.isEmpty()) return
+        transaction {
+            val propsById = nodes.associate { it.id.value to encodeProperties(it.properties) }
+
+            nodes.chunked(BULK_CHUNK_SIZE).forEach { chunk ->
+                NodesTable.batchUpsert(chunk, NodesTable.id, shouldReturnGeneratedValues = false) { node ->
+                    this[NodesTable.id] = node.id.value
+                    this[NodesTable.type] = NodeType.stringify(node.type)
+                    this[NodesTable.label] = node.label
+                    this[NodesTable.properties] = propsById.getValue(node.id.value)
+                    this[NodesTable.confidence] = node.confidence
+                }
+            }
+
+            // Same rows, same escaping, same INSERT OR REPLACE as the single-node path --
+            // only grouped, so one prepare serves a whole chunk instead of one per node.
+            nodes.chunked(FTS_CHUNK_SIZE).forEach { chunk ->
+                val values = chunk.joinToString(",") { node ->
+                    "('${sqlQuote(node.id.value)}','${sqlQuote(ftsLabelFor(node.label))}','${sqlQuote(propsById.getValue(node.id.value))}')"
+                }
+                try {
+                    exec("INSERT OR REPLACE INTO nodes_fts(id, label, properties) VALUES $values")
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    override fun upsertEdges(edges: Collection<GraphEdge>) {
+        if (edges.isEmpty()) return
+        transaction {
+            edges.chunked(BULK_CHUNK_SIZE).forEach { chunk ->
+                EdgesTable.batchUpsert(chunk, EdgesTable.id, shouldReturnGeneratedValues = false) { edge ->
+                    this[EdgesTable.id] = edge.id.value
+                    this[EdgesTable.sourceId] = edge.source.value
+                    this[EdgesTable.targetId] = edge.target.value
+                    this[EdgesTable.type] = EdgeType.stringify(edge.type)
+                    this[EdgesTable.properties] = encodeProperties(edge.properties)
+                    this[EdgesTable.confidence] = edge.confidence
+                }
+            }
         }
     }
 
@@ -392,6 +493,37 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         val typeString = EdgeType.stringify(type)
         EdgesTable.deleteWhere { EdgesTable.type eq typeString }
     }
+
+    /**
+     * A node or edge's `properties` map as the JSON text the column holds, `{}` when it
+     * cannot be encoded.
+     *
+     * Extracted so the single-row and bulk paths cannot drift: whatever one writes into
+     * `properties`, the other writes the same bytes, which is what makes the bulk verbs a
+     * substitution rather than a second implementation.
+     */
+    private fun encodeProperties(properties: Map<String, JsonElement>): String = try {
+        jsonSerializer.encodeToString(kotlinx.serialization.serializer<Map<String, JsonElement>>(), properties)
+    } catch (_: Exception) { "{}" }
+
+    /**
+     * What goes in `nodes_fts.label` for a node labelled [label].
+     *
+     * `nodes_fts` is a search index, not a source of truth -- the real label lives in
+     * `nodes`, untouched. FTS5's default tokenizer only splits on non-alphanumeric
+     * characters, so a compound identifier with no separator (camelCase, acronym runs,
+     * digit-adjacent words -- e.g. "RungDistribution") is indexed as a single token and
+     * cannot be found by any of its component words. Appending the split components
+     * alongside the original lets a search for "rung" or "distribution" retrieve
+     * "RungDistribution" without changing what is displayed or stored as truth.
+     */
+    private fun ftsLabelFor(label: String): String {
+        val words = IdentifierSplitter.split(label)
+        return if (words.size > 1) (listOf(label) + words).joinToString(" ") else label
+    }
+
+    /** SQL single-quote escaping, for the FTS statements that are built as literal text. */
+    private fun sqlQuote(value: String): String = value.replace("'", "''")
 
     // Mirrors FTS5's own unicode61 tokenizer (split on non-alphanumeric, i.e. exactly the
     // characters that are also MATCH syntax) so every term this extracts is guaranteed free of

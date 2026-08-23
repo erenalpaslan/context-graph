@@ -39,6 +39,15 @@ private val logger = KotlinLogging.logger {}
 private val CALLABLE_TYPES = setOf<NodeType>(NodeType.Method, NodeType.Function, NodeType.Class)
 
 /**
+ * How many resolved edges are turned into [GraphEdge]s and handed to storage at a time.
+ *
+ * Bounds peak memory on a large repo without giving up the batching that makes the write
+ * cheap: 286,106 `Calls` edges on Keycloak, each with a 279-character id built by
+ * concatenating two declaration-site ids.
+ */
+private const val EDGE_WRITE_CHUNK_SIZE = 10_000
+
+/**
  * Pass 2 of indexing: resolves every [io.contextgraph.core.UnresolvedReference] pass 1 has
  * ever persisted -- not just the ones touched by this run's pass 1 -- against the current
  * declaration symbol table, and materialises the result as `Calls` edges.
@@ -101,6 +110,10 @@ class ReferenceResolver(private val storage: StorageAdapter) {
         var resolved = 0
         var unresolved = 0
 
+        // One entry per file, not per reference -- see ImportedTokens for the measurement
+        // that made this the single largest cost in the whole ingest path.
+        val importedTokens = ImportedTokens(storage)
+
         // Keyed by reference name, because references repeat far more than names do: half a
         // million call sites in a real repo draw on a few tens of thousands of distinct names, so
         // looking each one up per *reference* meant half a million SQL round-trips for the same
@@ -123,7 +136,7 @@ class ReferenceResolver(private val storage: StorageAdapter) {
             val receiverType = reference.receiverType
                 ?: reference.receiverCall?.let { candidatesFor(it).commonReturnType(hierarchy) }
             val candidates = candidatesFor(reference.referenceName).forReceiver(receiverType)
-            val match = ResolutionLadder.resolve(reference, candidates, storage)
+            val match = ResolutionLadder.resolve(reference, candidates, importedTokens)
 
             if (match == null || match.second.size > ConfidenceDefaults.CALL_RESOLUTION_CANDIDATE_CAP) {
                 unresolved++
@@ -141,25 +154,34 @@ class ReferenceResolver(private val storage: StorageAdapter) {
             resolved++
         }
 
-        pending.forEach { (pair, edge) ->
-            val (source, target) = pair
-            storage.upsertEdge(
-                GraphEdge(
-                    id = EdgeId("calls:${source.value}:${target.value}"),
-                    source = source,
-                    target = target,
-                    type = EdgeType.Calls,
-                    confidence = edge.confidence,
-                    properties = mapOf(
-                        "rung" to JsonPrimitive(edge.rung),
-                        // The call-site lines themselves, which is what a question of the form
-                        // "list every call site as file:line" actually needs. Without them the
-                        // graph names the calling *method* and a reader has to open the file and
-                        // search it -- the step that made a benchmarked agent read 27 files after
-                        // the graph had already handed it the right answer.
-                        "lines" to JsonArray(edge.lines.sorted().map { JsonPrimitive(it) })
+        // Written in batches rather than one edge at a time: on Keycloak this set is over a
+        // quarter of a million edges, and a per-edge write was a per-edge database connection.
+        // `pending` is a LinkedHashMap, so the batches preserve insertion order exactly as the
+        // per-edge loop did. Chunked rather than handed over whole because each edge's id is
+        // the concatenation of two declaration-site ids -- 279 characters on average -- so
+        // materialising all of them at once would be a few hundred megabytes of strings that
+        // the per-edge loop never had to hold.
+        pending.entries.chunked(EDGE_WRITE_CHUNK_SIZE).forEach { chunk ->
+            storage.upsertEdges(
+                chunk.map { (pair, edge) ->
+                    val (source, target) = pair
+                    GraphEdge(
+                        id = EdgeId("calls:${source.value}:${target.value}"),
+                        source = source,
+                        target = target,
+                        type = EdgeType.Calls,
+                        confidence = edge.confidence,
+                        properties = mapOf(
+                            "rung" to JsonPrimitive(edge.rung),
+                            // The call-site lines themselves, which is what a question of the
+                            // form "list every call site as file:line" actually needs. Without
+                            // them the graph names the calling *method* and a reader has to open
+                            // the file and search it -- the step that made a benchmarked agent
+                            // read 27 files after the graph had already handed it the answer.
+                            "lines" to JsonArray(edge.lines.sorted().map { JsonPrimitive(it) })
+                        )
                     )
-                )
+                }
             )
         }
 
@@ -208,23 +230,25 @@ private class TypeHierarchy(
     }
 
     fun emitImplementsEdges(storage: StorageAdapter) {
+        val edges = mutableListOf<GraphEdge>()
         typeNodesByName.forEach { (_, subNodes) ->
             subNodes.forEach { sub ->
                 supertypeNamesOf(sub).forEach { superName ->
                     typeNodesByName[superName].orEmpty().forEach { superNode ->
-                        storage.upsertEdge(
-                            GraphEdge(
-                                id = EdgeId("implements:${sub.id.value}:${superNode.id.value}"),
-                                source = sub.id,
-                                target = superNode.id,
-                                type = EdgeType.Implements,
-                                confidence = ConfidenceDefaults.AST_SYMBOL
-                            )
+                        edges += GraphEdge(
+                            id = EdgeId("implements:${sub.id.value}:${superNode.id.value}"),
+                            source = sub.id,
+                            target = superNode.id,
+                            type = EdgeType.Implements,
+                            confidence = ConfidenceDefaults.AST_SYMBOL
                         )
                     }
                 }
             }
         }
+        // Accumulated, then written once, for the same reason the `Calls` set is: the same
+        // edges in the same order, at one database round trip instead of one each.
+        storage.upsertEdges(edges)
     }
 
     companion object {
