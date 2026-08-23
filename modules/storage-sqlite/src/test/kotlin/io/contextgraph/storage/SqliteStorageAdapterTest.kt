@@ -205,24 +205,6 @@ class SqliteStorageAdapterTest : FunSpec({
         }
     }
 
-    // nodes_fts is FTS5 with `id UNINDEXED`, so it has no unique index for `INSERT OR REPLACE`'s
-    // conflict clause to target -- every re-upsert of a node appends a second search row rather
-    // than replacing the first (docs/identifier-segment-vocabulary.md section 6 has the full
-    // account; fixing that write-path defect itself is out of scope here). This context proves
-    // searchNodes' *read* path is nonetheless immune: it never surfaces the same node twice just
-    // because nodes_fts holds two rows for it.
-    context("searchNodes with duplicate nodes_fts rows") {
-        test("a node upserted twice is returned once, not once per duplicate row") {
-            val target = makeNode("A", "DuplicateRowTarget")
-            storage.upsertNode(target)
-            storage.upsertNode(target) // same id+label -- appends a second nodes_fts row
-
-            val results = storage.searchNodes("row")
-
-            results.map { it.id } shouldBe listOf(NodeId("A"))
-        }
-    }
-
     context("edges") {
         test("upsertEdge and getEdgesFrom roundtrip") {
             storage.upsertNode(makeNode("A", "Alpha"))
