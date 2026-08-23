@@ -58,9 +58,12 @@ class SegmentVocabularyTest : FunSpec({
         SqliteStorageAdapter(dbPath).use { storage ->
             storage.upsertNode(makeNode("n1", "RungDistribution"))
         }
+        // Segments are lower-cased at write time (writeSegmentVocab) -- see
+        // SegmentCandidatesTest's non-ASCII test for why this fold happens in Kotlin rather
+        // than in SQL.
         segmentRows(dbPath) shouldContainExactlyInAnyOrder listOf(
-            "Rung" to "RungDistribution",
-            "Distribution" to "RungDistribution"
+            "rung" to "RungDistribution",
+            "distribution" to "RungDistribution"
         )
     }
 
@@ -77,9 +80,9 @@ class SegmentVocabularyTest : FunSpec({
         val rows = segmentRows(dbPath)
         rows.none { (_, name) -> name == "OrderStateMachine.kt" } shouldBe true
         rows shouldContainExactlyInAnyOrder listOf(
-            "Order" to "OrderStateService",
-            "State" to "OrderStateService",
-            "Service" to "OrderStateService"
+            "order" to "OrderStateService",
+            "state" to "OrderStateService",
+            "service" to "OrderStateService"
         )
     }
 
@@ -202,8 +205,8 @@ class SegmentVocabularyTest : FunSpec({
         // correct: a broken escape here either truncates the row at the quote or breaks the
         // VALUES clause outright, neither of which a happy-path fixture would catch.
         val label = "Node'WithQuote"
-        val expectedRows = IdentifierSplitter.split(label).distinct().map { it to label }
-        expectedRows.size shouldBe 3 // Node, With, Quote -- the apostrophe splits Node from WithQuote
+        val expectedRows = IdentifierSplitter.split(label).map { it.lowercase() }.distinct().map { it to label }
+        expectedRows.size shouldBe 3 // node, with, quote -- the apostrophe splits Node from WithQuote
 
         val singlePath = freshDbPath("quote-single")
         SqliteStorageAdapter(singlePath).use { storage -> storage.upsertNode(makeNode("n1", label)) }

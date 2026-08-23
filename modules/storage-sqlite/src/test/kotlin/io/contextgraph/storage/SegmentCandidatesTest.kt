@@ -166,6 +166,44 @@ class SegmentCandidatesTest : FunSpec({
         }
     }
 
+    test("a non-ASCII uppercase segment is reachable through the vocabulary (Unicode-correct fold, not SQLite's ASCII-only LOWER())") {
+        val dbPath = freshDbPath("unicode")
+        SqliteStorageAdapter(dbPath).use { storage ->
+            // The real node the vocabulary row must resolve to. Its own label is plain ASCII,
+            // deliberately unrelated to the Cyrillic word below, so nothing here can accidentally
+            // be found through full-text search (which would defeat the point of this test) or
+            // through the tokenizer's own diacritic folding.
+            val target = makeNode("target", "OrderState", NodeType.Class)
+            storage.upsertNode(target)
+            addFiller(storage, 30, "unicode")
+
+            // IdentifierSplitter's own separator regex ([^A-Za-z0-9]+) treats every non-ASCII
+            // character as a boundary and strips it, so no segment *split* from a real identifier
+            // can ever contain one -- a separate, pre-existing limitation this fix does not touch.
+            // Seeded directly here so this test isolates exactly what changed: segmentCandidates'
+            // comparison. "статус" is what writeSegmentVocab would store for a segment "Статус"
+            // under the fix (lower-cased in Kotlin, at write time) -- the invariant its own tests
+            // in SegmentVocabularyTest cover; this test is the read side's half of the same proof.
+            DriverManager.getConnection("jdbc:sqlite:${dbPath.toAbsolutePath()}").use { conn ->
+                conn.createStatement()
+                    .execute("INSERT INTO name_segment_vocab(segment, name) VALUES ('статус', 'OrderState')")
+            }
+
+            // The query is cased the way a real prose question would write it -- capitalised.
+            // ftsTerms extracts it whole (its regex is \p{L}\p{N}_, full Unicode) and
+            // segmentCandidates then lower-cases it in Kotlin before comparing: "Статус"
+            // (U+0421 CYRILLIC CAPITAL LETTER ES, ...) folds to "статус" under Kotlin's
+            // String.lowercase(), which is full-Unicode. Before this fix, the comparison instead
+            // wrapped the *column* in SQLite's built-in LOWER(), which folds ASCII A-Z only and
+            // leaves a Cyrillic capital untouched -- so 'статус' (the query, lower-cased in
+            // Kotlin) would never have equalled 'Статус' (the column, unfolded by SQL), and this
+            // row would have stayed permanently unreachable no matter how the query was cased.
+            val results = storage.searchNodes("Статус", limit = 5)
+
+            results.any { it.id == target.id } shouldBe true
+        }
+    }
+
     test("conservative bound: a query the full-text page already fills is unchanged, additions withheld") {
         val dbPath = freshDbPath("conservative-bound")
         SqliteStorageAdapter(dbPath).use { storage ->
