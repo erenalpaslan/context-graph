@@ -13,11 +13,11 @@ import java.nio.file.Files
 import java.sql.DriverManager
 
 /**
- * Proves the read half of the identifier segment vocabulary (slice 05): a prose query whose
- * words are sub-words of a compound identifier can reach that identifier through
- * `name_segment_vocab`, appended strictly after every full-text hit (AC-11), suppressed by a
- * corpus-derived rarity guard rather than any word list (AC-12), and re-verified against live
- * `nodes` so a deleted node's orphaned row surfaces nothing (AC-9, read half).
+ * Proves the read half of the identifier segment vocabulary: a prose query whose words are
+ * sub-words of a compound identifier can reach that identifier through `name_segment_vocab`,
+ * appended strictly after every full-text hit, suppressed by a corpus-derived rarity guard
+ * rather than any word list, and re-verified against live `nodes` so a deleted node's orphaned
+ * row surfaces nothing.
  *
  * Every "buried" fixture below deliberately hides its target behind a full-text-search LIMIT
  * cutoff: a decoy matching two of the query's OR'd terms robustly outranks -- under FTS5's
@@ -60,7 +60,7 @@ class SegmentCandidatesTest : FunSpec({
         (0 until n).forEach { i -> storage.upsertNode(makeNode("$prefix-filler-$i", "Filler${prefix}Word$i")) }
     }
 
-    test("AC-11: a buried compound-identifier match is appended strictly after every full-text hit") {
+    test("a buried compound-identifier match is appended strictly after every full-text hit") {
         val dbPath = freshDbPath("ac11")
         SqliteStorageAdapter(dbPath).use { storage ->
             // Two-term decoy, type Function -- robustly outranks any one-term match under bm25,
@@ -89,7 +89,7 @@ class SegmentCandidatesTest : FunSpec({
         }
     }
 
-    test("AC-12: a segment reaching a large fraction of the vocabulary's names contributes no candidates, a rare one does") {
+    test("a segment reaching a large fraction of the vocabulary's names contributes no candidates, a rare one does") {
         val dbPath = freshDbPath("ac12")
         SqliteStorageAdapter(dbPath).use { storage ->
             storage.upsertNode(makeNode("decoyA", "AlphaBravo", NodeType.Function))
@@ -110,7 +110,8 @@ class SegmentCandidatesTest : FunSpec({
                 limit = 2
             )
 
-            // decoyA is the sole full-text hit (same burial mechanism as the AC-11 fixture:
+            // decoyA is the sole full-text hit (same burial mechanism as the "appended after full-text"
+            // test's fixture above:
             // decoyA/decoyB each match two OR'd terms and take the untyped top-2 window,
             // decoyB is filtered out by type). Both commonTarget and rareTarget match only one
             // term each and are bumped out of the raw MATCH LIMIT identically -- the only
@@ -120,7 +121,7 @@ class SegmentCandidatesTest : FunSpec({
         }
     }
 
-    test("AC-9 (read half): a vocabulary row naming an identifier no node carries any more surfaces nothing") {
+    test("a vocabulary row naming an identifier no node carries any more surfaces nothing") {
         val dbPath = freshDbPath("ac9-read")
         SqliteStorageAdapter(dbPath).use { storage ->
             val target = GraphNode(
@@ -157,7 +158,8 @@ class SegmentCandidatesTest : FunSpec({
             storage.deleteNodesForArtifact(ArtifactId("src/A.kt"))
             storage.getNode(target.id) shouldBe null
 
-            // Deliberately not swept (D9): the row is still there after the node is gone.
+            // Deliberately not swept (orphan rows are proposals, not truth -- see V6__name_segment_vocab.sql):
+            // the row is still there after the node is gone.
             vocabRowCountForTarget() shouldBe 3
 
             // The re-verification join (name_segment_vocab -> nodes on label) has nothing to
@@ -219,7 +221,7 @@ class SegmentCandidatesTest : FunSpec({
 
             // Budget = limit(1) - results.size(1) = 0, so the vocabulary is never even queried.
             // "romeo" would otherwise pass the rarity guard on its own (1 of 22 names, same
-            // fixture shape as the AC-11 test's buried target) -- the only reason it is absent
+            // fixture shape as the "appended after full-text" test's buried target) -- the only reason it is absent
             // here is the conservative bound, not rarity and not the join.
             full.map { it.id } shouldBe listOf(decoy.id)
         }

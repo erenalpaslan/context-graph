@@ -18,11 +18,11 @@ import java.nio.file.Path
 import java.sql.DriverManager
 
 /**
- * Proves the write half of the identifier segment vocabulary (slice 04): a durable
+ * Proves the write half of the identifier segment vocabulary: a durable
  * `name_segment_vocab(segment, name)` table populated on the node write path, excluding file
  * nodes, idempotent across repeated indexing, and identical whether written through the
  * single-node or the bulk verb. The read path -- proposals re-verified against `nodes` -- is
- * slice 05's job and is not exercised here.
+ * `SegmentCandidatesTest`'s job and is not exercised here.
  */
 class SegmentVocabularyTest : FunSpec({
 
@@ -53,7 +53,7 @@ class SegmentVocabularyTest : FunSpec({
         indexedAt = now()
     )
 
-    test("AC-6: a compound name gets one row per distinct sub-word, paired with the name") {
+    test("a compound name gets one row per distinct sub-word, paired with the name") {
         val dbPath = freshDbPath("compound")
         SqliteStorageAdapter(dbPath).use { storage ->
             storage.upsertNode(makeNode("n1", "RungDistribution"))
@@ -67,7 +67,7 @@ class SegmentVocabularyTest : FunSpec({
         )
     }
 
-    test("AC-7: a file node's basename contributes no row to the vocabulary") {
+    test("a file node's basename contributes no row to the vocabulary") {
         val dbPath = freshDbPath("file-excluded")
         SqliteStorageAdapter(dbPath).use { storage ->
             // CodeFile is a file-level NodeType (an "Artifact-level type" per NodeType's own
@@ -86,7 +86,7 @@ class SegmentVocabularyTest : FunSpec({
         )
     }
 
-    test("AC-7 (all artifact-level types): every file-node type is excluded, not just CodeFile") {
+    test("all artifact-level types: every file-node type is excluded, not just CodeFile") {
         val dbPath = freshDbPath("all-file-types")
         val fileTypes = listOf(
             NodeType.CodeFile, NodeType.Document, NodeType.MarkdownFile, NodeType.PDF,
@@ -99,7 +99,7 @@ class SegmentVocabularyTest : FunSpec({
         segmentRows(dbPath).shouldBeEmpty()
     }
 
-    test("AC-8: indexing the same project twice leaves the row count identical") {
+    test("indexing the same project twice leaves the row count identical") {
         val dbPath = freshDbPath("idempotent")
         val batch = ArtifactWriteBatch(
             artifact = makeArtifact("src/A.kt"),
@@ -129,7 +129,7 @@ class SegmentVocabularyTest : FunSpec({
         }
     }
 
-    test("AC-8 (single-node path): re-upserting the same node twice leaves the row count identical") {
+    test("single-node path: re-upserting the same node twice leaves the row count identical") {
         val dbPath = freshDbPath("idempotent-single")
         val node = makeNode("n1", "RungDistribution")
         SqliteStorageAdapter(dbPath).use { storage ->
@@ -162,7 +162,7 @@ class SegmentVocabularyTest : FunSpec({
         segmentRows(bulkPath) shouldContainExactlyInAnyOrder rows
     }
 
-    test("AC-9 (write half): removing a node via deleteNodesForArtifact leaves its segment rows behind as orphans") {
+    test("write half: removing a node via deleteNodesForArtifact leaves its segment rows behind as orphans") {
         val dbPath = freshDbPath("orphans")
         SqliteStorageAdapter(dbPath).use { storage ->
             val node = GraphNode(
@@ -192,8 +192,9 @@ class SegmentVocabularyTest : FunSpec({
             storage.deleteNodesForArtifact(ArtifactId("src/A.kt"))
 
             storage.getNode(node.id) shouldBe null
-            // Deliberately not swept (D9): no foreign key, no cascade, no sweep pass. The row
-            // is a proposal; re-verification against `nodes` at read time is slice 05's job.
+            // Deliberately not swept: no foreign key, no cascade, no sweep pass. The row is a
+            // proposal; re-verification against `nodes` at read time is SegmentCandidatesTest's
+            // job.
             segmentRows(dbPath).size shouldBe 2
         }
     }
