@@ -767,16 +767,26 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         // one could otherwise have used -- minConfidence defaults to 0.0 for every caller today,
         // so in practice this branch filters nothing.
         //
-        // Ordered by how many of the accepted segments each candidate matches, descending, then
-        // by id only to break the remaining ties deterministically: a candidate matching three
-        // accepted segments is a stronger proposal than one matching a single one, and should
-        // not lose a scarce budget slot to it merely because its id happens to sort first.
+        // ORDER BY n.id is an arbitrary but deterministic tie-break, kept deliberately rather
+        // than by omission: a first pass of this fix ordered by count of accepted segments
+        // matched, descending, then id -- correctness-wise a stronger proposal, since a
+        // candidate matching three accepted segments is more likely relevant than one matching
+        // a single one -- but measuring it end to end (five cold cycles, excalidraw's 9
+        // questions, see docs/identifier-segment-vocabulary.md) moved this arm's R@5 and R@10
+        // below the cold baseline (MRR 0.5000, R@5 0.3148, R@10 0.3426 against baseline's
+        // 0.4815/0.3426/0.3704) -- a real regression, not noise: all 5 cycles agreed exactly,
+        // and the baseline's own recorded noise band never touches R@10. `ORDER BY n.id` is
+        // what A2 originally shipped and measured at MRR 0.5556/R@5 0.3981/R@10 0.4259, so it is
+        // kept -- this fix's job is SEARCH-vs-SCAN and the Unicode fold, not a ranking change,
+        // and this codebase does not ship an unmeasured ranking change on the strength of an
+        // untested intuition alone (see the "Do not touch QueryRelevance" guardrail this sits
+        // beside).
         val ids = exec(
-            "SELECT n.id AS id, COUNT(DISTINCT v.segment) AS match_count FROM name_segment_vocab v " +
+            "SELECT DISTINCT n.id FROM name_segment_vocab v " +
                 "JOIN nodes n ON n.label = v.name " +
                 "WHERE v.segment IN ($acceptedList)" +
                 typeClause + excludeClause +
-                " GROUP BY n.id ORDER BY match_count DESC, n.id LIMIT $budget"
+                " ORDER BY n.id LIMIT $budget"
         ) { rs ->
             val out = mutableListOf<String>()
             while (rs.next()) out.add(rs.getString("id"))
@@ -790,9 +800,9 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         val byId = NodesTable.selectAll().where {
             (NodesTable.id inList ids) and (NodesTable.confidence greaterEq minConfidence)
         }.associateBy({ it[NodesTable.id] }, { it.toGraphNode() })
-        // Preserve the match-count-then-id order the SQL above already computed -- `inList`
-        // does not promise result order, the same reason the FTS branch re-imposes its own
-        // order from `ftsResults` rather than trusting row order out of Exposed.
+        // `inList` does not preserve the order ids were supplied in -- re-impose it from `ids`
+        // (already in the SQL's own ORDER BY n.id order) rather than trusting Exposed's row
+        // order, the same reason the FTS branch above re-imposes order from `ftsResults`.
         return ids.mapNotNull { byId[it] }
     }
 
