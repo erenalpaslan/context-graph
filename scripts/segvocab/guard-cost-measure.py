@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """Cost-test SEGMENT_RARITY_MAX_FRACTION at Keycloak scale: does the rarity guard save
-rows-considered / wall-clock on segmentCandidates' actual join query, given the budget
+rows-considered / wall-clock on segmentCandidates as a whole, given the budget
 (limit - results.size) already bounds what returns?
 
-Runs the exact two production queries from SqliteStorageAdapter.segmentCandidates (copied
-verbatim, modulo Kotlin string interpolation -> Python f-string) against the database built by
-guard-cost-build-synthetic.py, guard on (accepted terms only, mirroring what production actually
-sends once the rarity filter has run) vs guard off (every term, unfiltered, as if
-SEGMENT_RARITY_MAX_FRACTION were 1.0).
+**Both sides of the comparison must be honest about what production actually runs.**
+segmentCandidates always computes the reach query (`namesReached`) first, unconditionally,
+to decide which terms the guard accepts -- there is no code path today where the join runs
+without it. So "guard ON" is properly `reach_query(all terms) + join(accepted terms)`, not the
+join alone: an earlier version of this script timed only the join on both sides, which let the
+guard-ON number skip the very cost the reach query itself might be paying to buy the guard its
+answer. "Guard OFF" is what the code looks like if SEGMENT_RARITY_MAX_FRACTION and its use are
+removed entirely (D18's stated fallback) -- no reach query at all, since nothing downstream would
+need that statistic any more: `join(all terms)` alone.
+
+Runs the exact production queries from SqliteStorageAdapter.segmentCandidates (copied verbatim,
+modulo Kotlin string interpolation -> Python f-string) against the database built by
+guard-cost-build-synthetic.py.
 
 Usage: guard-cost-measure.py <synthetic.db>
 See docs/identifier-segment-vocabulary.md section 16 for the numbers this produced and what they
@@ -28,16 +36,23 @@ def sql_in_list(values):
     return ",".join("'" + v.replace("'", "''") + "'" for v in values)
 
 
-def reach_query(terms):
-    cur = conn.execute(
-        f"SELECT segment AS seg, COUNT(DISTINCT name) AS cnt FROM name_segment_vocab "
+def reach_query_sql(terms):
+    return (
+        "SELECT segment AS seg, COUNT(DISTINCT name) AS cnt FROM name_segment_vocab "
         f"WHERE segment IN ({sql_in_list(terms)}) GROUP BY segment"
     )
+
+
+def reach_query(terms):
+    cur = conn.execute(reach_query_sql(terms))
     return dict(cur.fetchall())
 
 
 def rows_considered(terms):
-    """COUNT(*) matching the WHERE clause before the join -- what the join has to walk."""
+    """COUNT(*) matching the WHERE clause -- what a query over these terms has to walk,
+    whether that's the reach query or the join."""
+    if not terms:
+        return 0
     cur = conn.execute(
         f"SELECT COUNT(*) FROM name_segment_vocab WHERE segment IN ({sql_in_list(terms)})"
     )
@@ -53,19 +68,18 @@ def join_query(terms, budget):
     )
 
 
-def explain(terms, budget):
-    cur = conn.execute("EXPLAIN QUERY PLAN " + join_query(terms, budget))
+def explain(sql):
+    cur = conn.execute("EXPLAIN QUERY PLAN " + sql)
     return "\n".join(f"    {row}" for row in cur.fetchall())
 
 
-def time_join(terms, budget, repeats=REPEATS):
-    q = join_query(terms, budget)
+def time_sql(sql, repeats=REPEATS):
     # warm the page cache first (uncounted), then time.
-    conn.execute(q).fetchall()
+    rows = conn.execute(sql).fetchall()
     times = []
     for _ in range(repeats):
         t0 = time.perf_counter()
-        rows = conn.execute(q).fetchall()
+        rows = conn.execute(sql).fetchall()
         t1 = time.perf_counter()
         times.append(t1 - t0)
     times.sort()
@@ -76,6 +90,10 @@ def time_join(terms, budget, repeats=REPEATS):
         "max_ms": times[-1] * 1000,
         "row_count": len(rows),
     }
+
+
+def time_empty():
+    return {"min_ms": 0.0, "median_ms": 0.0, "max_ms": 0.0, "row_count": 0}
 
 
 GUARD_CUT_FRACTION = 0.05
@@ -94,29 +112,44 @@ def run_scenario(name, terms, budget):
 
     accepted = [t for t in terms if (reach.get(t, 0) / total_names if total_names else 0) <= GUARD_CUT_FRACTION and reach.get(t, 0) > 0]
 
-    print(f"  guard-ON accepted terms: {accepted}")
-    print(f"  guard-OFF terms (all):   {terms}")
+    print(f"  guard-ON accepted terms (fed to the join, after the reach query runs): {accepted}")
+    print(f"  guard-OFF: no reach query at all; the join runs over all terms:        {terms}")
 
-    rc_off = rows_considered(terms)
-    rc_on = rows_considered(accepted) if accepted else 0
-    print(f"  rows_considered (WHERE match count) guard-OFF: {rc_off}")
-    print(f"  rows_considered (WHERE match count) guard-ON:  {rc_on}")
+    rc_reach = rows_considered(terms)             # reach query's own posting-list walk, guard-ON only
+    rc_join_accepted = rows_considered(accepted)   # join's posting-list walk, guard-ON
+    rc_join_all = rows_considered(terms)           # join's posting-list walk, guard-OFF (same WHERE as reach, different query)
+    print(f"  rows considered by the reach query (guard-ON only):      {rc_reach}")
+    print(f"  rows considered by the join over accepted terms (guard-ON): {rc_join_accepted}")
+    print(f"  rows considered by the join over all terms (guard-OFF):     {rc_join_all}")
+    print(f"  guard-ON total rows considered (reach + join):  {rc_reach + rc_join_accepted}")
+    print(f"  guard-OFF total rows considered (join only):    {rc_join_all}")
 
-    print("  EXPLAIN QUERY PLAN, guard-OFF:")
-    print(explain(terms, budget))
+    print("  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):")
+    print(explain(reach_query_sql(terms)))
+    print("  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):")
+    print(explain(join_query(terms, budget)))
     if accepted:
-        print("  EXPLAIN QUERY PLAN, guard-ON:")
-        print(explain(accepted, budget))
+        print("  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON's second query):")
+        print(explain(join_query(accepted, budget)))
     else:
-        print("  EXPLAIN QUERY PLAN, guard-ON: n/a (accepted list empty -> segmentCandidates short-circuits, zero query issued)")
+        print("  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON): n/a (accepted list empty -> segmentCandidates short-circuits, zero join issued)")
 
-    timing_off = time_join(terms, budget)
-    print(f"  wall-clock guard-OFF (n={REPEATS} reps): median={timing_off['median_ms']:.3f} ms  min={timing_off['min_ms']:.3f}  max={timing_off['max_ms']:.3f}  rows_returned={timing_off['row_count']}")
-    if accepted:
-        timing_on = time_join(accepted, budget)
-        print(f"  wall-clock guard-ON  (n={REPEATS} reps): median={timing_on['median_ms']:.3f} ms  min={timing_on['min_ms']:.3f}  max={timing_on['max_ms']:.3f}  rows_returned={timing_on['row_count']}")
-    else:
-        print("  wall-clock guard-ON: 0 ms (segmentCandidates returns emptyList() before issuing any join query -- acceptedTerms is empty)")
+    timing_reach = time_sql(reach_query_sql(terms))
+    timing_join_accepted = time_sql(join_query(accepted, budget)) if accepted else time_empty()
+    timing_join_all = time_sql(join_query(terms, budget))
+
+    guard_on_total_median = timing_reach["median_ms"] + timing_join_accepted["median_ms"]
+    guard_off_total_median = timing_join_all["median_ms"]
+
+    print(f"  wall-clock reach query          (n={REPEATS} reps): median={timing_reach['median_ms']:.3f} ms  min={timing_reach['min_ms']:.3f}  max={timing_reach['max_ms']:.3f}")
+    print(f"  wall-clock join, accepted terms (n={REPEATS} reps): median={timing_join_accepted['median_ms']:.3f} ms  min={timing_join_accepted['min_ms']:.3f}  max={timing_join_accepted['max_ms']:.3f}  rows_returned={timing_join_accepted['row_count']}")
+    print(f"  wall-clock join, all terms      (n={REPEATS} reps): median={timing_join_all['median_ms']:.3f} ms  min={timing_join_all['min_ms']:.3f}  max={timing_join_all['max_ms']:.3f}  rows_returned={timing_join_all['row_count']}")
+    print(f"  ==> GUARD-ON  total (reach + join-accepted): {guard_on_total_median:.3f} ms")
+    print(f"  ==> GUARD-OFF total (join-all only):         {guard_off_total_median:.3f} ms")
+    if guard_off_total_median > 0:
+        ratio = guard_on_total_median / guard_off_total_median
+        verdict = "GUARD-ON CHEAPER" if ratio < 1 else ("GUARD-OFF CHEAPER" if ratio > 1 else "TIE")
+        print(f"  ==> ratio (guard-on / guard-off): {ratio:.3f}x  ({verdict})")
 
 
 # Scenario 1: a query that is just one very common identifier sub-word ("get") -- the case where

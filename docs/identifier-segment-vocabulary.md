@@ -31,11 +31,12 @@ clause for touching `nodes_fts` ("unless it blocks the measurement") never appli
 reverted rather than shipped (§15, §16). The rarity guard (`SEGMENT_RARITY_MAX_FRACTION`) was
 *also* retrieval-neutral on these nine questions with the guard removed entirely — but a
 synthetic, Keycloak-scale measurement built specifically because retrieval metrics cannot see
-this dimension (§16) found the guard saves real wall-clock, up to three orders of magnitude on
-`segmentCandidates`'s own join query when a query term happens to be a common identifier
-sub-word: the conservative candidate budget bounds how many rows come *back*, but SQLite still
-has to walk and sort a common segment's entire posting list to find out, and the guard is what
-lets it skip that walk instead. The guard stays.
+this dimension (§16) found the guard saves real wall-clock — honestly accounted for the cost of
+the guard's own decision query, 7.4×–8.7× cheaper than removing it whenever a query term happens
+to be a common identifier sub-word, against a small (~0.03 ms) fixed tax when it has nothing to
+catch. The conservative candidate budget bounds how many rows come *back*, but SQLite still has to
+do real work to decide what to skip, and on this measurement that work is reliably cheaper than
+not deciding at all. The guard stays.
 
 **§6 itself needed a correction, not just a caveat.** An earlier version of this document
 credited part of A2's gain to the `nodes_fts` duplicate-row defect, illustrated with a live probe
@@ -455,17 +456,19 @@ Both read the same size and mtime this entire run has recorded for the shared co
 start — unmodified across every arm, every cost measurement, and this round's revert.
 
 **Full diff against `main`, recomputed for this round** (git-tracked files only; includes this
-document's own edits and §16's two new scripts and saved probe output): **23 files changed,
-~3,260 insertions(+), 1 deletion(-)**, as close as this line can get to exact — a diff-stat that
-quotes its own file's size necessarily describes the tree from just before the edit that adds the
-quote, the same self-reference §14 already flagged for its own diff-stat. `SqliteStorageAdapterTest.kt`
-no longer appears in this diff at all — the de-duplication pinning case it carried in the previous
-round was the entirety of its difference from `main`, and reverting that case (§16.1) brought the
-file back to byte-identical with `main`. `SqliteStorageAdapter.kt` drops from the previous round's
-+320 to +306, the same `.distinct()`-and-comment removal. `docs/identifier-segment-vocabulary.md`
-itself is roughly +830 against `main` (up from +440 two rounds ago, reflecting every section added
-or rewritten across all three close-out rounds). Three new files account for the rest of this
-round's growth in `scripts/segvocab/`: the synthetic-scale builder and cost-measurement script
+document's own edits, §16's two new scripts and saved probe output, and the peer-review
+correction to the guard-cost measurement described in §16.2 and §17): **23 files changed, roughly
+3,400-3,450 insertions(+), 1 deletion(-)**, as close as this line can get to exact — a diff-stat
+that quotes its own file's size necessarily describes the tree from just before the edit that adds
+the quote, the same self-reference §14 already flagged for its own diff-stat, compounded here by
+a second correction pass after peer review. `SqliteStorageAdapterTest.kt` no longer appears in
+this diff at all — the de-duplication pinning case it carried in the previous round was the
+entirety of its difference from `main`, and reverting that case (§16.1) brought the file back to
+byte-identical with `main`. `SqliteStorageAdapter.kt` drops from the previous round's +320 to
++306, the same `.distinct()`-and-comment removal. `docs/identifier-segment-vocabulary.md` itself
+is roughly +1,000 against `main` (up from +440 two rounds ago, reflecting every section added or
+rewritten across all three close-out rounds plus §17). Three new files account for the rest of
+this round's growth in `scripts/segvocab/`: the synthetic-scale builder and cost-measurement script
 (§16.2), and the saved measurement output they produced.
 
 **Full `check`**, re-run for this round with `:modules:storage-sqlite:cleanTest` forced before
@@ -556,8 +559,9 @@ unguarded `exec`, unlike the FTS `MATCH` path beside it, which is wrapped and lo
 the Exposed re-fetch that already re-reads every row. The four-times-repeated
 `joinToString(",") { "'${sqlQuote(it)}'" }` pattern was extracted into one `sqlInList` helper.
 Ordering the candidates by accepted-segment match count descending was tried and **measured** —
-the point of this whole addendum — to move R@5 and R@10 below the cold baseline (MRR 0.5000 /
-R@5 0.3148 / R@10 0.3426, reproducible identically across 5 cold cycles, against baseline's
+found to regress R@5 and R@10 below the cold baseline, and rejected on that measurement rather
+than on the intuition that motivated it (§17 elevates why this matters beyond this one fix). MRR
+0.5000 / R@5 0.3148 / R@10 0.3426, reproducible identically across 5 cold cycles, against baseline's
 0.4815 / 0.3426 / 0.3704), so `ORDER BY n.id` (A2's original) was kept, with a comment recording
 that the alternative was tried and why it was rejected.
 
@@ -718,14 +722,14 @@ stays open and unassigned** — `INSERT OR REPLACE INTO nodes_fts` still never r
 
 §15 established the guard is retrieval-neutral on these nine questions. That is not the same
 question as whether it is *worthless* — the note in this run's own brief is exactly right that the
-budget (`limit - results.size`) already bounds how many candidates *return*, so the only thing the
-guard can possibly change is which candidates are *considered* before that bound applies: whether
-`segmentCandidates`' join has to walk and sort a common segment's entire posting list before
-`ORDER BY n.id LIMIT budget` trims it down, or skips that walk entirely. Excalidraw's ~5,000-row
-vocabulary is too small for that cost to be visible — this document's own KDoc-quoted numbers
-already put the scale where it matters at Keycloak's ~600K rows — and D5 caps this run at two real
-Keycloak indexes, both spent, with nothing here touching a cost column that would justify a third.
-So the measurement was built synthetically instead.
+budget (`limit - results.size`) already bounds how many candidates *return*, so the guard can never
+change result *size*, only what work gets done to decide the result: whether a common segment's
+posting list is walked and sorted through the full `JOIN ... DISTINCT ... ORDER BY n.id`
+machinery, or whether that walk is replaced with a cheaper aggregate that decides to skip the join
+altogether. Excalidraw's ~5,000-row vocabulary is too small for that cost to be visible — this
+document's own KDoc-quoted numbers already put the scale where it matters at Keycloak's ~600K
+rows — and D5 caps this run at two real Keycloak indexes, both spent, with nothing here touching a
+cost column that would justify a third. So the measurement was built synthetically instead.
 
 **The synthetic database.** `scripts/segvocab/guard-cost-build-synthetic.py` builds a scratch
 SQLite database with the real V6 schema (`name_segment_vocab`, `WITHOUT ROWID`, PK
@@ -741,50 +745,77 @@ names down to a single one, the same shape this document's KDoc already reports 
 conservative floor for this measurement: it cannot make the join artificially cheaper than reality
 would by collapsing lookups onto fewer distinct labels than a real corpus has.
 
-**The measurement.** `scripts/segvocab/guard-cost-measure.py` runs the exact two queries
-`segmentCandidates` issues — the reach-count query and the `JOIN ... ORDER BY n.id LIMIT budget`
-query that actually proposes candidates — against that database, guard-on (only the terms the
-rarity filter accepts, exactly what production sends once filtering has run) vs guard-off (every
-term, unfiltered, as `SEGMENT_RARITY_MAX_FRACTION = 1.0` would produce), across five query shapes:
-a single common term alone, a realistic mix of one common term and five rare ones (at both
-`budget=5` and the `ExploreEngine.matchSymbols` ceiling of `budget=25`), a stress case of three
-common terms, and an all-rare query where the guard has nothing to catch. Timed with Python's
-`sqlite3` module (median of 25 repetitions per query, page cache warmed first) and independently
-cross-checked with `/usr/bin/sqlite3`'s own `.timer`, which agreed on direction and order of
-magnitude. Full output saved at `scripts/segvocab/guard-cost-probe.txt`.
+**The measurement, corrected.** An earlier pass of this section timed only the join query on both
+sides — `join(accepted terms)` for guard-on against `join(all terms)` for guard-off — and reported
+ratios up to ~3,400×. That comparison was not honest about what production actually runs:
+`segmentCandidates` always computes the reach query (`namesReached`, the
+`SELECT segment, COUNT(DISTINCT name) ... GROUP BY segment` that decides which terms the guard
+accepts) *unconditionally*, before the join ever runs — there is no code path today where the join
+executes without it. So the guard's true cost is `reach_query(all terms) + join(accepted terms)`,
+not the join alone; timing only the join let the guard-on number skip the very query that buys it
+its answer. "Guard off," properly, is what the code looks like if `SEGMENT_RARITY_MAX_FRACTION`
+and its use are removed entirely (D18's stated fallback) — no reach query at all, since nothing
+downstream would need that statistic — so `join(all terms)` alone is the fair guard-off number.
+`scripts/segvocab/guard-cost-measure.py` was rewritten to time both queries separately and report
+the honest totals; the version below is that rewrite's output, not the original. Same five query
+shapes as before: a single common term alone, a realistic mix of one common term and five rare
+ones (at both `budget=5` and the `ExploreEngine.matchSymbols` ceiling of `budget=25`), a stress
+case of three common terms, and an all-rare query where the guard has nothing to catch. Timed with
+Python's `sqlite3` module (median of 25 repetitions per query, page cache warmed first). Full
+output saved at `scripts/segvocab/guard-cost-probe.txt`.
 
-| scenario | budget | rows considered, guard OFF | rows considered, guard ON | wall-clock median, guard OFF | wall-clock median, guard ON | ratio |
+| scenario | budget | rows considered, guard OFF (join only) | rows considered, guard ON (reach + join) | wall-clock median, guard OFF | wall-clock median, guard ON (reach + join) | ratio (on ÷ off) |
 |---|---|---|---|---|---|---|
-| single common term ("get") | 5 | 27,000 | 0 (short-circuits — `acceptedTerms` empty) | 12.28 ms | 0 ms | guard drops the query entirely |
-| single common term ("get") | 25 | 27,000 | 0 | 12.02 ms | 0 ms | guard drops the query entirely |
-| mixed: 1 common + 5 rare | 5 | 27,206 | 206 | 12.54 ms | 0.122 ms | ~103× |
-| mixed: 1 common + 5 rare | 25 | 27,206 | 206 | 12.87 ms | 0.132 ms | ~97× |
-| stress: 3 common + 2 rare | 5 | 80,006 | 6 | 40.80 ms | 0.012 ms | ~3,400× |
-| all-rare (nothing to suppress) | 5 | 206 | 206 | 0.120 ms | 0.114 ms | ~identical, as expected |
+| single common term ("get") | 5 | 27,000 | 27,000 (all in the reach query; join is a short-circuit) | 12.46 ms | 1.55 ms | **0.12× — guard 8.0× cheaper** |
+| single common term ("get") | 25 | 27,000 | 27,000 | 11.97 ms | 1.55 ms | **0.13× — guard 7.7× cheaper** |
+| mixed: 1 common + 5 rare | 5 | 27,206 | 27,412 | 12.99 ms | 1.71 ms | **0.13× — guard 7.6× cheaper** |
+| mixed: 1 common + 5 rare | 25 | 27,206 | 27,412 | 12.51 ms | 1.70 ms | **0.14× — guard 7.4× cheaper** |
+| stress: 3 common + 2 rare | 5 | 80,006 | 80,012 | 40.67 ms | 4.67 ms | **0.11× — guard 8.7× cheaper** |
+| all-rare (nothing to suppress) | 5 | 206 | 412 | 0.114 ms | 0.140 ms | **1.22× — guard ~0.03 ms costlier** |
 
-`EXPLAIN QUERY PLAN` is identical in shape guard-on and guard-off in every scenario —
-`SEARCH v USING PRIMARY KEY (segment=?)`, `SEARCH n USING INDEX idx_nodes_label (label=?)`,
-`USE TEMP B-TREE FOR DISTINCT` — which is itself the finding: the plan *shape* does not show the
-guard's value, because SQLite still has to fully materialise every matching row into that temp
-b-tree for `DISTINCT` + `ORDER BY n.id` before `LIMIT` can trim it, regardless of how few rows
-survive to the final result. A common segment's posting list gets walked and sorted in full even
-though only `budget` rows of it will ever be returned — exactly the cost the guard exists to skip,
-and exactly the cost no `EXPLAIN QUERY PLAN` line names directly. The all-rare scenario is the
-control: guard-on and guard-off read the identical plan, the identical row count, and the same
-wall-clock within noise, because the guard has nothing to filter there — consistent with §15's own
-finding that a natural-language query touching this guard's actual catch (a handful of
-high-frequency domain words) is the exception, not the rule.
+Two things this table makes visible that the first pass did not:
 
-**Decision: the guard stays.** On excalidraw's nine questions it is retrieval-neutral, exactly as
-§15 measured — but at Keycloak scale, on a query containing even one common identifier sub-word,
-it is the difference between `segmentCandidates` costing a fraction of a millisecond and costing
-tens of milliseconds, and `ExploreEngine.matchSymbols` pays this once per query token. This is
-real, load-bearing latency at the scale the guard was written for, on a dimension this run's own
-nine-question retrieval instrument structurally cannot see — not because the guard is a stopword
-list (§2 item 3 already corrected that framing) but because it is what lets a common segment's
-long posting list go unwalked when there is no retrieval benefit waiting at the end of it anyway.
-No code changes as a result of this measurement: `SEGMENT_RARITY_MAX_FRACTION` and its call site
-are unchanged from what §5's cost figures and §7's caveats already describe.
+**Rows considered stops being a reliable proxy for cost the moment the query shapes differ.** In
+four of six scenarios guard-ON's *total* rows considered (reach + join) is equal to or slightly
+*higher* than guard-OFF's (e.g. the mixed scenario: 27,412 vs 27,206) — the reach query and the
+join both walk the common segment's full posting list, so the guard does not reduce rows touched
+overall, it changes what kind of work is done per row. `EXPLAIN QUERY PLAN` shows why: the reach
+query is `SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)` alone — one table, an aggregate
+`COUNT`, no second index lookup, no sort — while the join additionally does
+`SEARCH n USING INDEX idx_nodes_label (label=?)` per row (a second B-tree descent) and
+`USE TEMP B-TREE FOR DISTINCT` to materialise `DISTINCT n.id ORDER BY n.id` before `LIMIT` can trim
+it. Walking a posting list once for a cheap aggregate and conditionally skipping the expensive
+join is cheaper than walking it once for the expensive join unconditionally, even though the
+*first* option can touch marginally more rows in total. Wall-clock, not rows considered, is the
+number that matters here.
+
+**The guard is not free — it costs a fixed, small tax when it has nothing to catch.** The all-rare
+scenario is the control, and it is the one case where guard-OFF wins: guard-ON pays the reach
+query's ~0.02 ms even though every term is already under the cut and nothing gets filtered, for a
+net ~0.03 ms loss against skipping the reach query entirely. That is real and is reported as such,
+not rounded away — but it is three orders of magnitude smaller than the saving on a query that
+does contain a common segment, and per §15's own finding, most of excalidraw's nine questions'
+terms are already in that "nothing to catch" band, which is exactly why the guard is
+retrieval-neutral there and this tax is invisible to any retrieval metric.
+
+**Decision: the guard stays.** Honestly accounted — reach query included on the guard-on side,
+excluded (correctly, since removing the guard removes that query entirely) on the guard-off side —
+the guard is **7.4×–8.7× cheaper** than removing it on every query shape that contains a common
+identifier sub-word, and costs a **~0.03 ms** tax on a query that does not. `ExploreEngine.matchSymbols`
+pays this once per query token, so a multi-word query mixing common and rare terms nets solidly in
+the guard's favour. This is a smaller effect than the first pass's uncorrected 100×–3,400× claim,
+and the correct one: **the earlier numbers are wrong and this table supersedes them.** The
+mechanism is not a stopword substitute (§2 item 3 already corrected that framing) — it is what
+lets a common segment's long posting list get counted once, cheaply, instead of joined and sorted
+unconditionally. No code changes as a result of this measurement: `SEGMENT_RARITY_MAX_FRACTION`
+and its call site are unchanged from what §5's cost figures and §7's caveats already describe.
+
+**On taking a real Keycloak index instead.** The synthetic database's mechanism is confirmed by
+`EXPLAIN QUERY PLAN`, not just by wall-clock noise — the reach query structurally omits a join and
+a sort that the candidate query structurally requires, which is a property of the schema and the
+query shape, not of this particular synthetic distribution. A real Keycloak index would not change
+which query plan SQLite picks for either query. Judged unnecessary: a third Keycloak index was not
+taken.
 
 ### 16.3 The final re-measurement
 
@@ -814,9 +845,11 @@ Each of these is a result in its own right, not an absence of one:
    or A2, across ten cold cycles (§15) — so the fix was reverted (§16.1) rather than kept as code
    with no measured benefit.
 2. **The rarity-guard finding.** Disabling the guard changed nothing on these nine questions
-   (§15) — but at Keycloak scale it saves real wall-clock, up to ~3,400× on `segmentCandidates`'
-   own join query when a query term is a common identifier sub-word (§16.2). Both halves are true
-   at once: retrieval-neutral here, cost-relevant at scale. The guard stays.
+   (§15) — but at Keycloak scale, honestly measured against the cost of the guard's own decision
+   query (§16.2 corrects an earlier pass of this measurement that omitted it), it is 7.4×–8.7×
+   cheaper than removing it whenever a query term is a common identifier sub-word, and costs a
+   small (~0.03 ms) fixed tax otherwise. Both halves are true at once: retrieval-neutral here,
+   cost-relevant at scale. The guard stays.
 3. **The A0 = A0c identity.** As-found and cold baselines were identical on all three retrieval
    metrics (§4) — which contradicts the brief's own assumption that duplicate-row growth in a
    stale, as-found index would move these questions' scores. It does not, on this corpus and this
@@ -832,3 +865,43 @@ outside this rig's own private-root convention only because they measure a schem
 real index. §11 above (the run's full `check`, prohibition check, and shared-corpus check) was
 re-run after this round's own commits and reflects this round's product-code and test changes;
 its verbatim output is current as of the commit named there.
+
+## 17. Why a code state and a measured row must travel together
+
+Two findings in this document, from two different close-out rounds, are the same lesson twice.
+Naming the lesson once, here, where a reader meets it directly, rather than leaving it as a
+sub-paragraph inside an unrelated fix's writeup (§14) or an implicit moral of §16.2's correction.
+
+**The first time: a plausible ranking change that regressed.** §14's `segmentCandidates` fix was
+a comparison-and-Unicode correctness fix, not a ranking change — but while in that function, a
+second idea was sitting right there and looked like a free improvement: order the candidates by
+how many of the query's accepted segments they matched, descending, instead of the arbitrary
+`ORDER BY n.id`. A candidate matching three query segments *should* rank ahead of one matching
+only one — the intuition is not unreasonable. It was tried and measured anyway, because this run's
+own discipline is that no ranking-shape change ships unmeasured. The result: MRR 0.5000, R@5
+0.3148, R@10 0.3426 — every one of those below the cold baseline (0.4815 / 0.3426 / 0.3704),
+reproducibly across five cold cycles, not noise. The idea that looked obviously better made every
+retrieval number worse. `ORDER BY n.id` — the arbitrary, unglamorous tie-break — was kept, not
+because it was defended in the abstract, but because it was the one actually measured to work.
+
+**The second time: a cost measurement that was wrong until it was checked against what production
+actually runs.** §16.2's first pass at the rarity guard's cost timed only the join query on both
+sides, arrived at ratios up to ~3,400×, and would have shipped that number if a peer reviewer had
+not asked the obvious question: does guard-on's number include the query that decides which terms
+the guard accepts? It did not. Once corrected, the guard still wins — but by 7.4×–8.7×, not
+3,400×, and with an honestly reported ~0.03 ms tax on the case where it has nothing to catch. The
+direction of the finding survived; the magnitude, uncorrected, would have overstated the guard's
+value by two orders of magnitude in a document whose whole premise is that a claim here traces to
+a number, not to a plausible-sounding argument.
+
+**Both are the same failure mode, caught the same way.** In neither case did the code that looked
+better, or the measurement that looked favourable, get shipped or published on the strength of how
+it looked. Both were caught only because they were actually run against the real instrument — a
+cold retrieval cycle in one case, an honest wall-clock comparison in the other — rather than
+reasoned about from the shape of the change. A codebase (or a document) that ships the
+plausible-looking version because measuring it felt like due diligence rather than a real
+possibility of being wrong would have shipped a regression once and overstated a real finding by
+100× the other time. The generalisable point is not "measure everything" as a slogan; it is that
+*this specific class of change* — anything where intuition and measurement could plausibly
+diverge, whether that is a ranking order or a cost comparison — is exactly the class where a
+reviewer's first question should be "was this actually run," not "does this sound right."

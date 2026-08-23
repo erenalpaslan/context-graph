@@ -2,32 +2,50 @@
 === scenario: single common term only (budget=5) ===
 terms: ['get']
   get: reach=27000 (22.64% of 119242) -> OVER CUT (suppressed by guard)
-  guard-ON accepted terms: []
-  guard-OFF terms (all):   ['get']
-  rows_considered (WHERE match count) guard-OFF: 27000
-  rows_considered (WHERE match count) guard-ON:  0
-  EXPLAIN QUERY PLAN, guard-OFF:
+  guard-ON accepted terms (fed to the join, after the reach query runs): []
+  guard-OFF: no reach query at all; the join runs over all terms:        ['get']
+  rows considered by the reach query (guard-ON only):      27000
+  rows considered by the join over accepted terms (guard-ON): 0
+  rows considered by the join over all terms (guard-OFF):     27000
+  guard-ON total rows considered (reach + join):  27000
+  guard-OFF total rows considered (join only):    27000
+  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):
+    (6, 0, 56, 'SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)')
+  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):
     (10, 0, 56, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (14, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (19, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  EXPLAIN QUERY PLAN, guard-ON: n/a (accepted list empty -> segmentCandidates short-circuits, zero query issued)
-  wall-clock guard-OFF (n=25 reps): median=12.283 ms  min=11.937  max=13.365  rows_returned=5
-  wall-clock guard-ON: 0 ms (segmentCandidates returns emptyList() before issuing any join query -- acceptedTerms is empty)
+  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON): n/a (accepted list empty -> segmentCandidates short-circuits, zero join issued)
+  wall-clock reach query          (n=25 reps): median=1.552 ms  min=1.538  max=1.606
+  wall-clock join, accepted terms (n=25 reps): median=0.000 ms  min=0.000  max=0.000  rows_returned=0
+  wall-clock join, all terms      (n=25 reps): median=12.456 ms  min=11.658  max=13.223  rows_returned=5
+  ==> GUARD-ON  total (reach + join-accepted): 1.552 ms
+  ==> GUARD-OFF total (join-all only):         12.456 ms
+  ==> ratio (guard-on / guard-off): 0.125x  (GUARD-ON CHEAPER)
 
 === scenario: single common term only (budget=25) ===
 terms: ['get']
   get: reach=27000 (22.64% of 119242) -> OVER CUT (suppressed by guard)
-  guard-ON accepted terms: []
-  guard-OFF terms (all):   ['get']
-  rows_considered (WHERE match count) guard-OFF: 27000
-  rows_considered (WHERE match count) guard-ON:  0
-  EXPLAIN QUERY PLAN, guard-OFF:
+  guard-ON accepted terms (fed to the join, after the reach query runs): []
+  guard-OFF: no reach query at all; the join runs over all terms:        ['get']
+  rows considered by the reach query (guard-ON only):      27000
+  rows considered by the join over accepted terms (guard-ON): 0
+  rows considered by the join over all terms (guard-OFF):     27000
+  guard-ON total rows considered (reach + join):  27000
+  guard-OFF total rows considered (join only):    27000
+  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):
+    (6, 0, 56, 'SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)')
+  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):
     (10, 0, 56, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (14, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (19, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  EXPLAIN QUERY PLAN, guard-ON: n/a (accepted list empty -> segmentCandidates short-circuits, zero query issued)
-  wall-clock guard-OFF (n=25 reps): median=12.016 ms  min=11.720  max=12.845  rows_returned=25
-  wall-clock guard-ON: 0 ms (segmentCandidates returns emptyList() before issuing any join query -- acceptedTerms is empty)
+  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON): n/a (accepted list empty -> segmentCandidates short-circuits, zero join issued)
+  wall-clock reach query          (n=25 reps): median=1.551 ms  min=1.538  max=1.604
+  wall-clock join, accepted terms (n=25 reps): median=0.000 ms  min=0.000  max=0.000  rows_returned=0
+  wall-clock join, all terms      (n=25 reps): median=11.971 ms  min=11.614  max=13.335  rows_returned=25
+  ==> GUARD-ON  total (reach + join-accepted): 1.551 ms
+  ==> GUARD-OFF total (join-all only):         11.971 ms
+  ==> ratio (guard-on / guard-off): 0.130x  (GUARD-ON CHEAPER)
 
 === scenario: mixed: 1 common + 5 rare (budget=5) ===
 terms: ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
@@ -37,20 +55,29 @@ terms: ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001'
   tail_000003: reach=4 (0.00% of 119242) -> under cut
   td_0001: reach=29 (0.02% of 119242) -> under cut
   tc_0001: reach=167 (0.14% of 119242) -> under cut
-  guard-ON accepted terms: ['tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
-  guard-OFF terms (all):   ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
-  rows_considered (WHERE match count) guard-OFF: 27206
-  rows_considered (WHERE match count) guard-ON:  206
-  EXPLAIN QUERY PLAN, guard-OFF:
+  guard-ON accepted terms (fed to the join, after the reach query runs): ['tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
+  guard-OFF: no reach query at all; the join runs over all terms:        ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
+  rows considered by the reach query (guard-ON only):      27206
+  rows considered by the join over accepted terms (guard-ON): 206
+  rows considered by the join over all terms (guard-OFF):     27206
+  guard-ON total rows considered (reach + join):  27412
+  guard-OFF total rows considered (join only):    27206
+  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):
+    (6, 0, 82, 'SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)')
+  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):
     (10, 0, 82, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (40, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (45, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  EXPLAIN QUERY PLAN, guard-ON:
+  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON's second query):
     (10, 0, 79, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (37, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (42, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  wall-clock guard-OFF (n=25 reps): median=12.537 ms  min=12.238  max=13.770  rows_returned=5
-  wall-clock guard-ON  (n=25 reps): median=0.122 ms  min=0.117  max=0.139  rows_returned=5
+  wall-clock reach query          (n=25 reps): median=1.591 ms  min=1.563  max=1.879
+  wall-clock join, accepted terms (n=25 reps): median=0.117 ms  min=0.116  max=0.181  rows_returned=5
+  wall-clock join, all terms      (n=25 reps): median=12.987 ms  min=12.133  max=13.654  rows_returned=5
+  ==> GUARD-ON  total (reach + join-accepted): 1.709 ms
+  ==> GUARD-OFF total (join-all only):         12.987 ms
+  ==> ratio (guard-on / guard-off): 0.132x  (GUARD-ON CHEAPER)
 
 === scenario: mixed: 1 common + 5 rare (budget=25) ===
 terms: ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
@@ -60,20 +87,29 @@ terms: ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001'
   tail_000003: reach=4 (0.00% of 119242) -> under cut
   td_0001: reach=29 (0.02% of 119242) -> under cut
   tc_0001: reach=167 (0.14% of 119242) -> under cut
-  guard-ON accepted terms: ['tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
-  guard-OFF terms (all):   ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
-  rows_considered (WHERE match count) guard-OFF: 27206
-  rows_considered (WHERE match count) guard-ON:  206
-  EXPLAIN QUERY PLAN, guard-OFF:
+  guard-ON accepted terms (fed to the join, after the reach query runs): ['tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
+  guard-OFF: no reach query at all; the join runs over all terms:        ['get', 'tail_000001', 'tail_000002', 'tail_000003', 'td_0001', 'tc_0001']
+  rows considered by the reach query (guard-ON only):      27206
+  rows considered by the join over accepted terms (guard-ON): 206
+  rows considered by the join over all terms (guard-OFF):     27206
+  guard-ON total rows considered (reach + join):  27412
+  guard-OFF total rows considered (join only):    27206
+  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):
+    (6, 0, 82, 'SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)')
+  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):
     (10, 0, 82, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (40, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (45, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  EXPLAIN QUERY PLAN, guard-ON:
+  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON's second query):
     (10, 0, 79, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (37, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (42, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  wall-clock guard-OFF (n=25 reps): median=12.866 ms  min=12.308  max=25.983  rows_returned=25
-  wall-clock guard-ON  (n=25 reps): median=0.132 ms  min=0.124  max=0.298  rows_returned=25
+  wall-clock reach query          (n=25 reps): median=1.567 ms  min=1.556  max=1.619
+  wall-clock join, accepted terms (n=25 reps): median=0.128 ms  min=0.123  max=0.166  rows_returned=25
+  wall-clock join, all terms      (n=25 reps): median=12.509 ms  min=11.950  max=13.601  rows_returned=25
+  ==> GUARD-ON  total (reach + join-accepted): 1.695 ms
+  ==> GUARD-OFF total (join-all only):         12.509 ms
+  ==> ratio (guard-on / guard-off): 0.135x  (GUARD-ON CHEAPER)
 
 === scenario: stress: 3 common + 2 rare (budget=5) ===
 terms: ['get', 'service', 'config', 'tail_000005', 'tail_000006']
@@ -82,20 +118,29 @@ terms: ['get', 'service', 'config', 'tail_000005', 'tail_000006']
   config: reach=21000 (17.61% of 119242) -> OVER CUT (suppressed by guard)
   tail_000005: reach=2 (0.00% of 119242) -> under cut
   tail_000006: reach=4 (0.00% of 119242) -> under cut
-  guard-ON accepted terms: ['tail_000005', 'tail_000006']
-  guard-OFF terms (all):   ['get', 'service', 'config', 'tail_000005', 'tail_000006']
-  rows_considered (WHERE match count) guard-OFF: 80006
-  rows_considered (WHERE match count) guard-ON:  6
-  EXPLAIN QUERY PLAN, guard-OFF:
+  guard-ON accepted terms (fed to the join, after the reach query runs): ['tail_000005', 'tail_000006']
+  guard-OFF: no reach query at all; the join runs over all terms:        ['get', 'service', 'config', 'tail_000005', 'tail_000006']
+  rows considered by the reach query (guard-ON only):      80006
+  rows considered by the join over accepted terms (guard-ON): 6
+  rows considered by the join over all terms (guard-OFF):     80006
+  guard-ON total rows considered (reach + join):  80012
+  guard-OFF total rows considered (join only):    80006
+  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):
+    (6, 0, 79, 'SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)')
+  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):
     (10, 0, 79, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (37, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (42, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  EXPLAIN QUERY PLAN, guard-ON:
+  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON's second query):
     (10, 0, 66, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (28, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (33, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  wall-clock guard-OFF (n=25 reps): median=40.803 ms  min=38.915  max=42.398  rows_returned=5
-  wall-clock guard-ON  (n=25 reps): median=0.012 ms  min=0.011  max=0.022  rows_returned=5
+  wall-clock reach query          (n=25 reps): median=4.658 ms  min=4.583  max=4.741
+  wall-clock join, accepted terms (n=25 reps): median=0.011 ms  min=0.011  max=0.017  rows_returned=5
+  wall-clock join, all terms      (n=25 reps): median=40.674 ms  min=38.741  max=43.403  rows_returned=5
+  ==> GUARD-ON  total (reach + join-accepted): 4.670 ms
+  ==> GUARD-OFF total (join-all only):         40.674 ms
+  ==> ratio (guard-on / guard-off): 0.115x  (GUARD-ON CHEAPER)
 
 === scenario: all rare (nothing to suppress) (budget=5) ===
 terms: ['tail_000010', 'tail_000011', 'td_0002', 'tc_0002']
@@ -103,17 +148,26 @@ terms: ['tail_000010', 'tail_000011', 'td_0002', 'tc_0002']
   tail_000011: reach=4 (0.00% of 119242) -> under cut
   td_0002: reach=12 (0.01% of 119242) -> under cut
   tc_0002: reach=189 (0.16% of 119242) -> under cut
-  guard-ON accepted terms: ['tail_000010', 'tail_000011', 'td_0002', 'tc_0002']
-  guard-OFF terms (all):   ['tail_000010', 'tail_000011', 'td_0002', 'tc_0002']
-  rows_considered (WHERE match count) guard-OFF: 206
-  rows_considered (WHERE match count) guard-ON:  206
-  EXPLAIN QUERY PLAN, guard-OFF:
+  guard-ON accepted terms (fed to the join, after the reach query runs): ['tail_000010', 'tail_000011', 'td_0002', 'tc_0002']
+  guard-OFF: no reach query at all; the join runs over all terms:        ['tail_000010', 'tail_000011', 'td_0002', 'tc_0002']
+  rows considered by the reach query (guard-ON only):      206
+  rows considered by the join over accepted terms (guard-ON): 206
+  rows considered by the join over all terms (guard-OFF):     206
+  guard-ON total rows considered (reach + join):  412
+  guard-OFF total rows considered (join only):    206
+  EXPLAIN QUERY PLAN, reach query (guard-ON's first query):
+    (6, 0, 76, 'SEARCH name_segment_vocab USING PRIMARY KEY (segment=?)')
+  EXPLAIN QUERY PLAN, join over all terms (guard-OFF):
     (10, 0, 76, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (34, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (39, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  EXPLAIN QUERY PLAN, guard-ON:
+  EXPLAIN QUERY PLAN, join over accepted terms (guard-ON's second query):
     (10, 0, 76, 'SEARCH v USING PRIMARY KEY (segment=?)')
     (34, 0, 62, 'SEARCH n USING INDEX idx_nodes_label (label=?)')
     (39, 0, 0, 'USE TEMP B-TREE FOR DISTINCT')
-  wall-clock guard-OFF (n=25 reps): median=0.120 ms  min=0.114  max=0.168  rows_returned=5
-  wall-clock guard-ON  (n=25 reps): median=0.114 ms  min=0.113  max=0.129  rows_returned=5
+  wall-clock reach query          (n=25 reps): median=0.021 ms  min=0.021  max=0.024
+  wall-clock join, accepted terms (n=25 reps): median=0.119 ms  min=0.114  max=0.176  rows_returned=5
+  wall-clock join, all terms      (n=25 reps): median=0.114 ms  min=0.114  max=0.123  rows_returned=5
+  ==> GUARD-ON  total (reach + join-accepted): 0.140 ms
+  ==> GUARD-OFF total (join-all only):         0.114 ms
+  ==> ratio (guard-on / guard-off): 1.221x  (GUARD-OFF CHEAPER)
