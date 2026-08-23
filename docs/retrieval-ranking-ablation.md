@@ -164,6 +164,14 @@ this run declined to buy it because the brief asked for retrieval quality.
   10/5/3, penalty −15), not tuned against this question set. The one constant with no counterpart —
   the 40 points a top search hit carries — was chosen by stated reasoning before anything was
   measured and never adjusted. With nine questions, tuning would be fitting noise.
+- **The result survives being measured against a different index.** The shipped configuration was
+  re-run against the *shared* corpus at the end, whose excalidraw graph the concurrent ingest-cost
+  run had by then rebuilt twice more (three distinct SHA-256s over the course of this run). It
+  returned 0.4815 / 0.3426 / 0.3704 / 33.85% — identical to the frozen-copy figure in every digit.
+  The seventeen-question comparator columns came back unchanged from the published baseline too
+  (ripgrep 0.1790 / 0.1961 / 0.2647, CodeGraph 0.1559 / 0.1588 / 0.1588). So these numbers are not
+  an artefact of one build of one index. That result is in
+  `modules/benchmark/results/ablation-shipped-shared-corpus/`.
 - **The corpus was being written by another run mid-measurement.** The concurrent ingest-cost run
   re-indexed the shared corpus's excalidraw graph at 10:41 local, during this run's row 1. Rows were
   moved onto a frozen private copy the moment it was detected, and the baseline was re-measured
