@@ -40,30 +40,6 @@ private val FTS_TOKEN_REGEX = Regex("[\\p{L}\\p{N}_]+")
 /** Entity ids per `IN (...)`, comfortably under SQLite's 999-parameter default. */
 private const val PROVENANCE_LOOKUP_CHUNK = 500
 
-/**
- * How many nodes share one `INSERT OR REPLACE INTO nodes_fts` statement.
- *
- * `nodes_fts` is an FTS5 virtual table, which Exposed cannot describe, so its rows go in as
- * literal SQL text rather than through a prepared statement -- and one statement per node was
- * a fifth of the ingest profile spent in `sqlite3_prepare`. Grouping is the whole fix.
- * Bounded rather than unbounded because SQLite caps a compound VALUES list at
- * SQLITE_MAX_COMPOUND_SELECT (500 by default) and a statement at SQLITE_MAX_SQL_LENGTH; 250
- * rows of three short columns sits comfortably under both while cutting prepares 250-fold.
- */
-private const val FTS_CHUNK_SIZE = 250
-
-/**
- * How many rows one prepared batch statement carries.
- *
- * A JDBC batch holds every row's bound arguments in memory until it executes, so an
- * unbounded batch turns a large edge set into a large heap allocation: pass 2 rebuilds
- * 286,106 `Calls` edges on Keycloak, whose ids average 279 characters because an id is the
- * concatenation of two declaration-site ids. Chunking bounds that without giving up anything
- * -- the chunks run inside the caller's single transaction, so this is still one commit, and
- * the prepared statement is still reused across every row of a chunk.
- */
-private const val BULK_CHUNK_SIZE = 10_000
-
 object ArtifactsTable : Table("artifacts") {
     val id = text("id")
     val type = text("type")
@@ -126,6 +102,30 @@ object UnresolvedReferencesTable : Table("unresolved_references") {
     val receiverCall = text("receiver_call").nullable()
     override val primaryKey = PrimaryKey(id)
 }
+
+/**
+ * How many nodes share one `INSERT OR REPLACE INTO nodes_fts` statement.
+ *
+ * `nodes_fts` is an FTS5 virtual table, which Exposed cannot describe, so its rows go in as
+ * literal SQL text rather than through a prepared statement -- and one statement per node was
+ * a fifth of the ingest profile spent in `sqlite3_prepare`. Grouping is the whole fix.
+ * Bounded rather than unbounded because SQLite caps a compound VALUES list at
+ * SQLITE_MAX_COMPOUND_SELECT (500 by default) and a statement at SQLITE_MAX_SQL_LENGTH; 250
+ * rows of three short columns sits comfortably under both while cutting prepares 250-fold.
+ */
+private const val FTS_CHUNK_SIZE = 250
+
+/**
+ * How many rows one prepared batch statement carries.
+ *
+ * A JDBC batch holds every row's bound arguments in memory until it executes, so an
+ * unbounded batch turns a large edge set into a large heap allocation: pass 2 rebuilds
+ * 286,106 `Calls` edges on Keycloak, whose ids average 279 characters because an id is the
+ * concatenation of two declaration-site ids. Chunking bounds that without giving up anything
+ * -- the chunks run inside the caller's single transaction, so this is still one commit, and
+ * the prepared statement is still reused across every row of a chunk.
+ */
+private const val BULK_CHUNK_SIZE = 10_000
 
 class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
     private val jdbcUrl: String
