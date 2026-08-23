@@ -17,10 +17,10 @@ import io.contextgraph.core.NodeType
  *
  * Scores are points, on the scale CodeGraph publishes for the same job (a filename hit is worth 10,
  * a documentation file -15), because those constants are known to work on one real corpus and are a
- * more honest starting point than numbers invented here. They
- * are deliberately far larger than `pageRank * confidence`, which sums to 1.0 across the whole
- * candidate set and is therefore ~1e-3 per node: the graph term survives as the tie-breaker among
- * candidates the query cannot tell apart, and is dominated wherever the query can tell them apart.
+ * more honest starting point than numbers invented here. They are deliberately far larger than
+ * `pageRank * confidence`, which sums to 1.0 across the whole candidate set and is therefore ~1e-3
+ * per node: the graph term survives as the tie-breaker among candidates the query cannot tell
+ * apart, and is dominated wherever the query can tell them apart.
  *
  * Construct one per query via [of]. A bundle with no query passes `null` instead, and ranks
  * exactly as it did before any of this existed.

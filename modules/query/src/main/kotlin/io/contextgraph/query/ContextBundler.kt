@@ -38,11 +38,17 @@ class ContextBundler(
         // survive. One batched lookup, not one query per node; the evidence below re-uses it.
         val provenance = storage.getProvenanceFor(nodes.map { it.id.value })
 
+        // Scored once per candidate, then sorted. Scoring inside the comparator instead would look
+        // tidier and re-derive every score on every comparison -- sortedByDescending calls its
+        // selector per comparison, not per element, so a path would be split into words O(n log n)
+        // times. Invisible on a small graph and real on a large one.
+        val scores = nodes.associate { node ->
+            val queryScore = relevance?.score(node, provenance[node.id.value]?.firstOrNull()?.path) ?: 0.0
+            node.id to queryScore + (ranks[node.id] ?: 0.0) * node.confidence
+        }
+
         val rankedNodes = nodes
-            .sortedByDescending {
-                val queryScore = relevance?.score(it, provenance[it.id.value]?.firstOrNull()?.path) ?: 0.0
-                queryScore + (ranks[it.id] ?: 0.0) * it.confidence
-            }
+            .sortedByDescending { scores[it.id] ?: 0.0 }
             .take(maxNodes)
 
         val evidence = rankedNodes.flatMap { provenance[it.id.value].orEmpty() }
