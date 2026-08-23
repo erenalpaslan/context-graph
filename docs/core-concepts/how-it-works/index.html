@@ -42,7 +42,7 @@
 <body>
 <article>
   <h1>How It Works</h1>
-  <p>ContextGraph is a pipeline: it discovers files, routes them to extractors, resolves entities, builds a graph, and writes everything to SQLite. Here's each stage in detail.</p>
+  <p>ContextGraph is a pipeline: it discovers files, routes them to extractors, parses source to an AST, resolves references and entities, builds a graph, and writes everything to SQLite in batches. Here's each stage in detail.</p>
 
   <div class="pipeline-steps">
     <div class="pipeline-step">
@@ -58,6 +58,12 @@
       <span class="ps-arrow">›</span>
     </div>
     <div class="pipeline-step">
+      <div class="ps-icon">🌳</div>
+      <div class="ps-name">Parse</div>
+      <div class="ps-desc">Tree-sitter AST, scope-correct ids</div>
+      <span class="ps-arrow">›</span>
+    </div>
+    <div class="pipeline-step">
       <div class="ps-icon">⚙️</div>
       <div class="ps-name">Extract</div>
       <div class="ps-desc">Parallel coroutines per file</div>
@@ -66,13 +72,13 @@
     <div class="pipeline-step">
       <div class="ps-icon">🔗</div>
       <div class="ps-name">Resolve</div>
-      <div class="ps-desc">Deduplicate entities</div>
+      <div class="ps-desc">Reference ladder, then dedup</div>
       <span class="ps-arrow">›</span>
     </div>
     <div class="pipeline-step">
       <div class="ps-icon">💾</div>
       <div class="ps-name">Store</div>
-      <div class="ps-desc">SQLite + FTS5</div>
+      <div class="ps-desc">Batched SQLite + FTS5</div>
     </div>
   </div>
 
@@ -83,8 +89,11 @@
   <h2>2. Artifact type detection</h2>
   <p><code>ArtifactTypeDetector</code> maps file extensions to <code>NodeType</code>. A <code>.kt</code> file becomes <code>CodeFile</code>, a <code>.sql</code> file becomes <code>DatabaseSchema</code>, a <code>.pdf</code> becomes <code>PDF</code>, and so on. The type determines which extractors run.</p>
 
-  <h2>3. Extraction</h2>
+  <h2>3. Parsing and extraction</h2>
+  <p>Source files go to <code>TreeSitterExtractor</code>, which parses them to a tree-sitter AST and walks it for declarations. Grammars ship for Kotlin, Java, TypeScript, TSX, JavaScript, Python, Swift and Objective-C.</p>
+  <p>Declarations get <strong>scope-correct identity</strong> rather than a bare name: <code>DeclarationSiteId</code> and <code>Fqn</code> in <code>modules:tree-sitter</code> qualify a symbol by where it is declared, so a <code>close()</code> on one type and a <code>close()</code> on another never collapse into one node. This is the difference between a call graph and a list of coincidences.</p>
   <p><code>IngestPipeline</code> runs extraction with Kotlin coroutines. Each file is processed concurrently on <code>Dispatchers.IO</code> — multiple extractors can run in parallel across many files. Results flow through a <code>Channel</code> to a single consumer that writes to SQLite, avoiding lock contention.</p>
+  <p>A file with syntax errors is not discarded: tree-sitter recovers, extraction proceeds over what parsed, and the run reports a parse warning.</p>
 
   <p>Each extractor implements <code>ResourceExtractor</code>:</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">ResourceExtractor.kt</span></div>
@@ -96,20 +105,27 @@
 
   <p>An <code>ExtractionResult</code> contains a list of <code>GraphNode</code>s, a list of <code>GraphEdge</code>s, and back-references to the source <code>Artifact</code>.</p>
 
-  <h2>4. Entity resolution</h2>
-  <p><code>EntityResolver</code> deduplicates nodes across files. If a <code>Class</code> named <code>UserService</code> appears as both a definition in a <code>.kt</code> file and a reference in a Markdown doc, they resolve to the same node with provenance from both sources.</p>
+  <h2>4. Reference and entity resolution</h2>
+  <p>A call site in one file usually names something declared in another, so it cannot be resolved while that first file is being parsed. Unresolved references are recorded and settled after extraction by <code>ReferenceResolver</code>, which walks <code>ResolutionLadder</code> — a sequence of increasingly permissive strategies, from exact qualified match down to name-only matching.</p>
+  <p>Every edge records <strong>which rung resolved it</strong> and with what confidence. That is deliberate: an agent reading the graph can tell an exactly-resolved call from a plausible guess, instead of being handed both as though they were the same fact.</p>
+  <p><code>EntityResolver</code> then deduplicates nodes across files. If a <code>Class</code> named <code>UserService</code> appears as both a definition in a <code>.kt</code> file and a reference in a Markdown doc, they resolve to the same node with provenance from both sources.</p>
 
   <h2>5. Storage</h2>
-  <p>All data is written to SQLite via <code>SqliteStorageAdapter</code> using Jetbrains Exposed as the DSL. The database schema is managed by Flyway migrations. Three key tables:</p>
+  <p>All data is written to SQLite via <code>SqliteStorageAdapter</code> using Jetbrains Exposed as the DSL. The database schema is managed by Flyway migrations.</p>
+  <p>Writes go through a <strong>batch seam</strong> on <code>StorageAdapter</code> — <code>writeArtifactBatch</code>, <code>upsertNodes</code>, <code>upsertEdges</code> — so a whole artifact's nodes and edges land on one connection inside one transaction. This is not a micro-optimisation: ContextGraph previously opened and closed a separate SQLite connection per row, and fixing it took a 234k-node Java repository from 142m 55.6s to 8m 16.4s while producing a byte-identical graph.</p>
+  <p>The key tables:</p>
   <ul>
     <li><strong>artifacts</strong> — one row per indexed file</li>
     <li><strong>nodes</strong> — entities extracted from files, with FTS5 index on <code>label</code> for full-text search</li>
     <li><strong>edges</strong> — typed, weighted relationships between nodes</li>
     <li><strong>provenance</strong> — file + line numbers tracing each node back to its source</li>
+    <li><strong>name_segment_vocab</strong> — a lookup from an identifier's sub-words back to the names containing them, populated at index time. Its rows are proposals: every candidate is re-verified against <code>nodes</code> before it is returned, and candidates are appended after the full-text hits rather than interleaved, so a segment match can add recall at the tail but never demote a real hit</li>
   </ul>
 
   <h2>Query layer</h2>
   <p>The <code>QueryEngine</code> sits on top of <code>StorageAdapter</code> and provides higher-level operations: BFS neighborhood expansion (via JGraphT), shortest-path finding, reverse-dependency (impact) analysis, and context bundle assembly for AI agents.</p>
+  <p>Ranking is a <strong>function of the query</strong>, not of the graph alone. <code>QueryRelevance</code> scores each candidate against the words actually asked about — including the sub-words of compound identifiers, so a search for "auth" reaches <code>refreshAuthToken</code> — and <code>ContextBundler</code> sorts on that relevance rather than on graph centrality times confidence. Sorting without reference to the query was the single defect behind ContextGraph placing last on every retrieval metric; fixing it moved it to first.</p>
+  <p><code>ExploreEngine</code> composes the whole layer into one call: match modules, rank symbols against the question, attach verbatim source until a token budget is spent, mark the remainder <code>elided</code>, and return the resolved edges and blast radius alongside. That is what <code>contextgraph.explore</code> serves over MCP.</p>
 
   <div class="callout">
     <div class="callout-title">Adding a new extractor</div>

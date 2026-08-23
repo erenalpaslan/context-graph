@@ -376,11 +376,11 @@
 <section class="hero">
   <div class="hero-badge">
     <span class="hero-badge-dot"></span>
-    Kotlin · SQLite · MCP · LiteLLM
+    Kotlin · tree-sitter · SQLite · MCP
   </div>
-  <h1>Understand any project<br/>as a knowledge graph.</h1>
+  <h1>Give agents the source,<br/>not a list of pointers.</h1>
   <p class="hero-sub">
-    A local-first engine that indexes code, docs, PDFs, and schemas into a queryable graph — then exposes structured context to AI agents through an MCP server.
+    A local-first code understanding engine. Builds a scope-correct graph of your codebase from tree-sitter ASTs, then answers a question in one MCP call — matched modules, relevant symbols with verbatim source, resolved call edges, and blast radius.
   </p>
   <div class="hero-ctas">
     <a class="btn-primary" href="getting-started/introduction/index.html">
@@ -455,12 +455,12 @@
 <!-- STATS -->
 <div class="stats">
   <div class="stat">
-    <div class="stat-val">10</div>
+    <div class="stat-val">11</div>
     <div class="stat-label">MCP tools</div>
   </div>
   <div class="stat">
-    <div class="stat-val">6</div>
-    <div class="stat-label">file types</div>
+    <div class="stat-val">8</div>
+    <div class="stat-label">languages parsed</div>
   </div>
   <div class="stat">
     <div class="stat-val">FTS5</div>
@@ -477,39 +477,39 @@
   <div class="features-header">
     <div class="section-eyebrow">Capabilities</div>
     <h2>Everything in one graph.</h2>
-    <p>ContextGraph extracts structure and semantics from every file type and stitches them into a single connected store.</p>
+    <p>Source is parsed to an AST and resolved into a graph of symbols and the real edges between them — then the docs, schemas and configs around it land in the same store.</p>
   </div>
 
   <div class="features-grid">
     <div class="feature-card">
-      <div class="feature-icon">📁</div>
-      <div class="feature-title">Multi-format ingestion</div>
-      <p class="feature-desc">Index Kotlin, Java, Python, JS, Markdown, SQL, PDFs, and YAML in one pass. Incremental re-indexing skips unchanged files via checksums.</p>
+      <div class="feature-icon">🌳</div>
+      <div class="feature-title">Scope-correct symbols</div>
+      <p class="feature-desc">Tree-sitter grammars for Kotlin, Java, TypeScript, TSX, JavaScript, Python, Swift and Objective-C. A <code>close()</code> on one type never collapses into a <code>close()</code> on another.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🔌</div>
-      <div class="feature-title">MCP server</div>
-      <p class="feature-desc">Expose 10 graph tools to Claude, Cursor, and any MCP-compatible agent. Agents search, traverse, and build context without reading every file.</p>
+      <div class="feature-title">One call, not ten</div>
+      <p class="feature-desc">11 MCP tools for Claude, Cursor and anything MCP-compatible — led by <code>explore</code>, which answers a question with verbatim source instead of pointers the agent has to go read.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">🧠</div>
-      <div class="feature-title">Semantic extraction</div>
-      <p class="feature-desc">Route files through any LiteLLM-compatible model to extract concepts, decisions, and relationships that static analysis can't see.</p>
+      <div class="feature-icon">🎯</div>
+      <div class="feature-title">Ranked by the question</div>
+      <p class="feature-desc">Relevance is scored against the words actually asked about, down to the sub-words of compound identifiers, so a search for "auth" reaches <code>refreshAuthToken</code>.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🔒</div>
       <div class="feature-title">100% local</div>
-      <p class="feature-desc">The graph lives in <code>.contextgraph/graph.db</code>. No cloud, no accounts. Data never leaves your machine unless you say so.</p>
+      <p class="feature-desc">The graph lives in <code>.contextgraph/</code> as SQLite. No cloud, no accounts. Data never leaves your machine unless you say so.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🔗</div>
-      <div class="feature-title">Graph traversal</div>
-      <p class="feature-desc">BFS expansion, shortest-path queries, and reverse dependency analysis — powered by JGraphT on top of SQLite FTS5.</p>
+      <div class="feature-title">Resolved call graph</div>
+      <p class="feature-desc">BFS expansion, shortest paths and blast-radius analysis over JGraphT. Every edge records which resolution rung produced it, so a certain call is distinguishable from a guess.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📍</div>
       <div class="feature-title">Full provenance</div>
-      <p class="feature-desc">Every node traces back to its source file and line number. Ask "where did this concept come from?" and get an exact answer.</p>
+      <p class="feature-desc">Every node traces back to its source file and line number. Ask "where did this come from?" and get an exact answer.</p>
     </div>
   </div>
 </section>
@@ -519,8 +519,9 @@
   <div class="mcp-inner">
     <div class="section-eyebrow" style="margin-bottom:.6rem">MCP Server</div>
     <h2>Give AI agents structured project context.</h2>
-    <p>Run <code>serve-mcp</code> to expose the knowledge graph to any MCP-compatible agent — Claude, Cursor, Copilot. Agents navigate relationships and build context bundles without reading every file.</p>
+    <p>Run <code>serve-mcp</code> to expose the graph to any MCP-compatible agent — Claude, Cursor, Copilot. Start with <code>explore</code>: one natural-language question, one call, and the answer comes back carrying the source. The other ten are there for when you want one specific thing.</p>
     <div class="tools-row">
+      <span class="tool-tag">explore</span>
       <span class="tool-tag">index_project</span>
       <span class="tool-tag">search_nodes</span>
       <span class="tool-tag">get_node</span>
@@ -550,19 +551,21 @@
       <div class="pre-dot pre-dot-g"></div>
       <span class="pre-label">terminal</span>
     </div>
-    <pre><code><span class="t-comment"># Clone and build</span>
+    <pre><code><span class="t-comment"># Clone and build the launcher</span>
 git clone https://github.com/erenalpaslan/context-graph
-cd context-graph && ./gradlew build
+cd context-graph && ./gradlew :modules:cli:installDist
+<span class="t-str">export</span> PATH=<span class="t-str">"$PWD/modules/cli/build/install/contextgraph/bin:$PATH"</span>
 
 <span class="t-comment"># Init + index your project</span>
-./gradlew :modules:cli:run --args=<span class="t-str">"init"</span>
-./gradlew :modules:cli:run --args=<span class="t-str">"index /path/to/your/project"</span>
+cd /path/to/your/project
+contextgraph init
+contextgraph index .
 
 <span class="t-comment"># Search</span>
-./gradlew :modules:cli:run --args=<span class="t-str">'search "authentication"'</span>
+contextgraph search <span class="t-str">"authentication"</span>
 
 <span class="t-comment"># Start MCP server for AI agents</span>
-./gradlew :modules:cli:run --args=<span class="t-str">"serve-mcp"</span></code></pre>
+contextgraph serve-mcp</code></pre>
   </div>
 
   <div style="text-align:center;margin-top:2rem">
