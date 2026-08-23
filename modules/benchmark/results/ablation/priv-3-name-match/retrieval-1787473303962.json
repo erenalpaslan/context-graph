@@ -1,0 +1,1264 @@
+{
+    "schemaVersion": 2,
+    "runId": "retrieval-1787473303962",
+    "generatedAt": "2026-08-23T08:21:43.979130Z",
+    "kValues": [
+        5,
+        10
+    ],
+    "results": [
+        {
+            "questionId": "excalidraw-q1",
+            "repoId": "excalidraw",
+            "category": "GRAPH_HEAVY",
+            "expectedFiles": [
+                "packages/excalidraw/element/binding.ts",
+                "packages/excalidraw/element/dragElements.ts"
+            ],
+            "ripgrepQueryTokens": [],
+            "contextGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/data/EditorLocalStorage.ts",
+                    "packages/excalidraw/components/Stats/Position.tsx",
+                    "packages/excalidraw/element/typeChecks.ts",
+                    "packages/excalidraw/element/textElement.ts",
+                    "packages/excalidraw/element/binding.ts",
+                    "packages/excalidraw/snapping.ts",
+                    "packages/math/point.ts",
+                    "packages/excalidraw/queue.ts",
+                    "packages/excalidraw/binaryheap.ts",
+                    "packages/excalidraw/history.ts",
+                    "packages/excalidraw/element/bounds.ts",
+                    "packages/math/utils.ts",
+                    "packages/math/vector.ts",
+                    "examples/with-script-in-browser/utils.ts",
+                    "packages/excalidraw/element/mutateElement.ts",
+                    "packages/excalidraw/change.ts",
+                    "packages/excalidraw/utils.ts",
+                    "packages/math/segment.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/element/linearElementEditor.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 0.5,
+                    "10": 0.5
+                },
+                "reciprocalRank": 0.2
+            },
+            "ripgrep": {
+                "rankedFiles": [],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "dev-docs/src/theme/ReactLiveScope/index.js",
+                    "packages/excalidraw/index.tsx",
+                    "packages/excalidraw/element/bounds.ts",
+                    "packages/excalidraw/renderer/renderNewElementScene.ts",
+                    "packages/excalidraw/element/textElement.ts",
+                    "packages/excalidraw/actions/actionBoundText.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            }
+        },
+        {
+            "questionId": "excalidraw-q2",
+            "repoId": "excalidraw",
+            "category": "GRAPH_HEAVY",
+            "expectedFiles": [
+                "packages/excalidraw/actions/actionDeleteSelected.tsx",
+                "packages/excalidraw/element/binding.ts"
+            ],
+            "ripgrepQueryTokens": [
+                "Delete/Backspace"
+            ],
+            "contextGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/CHANGELOG.md",
+                    "dev-docs/docs/@excalidraw/excalidraw/installation.mdx",
+                    "dev-docs/docs/introduction/get-started.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/parser/parser.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/constants.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md",
+                    "packages/excalidraw/locales/README.md"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "ripgrep": {
+                "rankedFiles": [],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "dev-docs/src/theme/ReactLiveScope/index.js",
+                    "packages/excalidraw/index.tsx",
+                    "packages/excalidraw/renderer/renderNewElementScene.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/element/binding.ts",
+                    "packages/excalidraw/scene/ShapeCache.ts",
+                    "packages/excalidraw/components/OverwriteConfirm/OverwriteConfirmActions.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 0.5,
+                    "10": 0.5
+                },
+                "reciprocalRank": 0.2
+            }
+        },
+        {
+            "questionId": "excalidraw-q3",
+            "repoId": "excalidraw",
+            "category": "GRAPH_HEAVY",
+            "expectedFiles": [
+                "packages/excalidraw/components/canvases/StaticCanvas.tsx",
+                "packages/excalidraw/renderer/renderElement.ts",
+                "packages/excalidraw/renderer/staticScene.ts",
+                "packages/excalidraw/scene/ShapeCache.ts"
+            ],
+            "ripgrepQueryTokens": [],
+            "contextGraph": {
+                "rankedFiles": [
+                    "excalidraw-app/components/TopErrorBoundary.tsx",
+                    "excalidraw-app/components/DebugCanvas.tsx",
+                    "packages/excalidraw/components/canvases/NewElementCanvas.tsx",
+                    "packages/excalidraw/components/canvases/StaticCanvas.tsx",
+                    "packages/excalidraw/tests/test-utils.ts",
+                    "packages/excalidraw/renderer/staticScene.ts",
+                    "packages/excalidraw/scene/Shape.ts",
+                    "packages/excalidraw/renderer/renderElement.ts",
+                    "packages/excalidraw/scene/types.ts",
+                    "packages/math/point.ts",
+                    "packages/excalidraw/data/EditorLocalStorage.ts",
+                    "packages/excalidraw/queue.ts",
+                    "packages/excalidraw/binaryheap.ts",
+                    "packages/excalidraw/history.ts",
+                    "packages/excalidraw/element/typeChecks.ts",
+                    "packages/excalidraw/element/bounds.ts",
+                    "examples/with-script-in-browser/utils.ts",
+                    "packages/excalidraw/element/mutateElement.ts",
+                    "packages/excalidraw/data/restore.ts",
+                    "packages/excalidraw/change.ts",
+                    "packages/excalidraw/appState.ts",
+                    "packages/excalidraw/element/textElement.ts",
+                    "packages/excalidraw/utils.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/data/library.ts",
+                    "excalidraw-app/data/LocalData.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/element/elbowArrow.ts",
+                    "packages/math/utils.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.3
+                },
+                "recallAtK": {
+                    "5": 0.25,
+                    "10": 0.75
+                },
+                "reciprocalRank": 0.25
+            },
+            "ripgrep": {
+                "rankedFiles": [],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/scene/ShapeCache.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 0.25,
+                    "10": 0.25
+                },
+                "reciprocalRank": 0.5
+            }
+        },
+        {
+            "questionId": "excalidraw-q4",
+            "repoId": "excalidraw",
+            "category": "GRAPH_HEAVY",
+            "expectedFiles": [
+                "excalidraw-app/collab/Collab.tsx",
+                "packages/excalidraw/data/reconcile.ts",
+                "packages/excalidraw/index.tsx"
+            ],
+            "ripgrepQueryTokens": [
+                "WS_SUBTYPES.UPDATE",
+                "WS_SUBTYPES",
+                "UPDATE"
+            ],
+            "contextGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/components/App.tsx",
+                    "excalidraw-app/App.tsx",
+                    "packages/excalidraw/CHANGELOG.md",
+                    "excalidraw-app/collab/Collab.tsx",
+                    "dev-docs/docs/@excalidraw/excalidraw/faq.mdx",
+                    "LICENSE",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/parser/parser.mdx",
+                    "dev-docs/docs/introduction/development.mdx",
+                    "packages/excalidraw/element/bounds.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/element/binding.ts",
+                    "packages/excalidraw/utils.ts",
+                    "packages/excalidraw/scene/selection.ts",
+                    "packages/excalidraw/scene/scrollbars.ts",
+                    "packages/excalidraw/snapping.ts",
+                    "packages/excalidraw/renderer/interactiveScene.ts",
+                    "packages/excalidraw/components/Stats/MultiPosition.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 0.3333333333333333,
+                    "10": 0.3333333333333333
+                },
+                "reciprocalRank": 0.25
+            },
+            "ripgrep": {
+                "rankedFiles": [
+                    "excalidraw-app/collab/Collab.tsx",
+                    "excalidraw-app/collab/Portal.tsx",
+                    "excalidraw-app/data/index.ts",
+                    "excalidraw-app/app_constants.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 0.3333333333333333,
+                    "10": 0.3333333333333333
+                },
+                "reciprocalRank": 1.0
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/index-node.ts",
+                    "packages/excalidraw/renderer/renderNewElementScene.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/animated-trail.ts",
+                    "packages/excalidraw/element/mutateElement.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            }
+        },
+        {
+            "questionId": "excalidraw-q5",
+            "repoId": "excalidraw",
+            "category": "GRAPH_HEAVY",
+            "expectedFiles": [
+                "packages/excalidraw/actions/actionHistory.tsx",
+                "packages/excalidraw/actions/manager.tsx",
+                "packages/excalidraw/components/App.tsx",
+                "packages/excalidraw/history.ts"
+            ],
+            "ripgrepQueryTokens": [],
+            "contextGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/history.ts",
+                    "packages/excalidraw/change.ts",
+                    "packages/excalidraw/i18n.ts",
+                    "packages/excalidraw/groups.ts",
+                    "packages/excalidraw/emitter.ts",
+                    "packages/excalidraw/element/binding.ts",
+                    "packages/excalidraw/clipboard.ts",
+                    "packages/excalidraw/frame.ts",
+                    "packages/excalidraw/components/SearchMenu.tsx",
+                    "packages/excalidraw/actions/manager.tsx",
+                    "packages/excalidraw/actions/actionDuplicateSelection.tsx",
+                    "packages/excalidraw/actions/actionHistory.tsx",
+                    "examples/with-script-in-browser/utils.ts",
+                    "packages/excalidraw/scene/Shape.ts",
+                    "packages/excalidraw/scene/selection.ts",
+                    "packages/excalidraw/shapes.tsx",
+                    "packages/excalidraw/snapping.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/element/newElement.ts",
+                    "packages/excalidraw/zindex.ts",
+                    "packages/excalidraw/data/restore.ts",
+                    "packages/excalidraw/keys.ts",
+                    "packages/excalidraw/hooks/useEmitter.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.2
+                },
+                "recallAtK": {
+                    "5": 0.25,
+                    "10": 0.5
+                },
+                "reciprocalRank": 1.0
+            },
+            "ripgrep": {
+                "rankedFiles": [],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/history.ts",
+                    "packages/excalidraw/element/types.ts",
+                    "packages/excalidraw/types.ts",
+                    "packages/excalidraw/store.ts",
+                    "packages/excalidraw/subset/woff2/woff2-bindings.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 0.25,
+                    "10": 0.25
+                },
+                "reciprocalRank": 1.0
+            }
+        },
+        {
+            "questionId": "excalidraw-q6",
+            "repoId": "excalidraw",
+            "category": "NEUTRAL",
+            "expectedFiles": [
+                "package.json",
+                "packages/excalidraw/package.json",
+                "packages/math/package.json",
+                "packages/utils/package.json"
+            ],
+            "ripgrepQueryTokens": [
+                "excalidraw/excalidraw"
+            ],
+            "contextGraph": {
+                "rankedFiles": [
+                    "excalidraw-app/components/DebugCanvas.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "ripgrep": {
+                "rankedFiles": [
+                    "packages/excalidraw/CHANGELOG.md",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md",
+                    "excalidraw-app/App.tsx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx",
+                    "dev-docs/sidebars.js",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+                    "excalidraw-app/collab/Collab.tsx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+                    "excalidraw-app/data/index.ts",
+                    "excalidraw-app/components/ExportToExcalidrawPlus.tsx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/api.mdx",
+                    "excalidraw-app/share/ShareDialog.tsx",
+                    "README.md",
+                    "dev-docs/docs/@excalidraw/excalidraw/integration.mdx",
+                    "excalidraw-app/data/LocalData.ts",
+                    "excalidraw-app/data/firebase.ts",
+                    "packages/excalidraw/README.md",
+                    "packages/utils/export.ts",
+                    "excalidraw-app/CustomStats.tsx",
+                    "excalidraw-app/collab/Portal.tsx",
+                    "excalidraw-app/data/FileManager.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/children-components/children-components-intro.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/installation.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/parser/parser.mdx",
+                    "dev-docs/docs/introduction/development.mdx",
+                    "packages/excalidraw/element/textElement.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/parser/flowchart.mdx",
+                    "excalidraw-app/components/DebugCanvas.tsx",
+                    "excalidraw-app/tests/collab.test.tsx",
+                    "packages/utils/withinBounds.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/api-intro.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/constants.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/development.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/faq.mdx",
+                    "dev-docs/docs/introduction/contributing.mdx",
+                    "examples/with-script-in-browser/components/ExampleApp.tsx",
+                    "excalidraw-app/ExcalidrawPlusIframeExport.tsx",
+                    "excalidraw-app/components/AI.tsx",
+                    "excalidraw-app/components/AppWelcomeScreen.tsx",
+                    "excalidraw-app/data/localStorage.ts",
+                    "excalidraw-app/useHandleAppTheme.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/package.json",
+                    "packages/utils/utils.unmocked.test.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/ui-options.mdx",
+                    "dev-docs/docusaurus.config.js",
+                    "dev-docs/src/theme/ReactLiveScope/index.js",
+                    "examples/with-nextjs/src/excalidrawWrapper.tsx",
+                    "excalidraw-app/components/AppMainMenu.tsx",
+                    "excalidraw-app/components/EncryptedIcon.tsx",
+                    "excalidraw-app/components/GitHubCorner.tsx",
+                    "excalidraw-app/components/TopErrorBoundary.tsx",
+                    "excalidraw-app/tests/LanguageList.test.tsx",
+                    "packages/utils/export.test.ts",
+                    "packages/utils/geometry/shape.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/children-components/sidebar.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/children-components/welcome-screen.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/render-props.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/new-diagram-type.mdx",
+                    "dev-docs/yarn.lock",
+                    "examples/with-nextjs/yarn.lock",
+                    "examples/with-script-in-browser/components/CustomFooter.tsx",
+                    "examples/with-script-in-browser/components/MobileFooter.tsx",
+                    "examples/with-script-in-browser/index.html",
+                    "examples/with-script-in-browser/index.tsx",
+                    "examples/with-script-in-browser/initialData.tsx",
+                    "examples/with-script-in-browser/package.json",
+                    "excalidraw-app/collab/CollabError.tsx",
+                    "excalidraw-app/global.d.ts",
+                    "excalidraw-app/tests/MobileMenu.test.tsx",
+                    "packages/excalidraw/components/BraveMeasureTextError.tsx",
+                    "packages/excalidraw/components/PublishLibrary.tsx",
+                    "packages/excalidraw/components/__snapshots__/App.test.tsx.snap",
+                    "packages/excalidraw/tests/__snapshots__/App.test.tsx.snap",
+                    "packages/excalidraw/tsconfig.json",
+                    "packages/math/global.d.ts",
+                    "packages/math/package.json",
+                    "packages/math/tsconfig.json",
+                    "packages/utils/CHANGELOG.md",
+                    "packages/utils/global.d.ts",
+                    "packages/utils/package.json",
+                    "packages/utils/tsconfig.json",
+                    "packages/utils/withinBounds.test.ts",
+                    "scripts/updateChangelog.js",
+                    "tsconfig.json",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/children-components/footer.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/children-components/live-collaboration-trigger.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/children-components/main-menu.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/customizing-styles.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/installation.mdx",
+                    "dev-docs/docs/introduction/get-started.mdx",
+                    "dev-docs/package.json",
+                    "examples/with-nextjs/package.json",
+                    "examples/with-script-in-browser/utils.ts",
+                    "excalidraw-app/app-language/LanguageList.tsx",
+                    "excalidraw-app/app-language/language-detector.ts",
+                    "excalidraw-app/components/AppFooter.tsx",
+                    "packages/excalidraw/components/HelpDialog.tsx",
+                    "packages/excalidraw/components/dropdownMenu/DropdownMenuContent.tsx",
+                    "packages/excalidraw/components/main-menu/DefaultItems.tsx",
+                    "packages/excalidraw/css/styles.scss",
+                    "packages/excalidraw/data/library.ts",
+                    "packages/excalidraw/fonts/ExcalidrawFontFace.ts",
+                    "packages/excalidraw/fonts/FontMetadata.ts",
+                    "packages/excalidraw/keys.ts",
+                    "packages/excalidraw/locales/README.md",
+                    "packages/excalidraw/tests/__snapshots__/excalidraw.test.tsx.snap",
+                    "packages/excalidraw/tests/binding.test.tsx",
+                    "packages/excalidraw/tests/packages/__snapshots__/excalidraw.test.tsx.snap",
+                    "packages/excalidraw/utils.ts",
+                    "packages/math/range.ts",
+                    "packages/utils/README.md",
+                    "packages/utils/bbox.ts",
+                    "packages/utils/index.ts",
+                    "scripts/autorelease.js",
+                    "scripts/buildMath.js",
+                    "scripts/buildPackage.js",
+                    "scripts/buildUtils.js",
+                    "scripts/locales-coverage-description.js",
+                    "scripts/prerelease.js"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.021739130434782608
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/snapping.ts",
+                    "packages/excalidraw/components/PublishLibrary.tsx",
+                    "packages/excalidraw/index.tsx",
+                    "packages/utils/withinBounds.ts",
+                    "packages/excalidraw/element/types.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            }
+        },
+        {
+            "questionId": "excalidraw-q7",
+            "repoId": "excalidraw",
+            "category": "NEUTRAL",
+            "expectedFiles": [
+                "packages/excalidraw/element/types.ts"
+            ],
+            "ripgrepQueryTokens": [
+                "ExcalidrawElement",
+                "boundElements"
+            ],
+            "contextGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/element/types.ts",
+                    "packages/excalidraw/components/FilledButton.tsx",
+                    "packages/excalidraw/utility-types.ts",
+                    "packages/excalidraw/CHANGELOG.md",
+                    "excalidraw-app/data/FileManager.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 1.0,
+                    "10": 1.0
+                },
+                "reciprocalRank": 1.0
+            },
+            "ripgrep": {
+                "rankedFiles": [
+                    "packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+                    "packages/excalidraw/tests/history.test.tsx",
+                    "packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap",
+                    "packages/excalidraw/element/binding.ts",
+                    "packages/excalidraw/data/__snapshots__/transform.test.ts.snap",
+                    "packages/excalidraw/tests/__snapshots__/contextmenu.test.tsx.snap",
+                    "packages/excalidraw/frame.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/data/restore.ts",
+                    "packages/excalidraw/element/textWysiwyg.test.tsx",
+                    "packages/excalidraw/element/typeChecks.ts",
+                    "packages/excalidraw/zindex.ts",
+                    "packages/excalidraw/groups.ts",
+                    "packages/excalidraw/tests/helpers/api.ts",
+                    "packages/excalidraw/fractionalIndex.ts",
+                    "packages/excalidraw/tests/data/restore.test.ts",
+                    "packages/excalidraw/element/newElement.ts",
+                    "packages/excalidraw/types.ts",
+                    "packages/excalidraw/change.ts",
+                    "packages/excalidraw/element/textElement.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/actions/actionDuplicateSelection.tsx",
+                    "packages/excalidraw/constants.ts",
+                    "packages/excalidraw/element/sortElements.test.ts",
+                    "packages/excalidraw/element/sortElements.ts",
+                    "packages/excalidraw/element/types.ts",
+                    "packages/excalidraw/frame.test.tsx",
+                    "packages/excalidraw/element/bounds.ts",
+                    "packages/excalidraw/actions/actionBoundText.tsx",
+                    "packages/excalidraw/data/transform.ts",
+                    "packages/excalidraw/snapping.ts",
+                    "packages/excalidraw/tests/helpers/ui.ts",
+                    "packages/excalidraw/actions/actionProperties.tsx",
+                    "packages/excalidraw/tests/test-utils.ts",
+                    "packages/excalidraw/element/index.ts",
+                    "packages/excalidraw/element/sizeHelpers.ts",
+                    "packages/excalidraw/tests/linearElementEditor.test.tsx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md",
+                    "packages/excalidraw/tests/data/__snapshots__/restore.test.ts.snap",
+                    "packages/excalidraw/tests/fixtures/elementFixture.ts",
+                    "packages/excalidraw/actions/types.ts",
+                    "packages/excalidraw/data/transform.test.ts",
+                    "packages/excalidraw/element/flowchart.ts",
+                    "packages/excalidraw/actions/actionDeleteSelected.tsx",
+                    "packages/excalidraw/components/Stats/MultiDimension.tsx",
+                    "packages/excalidraw/components/Stats/utils.ts",
+                    "packages/excalidraw/element/newElement.test.ts",
+                    "packages/excalidraw/renderer/renderElement.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx",
+                    "packages/excalidraw/actions/actionFlip.test.tsx",
+                    "packages/excalidraw/components/Stats/MultiPosition.tsx",
+                    "packages/excalidraw/element/mutateElement.ts",
+                    "packages/excalidraw/element/resizeElements.ts",
+                    "packages/excalidraw/element/typeChecks.test.ts",
+                    "packages/excalidraw/scene/ShapeCache.ts",
+                    "packages/excalidraw/scene/selection.ts",
+                    "packages/excalidraw/tests/__snapshots__/move.test.tsx.snap",
+                    "excalidraw-app/data/FileManager.ts",
+                    "packages/excalidraw/actions/actionFlip.ts",
+                    "packages/excalidraw/align.ts",
+                    "packages/excalidraw/components/Stats/DragInput.tsx",
+                    "packages/excalidraw/data/json.ts",
+                    "packages/excalidraw/element/collision.ts",
+                    "packages/excalidraw/fonts/Fonts.ts",
+                    "packages/excalidraw/shapes.tsx",
+                    "packages/excalidraw/tests/__snapshots__/dragCreate.test.tsx.snap",
+                    "packages/excalidraw/tests/__snapshots__/selection.test.tsx.snap",
+                    "packages/excalidraw/tests/flip.test.tsx",
+                    "packages/excalidraw/tests/zindex.test.tsx",
+                    "packages/utils/withinBounds.ts",
+                    "excalidraw-app/data/LocalData.ts",
+                    "excalidraw-app/data/firebase.ts",
+                    "excalidraw-app/data/index.ts",
+                    "packages/excalidraw/actions/actionDeleteSelected.test.tsx",
+                    "packages/excalidraw/actions/actionGroup.tsx",
+                    "packages/excalidraw/element/textWysiwyg.tsx",
+                    "packages/excalidraw/tests/binding.test.tsx",
+                    "packages/excalidraw/tests/data/reconcile.test.ts",
+                    "packages/excalidraw/tests/fractionalIndex.test.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+                    "excalidraw-app/collab/Collab.tsx",
+                    "packages/excalidraw/clipboard.ts",
+                    "packages/excalidraw/components/Actions.tsx",
+                    "packages/excalidraw/components/Stats/Dimension.tsx",
+                    "packages/excalidraw/components/Stats/MultiFontSize.tsx",
+                    "packages/excalidraw/components/Stats/stats.test.tsx",
+                    "packages/excalidraw/data/blob.ts",
+                    "packages/excalidraw/data/types.ts",
+                    "packages/excalidraw/distribute.ts",
+                    "packages/excalidraw/element/elementLink.ts",
+                    "packages/excalidraw/element/linearElementEditor.ts",
+                    "packages/excalidraw/renderer/interactiveScene.ts",
+                    "packages/excalidraw/renderer/staticSvgScene.ts",
+                    "packages/excalidraw/scene/Renderer.ts",
+                    "packages/excalidraw/scene/Shape.ts",
+                    "packages/excalidraw/scene/export.ts",
+                    "packages/excalidraw/scene/types.ts",
+                    "packages/excalidraw/tests/elementLocking.test.tsx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx",
+                    "excalidraw-app/data/localStorage.ts",
+                    "packages/excalidraw/CHANGELOG.md",
+                    "packages/excalidraw/actions/actionAlign.tsx",
+                    "packages/excalidraw/actions/actionCanvas.tsx",
+                    "packages/excalidraw/actions/actionDistribute.tsx",
+                    "packages/excalidraw/actions/actionElementLock.ts",
+                    "packages/excalidraw/actions/actionFrame.ts",
+                    "packages/excalidraw/actions/actionSelectAll.ts",
+                    "packages/excalidraw/actions/manager.tsx",
+                    "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+                    "packages/excalidraw/components/ColorPicker/Picker.tsx",
+                    "packages/excalidraw/components/ColorPicker/colorPickerUtils.ts",
+                    "packages/excalidraw/components/ElementLinkDialog.tsx",
+                    "packages/excalidraw/components/EyeDropper.tsx",
+                    "packages/excalidraw/components/LibraryMenu.tsx",
+                    "packages/excalidraw/components/LibraryMenuSection.tsx",
+                    "packages/excalidraw/components/Stats/Angle.tsx",
+                    "packages/excalidraw/components/Stats/FontSize.tsx",
+                    "packages/excalidraw/components/Stats/MultiAngle.tsx",
+                    "packages/excalidraw/components/Stats/Position.tsx",
+                    "packages/excalidraw/data/index.ts",
+                    "packages/excalidraw/data/library.ts",
+                    "packages/excalidraw/data/resave.ts",
+                    "packages/excalidraw/element/bounds.test.ts",
+                    "packages/excalidraw/element/cropElement.ts",
+                    "packages/excalidraw/element/embeddable.ts",
+                    "packages/excalidraw/element/image.ts",
+                    "packages/excalidraw/element/resizeTest.ts",
+                    "packages/excalidraw/element/transformHandles.ts",
+                    "packages/excalidraw/scene/scroll.ts",
+                    "packages/excalidraw/scene/scrollbars.ts",
+                    "packages/excalidraw/tests/__snapshots__/multiPointCreate.test.tsx.snap",
+                    "packages/excalidraw/tests/library.test.tsx",
+                    "packages/excalidraw/tests/regressionTests.test.tsx",
+                    "packages/utils/export.ts",
+                    "packages/utils/geometry/shape.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
+                    "packages/excalidraw/element/textElement.test.ts",
+                    "packages/excalidraw/tests/clipboard.test.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.038461538461538464
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/element/typeChecks.ts",
+                    "packages/excalidraw/data/transform.ts",
+                    "packages/excalidraw/components/App.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            }
+        },
+        {
+            "questionId": "excalidraw-q8",
+            "repoId": "excalidraw",
+            "category": "NEGATIVE_CONTROL",
+            "expectedFiles": [
+                "excalidraw-app/app_constants.ts"
+            ],
+            "ripgrepQueryTokens": [
+                "localStorage"
+            ],
+            "contextGraph": {
+                "rankedFiles": [
+                    "excalidraw-app/App.tsx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx",
+                    "excalidraw-app/collab/Collab.tsx",
+                    "excalidraw-app/CustomStats.tsx",
+                    "packages/excalidraw/CHANGELOG.md",
+                    "packages/excalidraw/change.ts",
+                    "LICENSE",
+                    "dev-docs/docs/@excalidraw/excalidraw/installation.mdx",
+                    "packages/excalidraw/data/EditorLocalStorage.ts",
+                    "packages/excalidraw/store.ts",
+                    "packages/excalidraw/groups.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "ripgrep": {
+                "rankedFiles": [
+                    "excalidraw-app/data/localStorage.ts",
+                    "packages/excalidraw/data/EditorLocalStorage.ts",
+                    "excalidraw-app/components/TopErrorBoundary.tsx",
+                    "excalidraw-app/data/LocalData.ts",
+                    "packages/excalidraw/components/Stats/stats.test.tsx",
+                    "excalidraw-app/data/tabSync.ts",
+                    "excalidraw-app/ExcalidrawPlusIframeExport.tsx",
+                    "excalidraw-app/components/DebugCanvas.tsx",
+                    "excalidraw-app/data/index.ts",
+                    "excalidraw-app/useHandleAppTheme.ts",
+                    "packages/excalidraw/element/elbowArrow.test.tsx",
+                    "packages/excalidraw/tests/contextmenu.test.tsx",
+                    "packages/excalidraw/tests/test-utils.ts",
+                    "excalidraw-app/App.tsx",
+                    "excalidraw-app/CustomStats.tsx",
+                    "excalidraw-app/collab/Collab.tsx",
+                    "excalidraw-app/index.html",
+                    "excalidraw-app/sentry.ts",
+                    "packages/excalidraw/appState.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/data/restore.ts",
+                    "packages/excalidraw/element/flowchart.test.tsx",
+                    "packages/excalidraw/tests/App.test.tsx",
+                    "packages/excalidraw/tests/clipboard.test.tsx",
+                    "packages/excalidraw/tests/cropElement.test.tsx",
+                    "packages/excalidraw/tests/dragCreate.test.tsx",
+                    "packages/excalidraw/tests/flip.test.tsx",
+                    "packages/excalidraw/tests/linearElementEditor.test.tsx",
+                    "packages/excalidraw/tests/move.test.tsx",
+                    "packages/excalidraw/tests/multiPointCreate.test.tsx",
+                    "packages/excalidraw/tests/regressionTests.test.tsx",
+                    "packages/excalidraw/tests/resize.test.tsx",
+                    "packages/excalidraw/tests/rotate.test.tsx",
+                    "packages/excalidraw/tests/selection.test.tsx",
+                    "packages/excalidraw/tests/zindex.test.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "excalidraw-app/data/localStorage.ts",
+                    "excalidraw-app/data/LocalData.ts",
+                    "packages/excalidraw/scene/Scene.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/element/types.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            }
+        },
+        {
+            "questionId": "excalidraw-q9",
+            "repoId": "excalidraw",
+            "category": "NEUTRAL",
+            "expectedFiles": [
+                "packages/excalidraw/constants.ts"
+            ],
+            "ripgrepQueryTokens": [
+                "MIME",
+                "IMAGE_MIME_TYPES",
+                "MIME_TYPES"
+            ],
+            "contextGraph": {
+                "rankedFiles": [
+                    "LICENSE",
+                    "packages/excalidraw/clipboard.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/constants.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/parser/parser.mdx",
+                    "packages/excalidraw/CHANGELOG.md",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md"
+                ],
+                "precisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "recallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "reciprocalRank": 0.0
+            },
+            "ripgrep": {
+                "rankedFiles": [
+                    "packages/excalidraw/data/blob.ts",
+                    "packages/excalidraw/components/App.tsx",
+                    "packages/excalidraw/clipboard.ts",
+                    "packages/utils/export.ts",
+                    "packages/excalidraw/constants.ts",
+                    "packages/excalidraw/tests/library.test.tsx",
+                    "packages/utils/export.test.ts",
+                    "examples/with-script-in-browser/components/ExampleApp.tsx",
+                    "packages/excalidraw/data/index.ts",
+                    "packages/excalidraw/cursor.ts",
+                    "packages/excalidraw/data/image.ts",
+                    "packages/excalidraw/renderer/renderElement.ts",
+                    "packages/excalidraw/types.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/constants.mdx",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md",
+                    "examples/with-script-in-browser/utils.ts",
+                    "packages/excalidraw/components/PublishLibrary.tsx",
+                    "packages/excalidraw/components/hyperlink/helpers.ts",
+                    "packages/excalidraw/data/filesystem.ts",
+                    "packages/excalidraw/data/json.ts",
+                    "packages/excalidraw/element/image.ts",
+                    "packages/excalidraw/scene/export.ts",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
+                    "examples/with-script-in-browser/components/CustomFooter.tsx",
+                    "excalidraw-app/components/AI.tsx",
+                    "excalidraw-app/components/ExportToExcalidrawPlus.tsx",
+                    "excalidraw-app/data/firebase.ts",
+                    "packages/excalidraw/components/LibraryMenuItems.tsx",
+                    "packages/excalidraw/renderer/staticSvgScene.ts",
+                    "packages/excalidraw/tests/appState.test.tsx",
+                    "packages/excalidraw/tests/history.test.tsx",
+                    "packages/excalidraw/index.tsx"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 1.0,
+                    "10": 1.0
+                },
+                "reciprocalRank": 0.2
+            },
+            "codeGraph": {
+                "rankedFiles": [
+                    "packages/excalidraw/element/types.ts",
+                    "packages/excalidraw/constants.ts",
+                    "packages/excalidraw/scene/types.ts",
+                    "packages/excalidraw/types.ts"
+                ],
+                "precisionAtK": {
+                    "5": 0.2,
+                    "10": 0.1
+                },
+                "recallAtK": {
+                    "5": 1.0,
+                    "10": 1.0
+                },
+                "reciprocalRank": 0.5
+            }
+        }
+    ],
+    "skippedRepos": [
+        {
+            "repoId": "gin",
+            "reason": "WITHOUT working copy not found at /private/tmp/claude-501/-Users-erenalpaslan-Projects-context-graph--harness-worktrees-2026-08-23-063049-make-contextgraph-retrieval-ranking-a-fu/a80f3cb1-e70e-4a0e-a000-2f925d58e83c/scratchpad/corpus/gin/without -- corpus not prepared for this repo; skipping all three sides"
+        },
+        {
+            "repoId": "calcom",
+            "reason": "WITHOUT working copy not found at /private/tmp/claude-501/-Users-erenalpaslan-Projects-context-graph--harness-worktrees-2026-08-23-063049-make-contextgraph-retrieval-ranking-a-fu/a80f3cb1-e70e-4a0e-a000-2f925d58e83c/scratchpad/corpus/calcom/without -- corpus not prepared for this repo; skipping all three sides"
+        },
+        {
+            "repoId": "keycloak",
+            "reason": "WITHOUT working copy not found at /private/tmp/claude-501/-Users-erenalpaslan-Projects-context-graph--harness-worktrees-2026-08-23-063049-make-contextgraph-retrieval-ranking-a-fu/a80f3cb1-e70e-4a0e-a000-2f925d58e83c/scratchpad/corpus/keycloak/without -- corpus not prepared for this repo; skipping all three sides"
+        }
+    ],
+    "summary": {
+        "headline": {
+            "questionCount": 8,
+            "contextGraph": {
+                "measuredCount": 8,
+                "meanPrecisionAtK": {
+                    "5": 0.125,
+                    "10": 0.09999999999999999
+                },
+                "meanRecallAtK": {
+                    "5": 0.29166666666666663,
+                    "10": 0.38541666666666663
+                },
+                "mrr": 0.3375
+            },
+            "ripgrep": {
+                "measuredCount": 8,
+                "meanPrecisionAtK": {
+                    "5": 0.05,
+                    "10": 0.025
+                },
+                "meanRecallAtK": {
+                    "5": 0.16666666666666666,
+                    "10": 0.16666666666666666
+                },
+                "mrr": 0.15752508361204015
+            },
+            "codeGraph": {
+                "measuredCount": 8,
+                "meanPrecisionAtK": {
+                    "5": 0.1,
+                    "10": 0.05
+                },
+                "meanRecallAtK": {
+                    "5": 0.25,
+                    "10": 0.25
+                },
+                "mrr": 0.275
+            }
+        },
+        "negativeControl": {
+            "questionCount": 1,
+            "contextGraph": {
+                "measuredCount": 1,
+                "meanPrecisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "meanRecallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "mrr": 0.0
+            },
+            "ripgrep": {
+                "measuredCount": 1,
+                "meanPrecisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "meanRecallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "mrr": 0.0
+            },
+            "codeGraph": {
+                "measuredCount": 1,
+                "meanPrecisionAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "meanRecallAtK": {
+                    "5": 0.0,
+                    "10": 0.0
+                },
+                "mrr": 0.0
+            }
+        },
+        "byCategory": {
+            "GRAPH_HEAVY": {
+                "questionCount": 5,
+                "contextGraph": {
+                    "measuredCount": 5,
+                    "meanPrecisionAtK": {
+                        "5": 0.16,
+                        "10": 0.13999999999999999
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.26666666666666666,
+                        "10": 0.41666666666666663
+                    },
+                    "mrr": 0.33999999999999997
+                },
+                "ripgrep": {
+                    "measuredCount": 5,
+                    "meanPrecisionAtK": {
+                        "5": 0.04,
+                        "10": 0.02
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.06666666666666667,
+                        "10": 0.06666666666666667
+                    },
+                    "mrr": 0.2
+                },
+                "codeGraph": {
+                    "measuredCount": 5,
+                    "meanPrecisionAtK": {
+                        "5": 0.12000000000000002,
+                        "10": 0.06000000000000001
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.2,
+                        "10": 0.2
+                    },
+                    "mrr": 0.33999999999999997
+                }
+            },
+            "NEUTRAL": {
+                "questionCount": 3,
+                "contextGraph": {
+                    "measuredCount": 3,
+                    "meanPrecisionAtK": {
+                        "5": 0.06666666666666667,
+                        "10": 0.03333333333333333
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.3333333333333333,
+                        "10": 0.3333333333333333
+                    },
+                    "mrr": 0.3333333333333333
+                },
+                "ripgrep": {
+                    "measuredCount": 3,
+                    "meanPrecisionAtK": {
+                        "5": 0.06666666666666667,
+                        "10": 0.03333333333333333
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.3333333333333333,
+                        "10": 0.3333333333333333
+                    },
+                    "mrr": 0.0867335562987737
+                },
+                "codeGraph": {
+                    "measuredCount": 3,
+                    "meanPrecisionAtK": {
+                        "5": 0.06666666666666667,
+                        "10": 0.03333333333333333
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.3333333333333333,
+                        "10": 0.3333333333333333
+                    },
+                    "mrr": 0.16666666666666666
+                }
+            },
+            "NEGATIVE_CONTROL": {
+                "questionCount": 1,
+                "contextGraph": {
+                    "measuredCount": 1,
+                    "meanPrecisionAtK": {
+                        "5": 0.0,
+                        "10": 0.0
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.0,
+                        "10": 0.0
+                    },
+                    "mrr": 0.0
+                },
+                "ripgrep": {
+                    "measuredCount": 1,
+                    "meanPrecisionAtK": {
+                        "5": 0.0,
+                        "10": 0.0
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.0,
+                        "10": 0.0
+                    },
+                    "mrr": 0.0
+                },
+                "codeGraph": {
+                    "measuredCount": 1,
+                    "meanPrecisionAtK": {
+                        "5": 0.0,
+                        "10": 0.0
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.0,
+                        "10": 0.0
+                    },
+                    "mrr": 0.0
+                }
+            }
+        },
+        "byRepo": {
+            "excalidraw": {
+                "questionCount": 9,
+                "contextGraph": {
+                    "measuredCount": 9,
+                    "meanPrecisionAtK": {
+                        "5": 0.1111111111111111,
+                        "10": 0.08888888888888888
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.25925925925925924,
+                        "10": 0.34259259259259256
+                    },
+                    "mrr": 0.30000000000000004
+                },
+                "ripgrep": {
+                    "measuredCount": 9,
+                    "meanPrecisionAtK": {
+                        "5": 0.044444444444444446,
+                        "10": 0.022222222222222223
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.14814814814814814,
+                        "10": 0.14814814814814814
+                    },
+                    "mrr": 0.1400222965440357
+                },
+                "codeGraph": {
+                    "measuredCount": 9,
+                    "meanPrecisionAtK": {
+                        "5": 0.08888888888888889,
+                        "10": 0.044444444444444446
+                    },
+                    "meanRecallAtK": {
+                        "5": 0.2222222222222222,
+                        "10": 0.2222222222222222
+                    },
+                    "mrr": 0.24444444444444446
+                }
+            }
+        }
+    },
+    "goldFileCoverage": [
+        {
+            "repoId": "excalidraw",
+            "side": "CONTEXT_GRAPH",
+            "citedFileCount": 21,
+            "presentFileCount": 21,
+            "basis": "INDEX_QUERY"
+        },
+        {
+            "repoId": "excalidraw",
+            "side": "CODE_GRAPH",
+            "citedFileCount": 21,
+            "presentFileCount": 17,
+            "basis": "INDEX_QUERY"
+        },
+        {
+            "repoId": "excalidraw",
+            "side": "RIPGREP",
+            "citedFileCount": 21,
+            "presentFileCount": 21,
+            "basis": "READS_WORKING_TREE"
+        }
+    ],
+    "ingestCosts": [
+        {
+            "repoId": "excalidraw",
+            "tool": "CONTEXTGRAPH",
+            "durationMillis": 61099,
+            "indexSizeBytes": 27435008,
+            "absentReason": null
+        },
+        {
+            "repoId": "excalidraw",
+            "tool": "CODEGRAPH",
+            "durationMillis": 2696,
+            "indexSizeBytes": 36450533,
+            "absentReason": null
+        }
+    ]
+}

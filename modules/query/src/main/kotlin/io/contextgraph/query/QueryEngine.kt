@@ -21,7 +21,7 @@ class QueryEngine(private val storage: StorageAdapter) {
         limit: Int = 20
     ): QueryResult {
         val nodes = searcher.search(query, types, minConfidence, limit)
-        val bundle = bundler.bundle(nodes)
+        val bundle = bundler.bundle(nodes, relevance = QueryRelevance.of(query, nodes.map { it.id }))
         val avgConf = if (nodes.isEmpty()) 0.0 else nodes.sumOf { it.confidence } / nodes.size
         return QueryResult(bundle.nodes, bundle.edges, bundle.evidence, "Found ${nodes.size} nodes", avgConf)
     }
@@ -35,7 +35,7 @@ class QueryEngine(private val storage: StorageAdapter) {
         }
         val seeds = searcher.search(task, typeFilter, minConfidence = 0.5, limit = 10)
         val (nodes, edges) = expander.expand(seeds.map { it.id }, depth)
-        return bundler.bundle(nodes)
+        return bundler.bundle(nodes, relevance = QueryRelevance.of(task, seeds.map { it.id }))
     }
 
     fun expandNode(

@@ -8,7 +8,16 @@ class ContextBundler(
     private val storage: StorageAdapter,
     private val algorithms: GraphAlgorithms = GraphAlgorithms()
 ) {
-    fun bundle(nodes: List<GraphNode>, maxNodes: Int = DEFAULT_MAX_NODES): ContextBundle {
+    /**
+     * [relevance] is how the query reaches the ordering. Null -- what a pure graph walk passes,
+     * having no query to be relevant to -- ranks by `pageRank * confidence` alone, exactly as this
+     * did before ranking became query-aware.
+     */
+    fun bundle(
+        nodes: List<GraphNode>,
+        maxNodes: Int = DEFAULT_MAX_NODES,
+        relevance: QueryRelevance? = null
+    ): ContextBundle {
         if (nodes.isEmpty()) return ContextBundle(emptyList(), emptyList(), emptyList(), emptyMap())
 
         val nodeIds = nodes.map { it.id }.toSet()
@@ -23,11 +32,26 @@ class ContextBundler(
         val g = algorithms.buildJGraphT(nodes, edges)
         val ranks = algorithms.pageRank(g)
 
+        // Fetched for every candidate rather than for the survivors, because two ranking signals
+        // (where the query's words fall in a file's path, and whether that file is documentation
+        // or a test) need a candidate's file *before* the cut that decides which candidates
+        // survive. One batched lookup, not one query per node; the evidence below re-uses it.
+        val provenance = storage.getProvenanceFor(nodes.map { it.id.value })
+
+        // Scored once per candidate, then sorted. Scoring inside the comparator instead would look
+        // tidier and re-derive every score on every comparison -- sortedByDescending calls its
+        // selector per comparison, not per element, so a path would be split into words O(n log n)
+        // times. Invisible on a small graph and real on a large one.
+        val scores = nodes.associate { node ->
+            val queryScore = relevance?.score(node, provenance[node.id.value]?.firstOrNull()?.path) ?: 0.0
+            node.id to queryScore + (ranks[node.id] ?: 0.0) * node.confidence
+        }
+
         val rankedNodes = nodes
-            .sortedByDescending { (ranks[it.id] ?: 0.0) * it.confidence }
+            .sortedByDescending { scores[it.id] ?: 0.0 }
             .take(maxNodes)
 
-        val evidence = rankedNodes.flatMap { storage.getProvenance(it.id.value) }
+        val evidence = rankedNodes.flatMap { provenance[it.id.value].orEmpty() }
         val rankScores = rankedNodes.associate { it.id.value to (ranks[it.id] ?: 0.0) }
 
         // nodes.size, not rankedNodes.size: the point of the field is to record what the take()

@@ -17,6 +17,19 @@ interface StorageAdapter {
     fun getEdgesFrom(source: NodeId): List<GraphEdge>
     fun getEdgesTo(target: NodeId): List<GraphEdge>
     fun getProvenance(entityId: String): List<Provenance>
+
+    /**
+     * [getProvenance] for many entities at once, keyed by entity id. An entity with no provenance
+     * is absent from the map rather than present with an empty list.
+     *
+     * Exists because ranking needs every *candidate's* file, not just every survivor's: a bundle
+     * that scores a thousand candidates on where their file sits would otherwise issue a thousand
+     * single-row queries to learn it. The default implementation is exactly that loop, so an
+     * adapter with no cheaper way to answer stays correct without implementing anything; an
+     * adapter over a real database overrides it with one query per chunk.
+     */
+    fun getProvenanceFor(entityIds: Collection<String>): Map<String, List<Provenance>> =
+        entityIds.distinct().associateWith { getProvenance(it) }.filterValues { it.isNotEmpty() }
     fun getAllNodes(minConfidence: Double = 0.0): List<GraphNode>
     fun getAllEdges(minConfidence: Double = 0.0): List<GraphEdge>
     fun getAllArtifacts(): List<Artifact>
