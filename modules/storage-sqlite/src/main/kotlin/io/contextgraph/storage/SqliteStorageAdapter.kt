@@ -407,7 +407,26 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 // ahead of a row matching only one -- otherwise OR-ing terms together would grow
                 // the result set without any way to tell a strong match from a weak one, which
                 // matters because ranking quality (MRR) is measured, not just presence/absence.
-                exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${matchExpr.replace("'", "''")}' ORDER BY rank LIMIT $limit") { rs ->
+                //
+                // `, id` is the tie-break, and it decides which rows a caller ever sees rather
+                // than merely what order they arrive in: bm25 ties are the normal case for a
+                // codebase, because same-shaped declarations produce same-shaped labels. gin's
+                // `binding` package declares thirteen `Bind(*http.Request,any)` methods that tie
+                // exactly, and this LIMIT keeps ten of them. Without a tie-break, *which* ten is
+                // FTS5 docid order -- insertion order -- which differs between index builds
+                // because ingest extracts concurrently. Two builds of gin proven identical in
+                // content down to nine measures returned different tens: one included the
+                // gold-cited `binding/json.go`, the other did not, moving that question's
+                // reciprocal rank between 0.5 and 1.0 and the repo's MRR between 0.656 and 0.719.
+                // Ordering by id ascending after rank is arbitrary but intrinsic, matching the
+                // `ORDER BY n.id` tie-break getAllNodes already ships for the same reason.
+                //
+                // It is not free: a second sort key costs FTS5 its top-N shortcut, measured at
+                // 48.8 ms -> 61.4 ms (median of 7) for one seed query against keycloak's 234,154-
+                // node index, the largest in the benchmark corpus. That is the price of a number
+                // anyone can reproduce, paid once per buildContext call, and it is written down
+                // here rather than discovered later by someone profiling this query.
+                exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${matchExpr.replace("'", "''")}' ORDER BY rank, id LIMIT $limit") { rs ->
                     val ids = mutableListOf<String>()
                     while (rs.next()) ids.add(rs.getString("id"))
                     ids
