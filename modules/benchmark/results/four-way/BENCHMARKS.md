@@ -286,6 +286,116 @@ n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-par
 | recall@10 | 17.3% | 8.8% | 39.6% | 39.6% |
 | MRR | 0.264 | 0.056 | 0.223 | 0.223 |
 
+### Every Question
+
+Every section above this one is a mean. This one is the run itself: all 33 question(s) it scored, one row each, grouped by repo and ordered by question id -- negative controls included, where the sections above hold them apart. It is here so that a repo's aggregate can be traced to the questions that produced it, and so that one catastrophic miss is distinguishable from a uniformly mediocre spread, which no mean can tell you.
+
+**Each cell is that side's reciprocal rank for the question, then the rank at which it first returned a gold-cited file.** The score is the per-question figure the MRR rows above are the mean of, so a row can be traced to its table; the rank is what the mean erases. "Found it at rank 1", "found it at rank 9" and "never found it at all" are three different results, and every capped metric here renders the last two identically whenever the hit sits past `k`. precision@k and recall@k are deliberately **not** printed per question: at 4 sides and 2 `k` value(s) they are 16 further columns, and a table nobody can read is not a disclosure. They are in this run's own result document (`retrieval-1787568863031.json`), per question, per side, for every reader who wants them.
+
+`n/a` means that side has **no measurement** for that question -- excluded from every mean above, never folded in as 0.0. `0.000 (not found)` means the opposite: that side ran, and nothing anywhere in its ranked list was a gold-cited file. The two are different claims and are printed differently.
+
+Rows are ordered by question id, never by score. A table like this makes every question where ContextGraph (this project) loses much easier to find than the aggregates did, and that is the point of printing it: those rows are here, in their place, formatted exactly like the ones where it wins.
+
+**1 of 33 question(s) were missed by every side that measured them**: `excalidraw-q8`. Not one side put a gold-cited file anywhere in its ranked list -- not below `k`, nowhere at all. A row like that says something about the question, its wording or the gold set it was given, rather than about any of the tools, so it is named here and marked in its own verdict rather than left to be noticed.
+
+#### `calcom` — 8 question(s)
+
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+|---|---|---|---|---|---|---|---|
+| calcom-q1 | GRAPH_HEAVY | 4 | 0.000 (not found) | 0.000 (not found) | 0.040 (rank 25) | 0.040 (rank 25) | bash (base-system shell only), ripgrep (baseline) tie at rank 25 |
+| calcom-q2 | GRAPH_HEAVY | 4 | 0.250 (rank 4) | 0.000 (not found) | 0.005 (rank 199) | 0.005 (rank 193) | ContextGraph (this project) leads |
+| calcom-q3 | GRAPH_HEAVY | 4 | 0.200 (rank 5) | 1.000 (rank 1) | 0.007 (rank 145) | 0.007 (rank 140) | CodeGraph (third-party) leads |
+| calcom-q4 | GRAPH_HEAVY | 5 | 0.000 (not found) | 0.000 (not found) | 0.500 (rank 2) | 0.500 (rank 2) | bash (base-system shell only), ripgrep (baseline) tie at rank 2 |
+| calcom-q5 | GRAPH_HEAVY | 5 | 0.500 (rank 2) | 0.000 (not found) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), bash (base-system shell only), ripgrep (baseline) tie at rank 2 |
+| calcom-q6 | NEUTRAL | 1 | 0.000 (not found) | 0.000 (not found) | 0.091 (rank 11) | 0.091 (rank 11) | bash (base-system shell only), ripgrep (baseline) tie at rank 11 |
+| calcom-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 0.000 (not found) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |
+| calcom-q8 | NEGATIVE_CONTROL | 1 | 1.000 (rank 1) | 0.000 (not found) | 0.071 (rank 14) | 0.071 (rank 14) | ContextGraph (this project) leads |
+
+Expected files -- the gold-fact-derived set each row above was scored against:
+
+- `calcom-q1` (4 files): `packages/features/bookings/lib/handleSeats/create/createNewSeat.ts`, `packages/lib/errorCodes.ts`, `packages/prisma/migrations/20220413173832_add_seats_to_event_type_model/migration.sql`, `packages/prisma/schema.prisma`
+- `calcom-q2` (4 files): `docs/developing/guides/automation/webhooks.mdx`, `packages/features/webhooks/lib/sendPayload.ts`, `packages/prisma/migrations/20220614090326_add_webhook_secret/migration.sql`, `packages/prisma/schema.prisma`
+- `calcom-q3` (4 files): `docs/developing/guides/api/how-to-setup-api-in-a-local-instance.mdx`, `docs/self-hosting/license-key.mdx`, `packages/features/ee/common/server/LicenseKeyService.ts`, `packages/features/ee/deployment/lib/getDeploymentKey.ts`
+- `calcom-q4` (5 files): `docs/developing/guides/automation/webhooks.mdx`, `packages/features/bookings/lib/handleNewBooking/getRequiresConfirmationFlags.ts`, `packages/features/bookings/lib/service/RegularBookingService.ts`, `packages/prisma/migrations/20210717120159_booking_confirmation/migration.sql`, `packages/prisma/schema.prisma`
+- `calcom-q5` (5 files): `docs/api-reference/v2/openapi.json`, `packages/lib/errorCodes.ts`, `packages/lib/hashedLinksUtils.ts`, `packages/prisma/migrations/20250707145503_add_private_links_expiration_capability/migration.sql`, `packages/prisma/schema.prisma`
+- `calcom-q6` (1 file): `packages/prisma/schema.prisma`
+- `calcom-q7` (1 file): `docs/self-hosting/database-migrations.mdx`
+- `calcom-q8` (1 file): `packages/features/bookings/lib/handleCancelBooking.ts`
+
+#### `excalidraw` — 9 question(s)
+
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+|---|---|---|---|---|---|---|---|
+| excalidraw-q1 | GRAPH_HEAVY | 2 | 0.500 (rank 2) | 0.000 (not found) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |
+| excalidraw-q2 | GRAPH_HEAVY | 2 | 0.000 (not found) | 0.200 (rank 5) | 0.000 (not found) | 0.000 (not found) | CodeGraph (third-party) leads |
+| excalidraw-q3 | GRAPH_HEAVY | 4 | 1.000 (rank 1) | 0.500 (rank 2) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |
+| excalidraw-q4 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 0.000 (not found) | 1.000 (rank 1) | 1.000 (rank 1) | ContextGraph (this project), bash (base-system shell only), ripgrep (baseline) tie at rank 1 |
+| excalidraw-q5 | GRAPH_HEAVY | 4 | 1.000 (rank 1) | 1.000 (rank 1) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
+| excalidraw-q6 | NEUTRAL | 4 | 0.500 (rank 2) | 0.000 (not found) | 0.022 (rank 46) | 0.022 (rank 46) | ContextGraph (this project) leads |
+| excalidraw-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 0.000 (not found) | 0.038 (rank 26) | 0.038 (rank 26) | ContextGraph (this project) leads |
+| excalidraw-q8 | NEGATIVE_CONTROL | 1 | 0.000 (not found) | 0.000 (not found) | 0.000 (not found) | 0.000 (not found) | **no side found a gold-cited file** |
+| excalidraw-q9 | NEUTRAL | 1 | 0.000 (not found) | 0.500 (rank 2) | 0.200 (rank 5) | 0.200 (rank 5) | CodeGraph (third-party) leads |
+
+Expected files -- the gold-fact-derived set each row above was scored against:
+
+- `excalidraw-q1` (2 files): `packages/excalidraw/element/binding.ts`, `packages/excalidraw/element/dragElements.ts`
+- `excalidraw-q2` (2 files): `packages/excalidraw/actions/actionDeleteSelected.tsx`, `packages/excalidraw/element/binding.ts`
+- `excalidraw-q3` (4 files): `packages/excalidraw/components/canvases/StaticCanvas.tsx`, `packages/excalidraw/renderer/renderElement.ts`, `packages/excalidraw/renderer/staticScene.ts`, `packages/excalidraw/scene/ShapeCache.ts`
+- `excalidraw-q4` (3 files): `excalidraw-app/collab/Collab.tsx`, `packages/excalidraw/data/reconcile.ts`, `packages/excalidraw/index.tsx`
+- `excalidraw-q5` (4 files): `packages/excalidraw/actions/actionHistory.tsx`, `packages/excalidraw/actions/manager.tsx`, `packages/excalidraw/components/App.tsx`, `packages/excalidraw/history.ts`
+- `excalidraw-q6` (4 files): `package.json`, `packages/excalidraw/package.json`, `packages/math/package.json`, `packages/utils/package.json`
+- `excalidraw-q7` (1 file): `packages/excalidraw/element/types.ts`
+- `excalidraw-q8` (1 file): `excalidraw-app/app_constants.ts`
+- `excalidraw-q9` (1 file): `packages/excalidraw/constants.ts`
+
+#### `gin` — 8 question(s)
+
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+|---|---|---|---|---|---|---|---|
+| gin-q1 | GRAPH_HEAVY | 3 | 0.500 (rank 2) | 1.000 (rank 1) | 0.250 (rank 4) | 0.250 (rank 4) | CodeGraph (third-party) leads |
+| gin-q2 | GRAPH_HEAVY | 2 | 0.500 (rank 2) | 1.000 (rank 1) | 0.333 (rank 3) | 0.333 (rank 3) | CodeGraph (third-party) leads |
+| gin-q3 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 1.000 (rank 1) | 0.333 (rank 3) | 0.333 (rank 3) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
+| gin-q4 | GRAPH_HEAVY | 4 | 0.500 (rank 2) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | ContextGraph (this project) leads |
+| gin-q5 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 1.000 (rank 1) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
+| gin-q6 | NEUTRAL | 1 | 0.500 (rank 2) | 1.000 (rank 1) | 0.200 (rank 5) | 0.200 (rank 5) | CodeGraph (third-party) leads |
+| gin-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 1.000 (rank 1) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
+| gin-q8 | NEGATIVE_CONTROL | 1 | 0.250 (rank 4) | 0.500 (rank 2) | 0.500 (rank 2) | 0.500 (rank 2) | CodeGraph (third-party), bash (base-system shell only), ripgrep (baseline) tie at rank 2 |
+
+Expected files -- the gold-fact-derived set each row above was scored against:
+
+- `gin-q1` (3 files): `context.go`, `gin.go`, `routergroup.go`
+- `gin-q2` (2 files): `gin.go`, `routergroup.go`
+- `gin-q3` (3 files): `gin.go`, `routergroup.go`, `tree.go`
+- `gin-q4` (4 files): `binding/binding.go`, `binding/json.go`, `context.go`, `deprecated.go`
+- `gin-q5` (3 files): `context.go`, `gin.go`, `render/html.go`
+- `gin-q6` (1 file): `mode.go`
+- `gin-q7` (1 file): `logger.go`
+- `gin-q8` (1 file): `gin.go`
+
+#### `keycloak` — 8 question(s)
+
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+|---|---|---|---|---|---|---|---|
+| keycloak-q1 | GRAPH_HEAVY | 5 | 0.500 (rank 2) | 0.000 (not found) | 0.007 (rank 134) | 0.008 (rank 131) | ContextGraph (this project) leads |
+| keycloak-q2 | GRAPH_HEAVY | 3 | 0.000 (not found) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | bash (base-system shell only), ripgrep (baseline) tie at rank 5 |
+| keycloak-q3 | NEUTRAL | 5 | 1.000 (rank 1) | 0.250 (rank 4) | 0.012 (rank 81) | 0.013 (rank 80) | ContextGraph (this project) leads |
+| keycloak-q4 | GRAPH_HEAVY | 4 | 0.500 (rank 2) | 0.000 (not found) | 0.029 (rank 34) | 0.029 (rank 34) | ContextGraph (this project) leads |
+| keycloak-q5 | GRAPH_HEAVY | 3 | 0.111 (rank 9) | 0.000 (not found) | 0.167 (rank 6) | 0.167 (rank 6) | bash (base-system shell only), ripgrep (baseline) tie at rank 6 |
+| keycloak-q6 | NEUTRAL | 1 | 0.000 (not found) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | bash (base-system shell only), ripgrep (baseline) tie at rank 5 |
+| keycloak-q7 | GRAPH_HEAVY | 3 | 0.000 (not found) | 0.000 (not found) | 1.000 (rank 1) | 1.000 (rank 1) | bash (base-system shell only), ripgrep (baseline) tie at rank 1 |
+| keycloak-q8 | NEGATIVE_CONTROL | 2 | 0.000 (not found) | 0.200 (rank 5) | 0.167 (rank 6) | 0.167 (rank 6) | CodeGraph (third-party) leads |
+
+Expected files -- the gold-fact-derived set each row above was scored against:
+
+- `keycloak-q1` (5 files): `server-spi-private/src/main/java/org/keycloak/authentication/AuthenticatorFactory.java`, `server-spi/src/main/java/org/keycloak/models/credential/OTPCredentialModel.java`, `services/src/main/java/org/keycloak/authentication/authenticators/browser/OTPFormAuthenticator.java`, `services/src/main/java/org/keycloak/authentication/authenticators/browser/OTPFormAuthenticatorFactory.java`, `services/src/main/resources/META-INF/services/org.keycloak.authentication.AuthenticatorFactory`
+- `keycloak-q2` (3 files): `model/jpa/src/main/java/org/keycloak/models/jpa/entities/ClientScopeEntity.java`, `model/jpa/src/main/resources/META-INF/jpa-changelog-1.8.0.xml`, `model/jpa/src/main/resources/META-INF/jpa-changelog-4.0.0.xml`
+- `keycloak-q3` (5 files): `server-spi-private/src/main/java/org/keycloak/credential/hash/AbstractPbkdf2PasswordHashProviderFactory.java`, `server-spi-private/src/main/java/org/keycloak/credential/hash/PasswordHashProviderFactory.java`, `server-spi-private/src/main/java/org/keycloak/credential/hash/Pbkdf2PasswordHashProvider.java`, `server-spi-private/src/main/java/org/keycloak/credential/hash/Pbkdf2Sha256PasswordHashProviderFactory.java`, `services/src/main/resources/META-INF/services/org.keycloak.credential.hash.PasswordHashProviderFactory`
+- `keycloak-q4` (4 files): `docs/updating-database-schema.md`, `model/jpa/src/main/java/org/keycloak/models/jpa/entities/RealmEntity.java`, `model/jpa/src/main/resources/META-INF/jpa-changelog-26.7.0.xml`, `model/jpa/src/main/resources/META-INF/jpa-changelog-master.xml`
+- `keycloak-q5` (3 files): `server-spi-private/src/main/java/org/keycloak/authentication/RequiredActionProvider.java`, `services/src/main/java/org/keycloak/authentication/requiredactions/UpdatePassword.java`, `services/src/main/java/org/keycloak/services/managers/AuthenticationManager.java`
+- `keycloak-q6` (1 file): `docs/building.md`
+- `keycloak-q7` (3 files): `server-spi/src/main/java/org/keycloak/provider/ProviderFactory.java`, `services/src/main/java/org/keycloak/provider/ProviderManager.java`, `services/src/main/java/org/keycloak/services/DefaultKeycloakSessionFactory.java`
+- `keycloak-q8` (2 files): `server-spi-private/src/main/java/org/keycloak/policy/LengthPasswordPolicyProvider.java`, `themes/src/main/resources/theme/base/login/messages/messages_en.properties`
+
 ### Negative Controls
 
 Questions where `grep` is expected to clearly win (AC-5, AC-26). Reported separately from the headline above, including every place ContextGraph loses -- that is this section's entire purpose. With the fourth side present that expectation is now testable against `grep` itself rather than only against a third-party stand-in for it.

@@ -37,6 +37,7 @@ object RetrievalReportGenerator {
         renderHeadline(run)
         renderCategoryBreakdown(run)
         renderRepoBreakdown(run)
+        renderPerQuestion(run)
         renderNegativeControl(run)
         renderReproduction(run)
         append(SECTION_END)
@@ -1231,14 +1232,6 @@ object RetrievalReportGenerator {
         return if (sorted.size % 2 == 1) sorted[mid].toDouble() else (sorted[mid - 1] + sorted[mid]) / 2.0
     }
 
-    /** One side's per-question measurement, reached from the side rather than through a `when` at each call site. */
-    private fun RetrievalRunResult.sideResult(side: RetrievalSide): SideResult? = when (side) {
-        RetrievalSide.CONTEXT_GRAPH -> contextGraph
-        RetrievalSide.CODE_GRAPH -> codeGraph
-        RetrievalSide.BASH -> bash
-        RetrievalSide.RIPGREP -> ripgrep
-    }
-
     /** One side's aggregate, or null when that side was not in the run at all (never a zeroed stand-in). */
     private fun RetrievalAggregate.sideAggregate(side: RetrievalSide): SideAggregate? = when (side) {
         RetrievalSide.CONTEXT_GRAPH -> contextGraph
@@ -1450,6 +1443,188 @@ object RetrievalReportGenerator {
             // for is a caveat that does not travel with the number it qualifies.
             renderExtractionCaveat(run, repoId, aggregate)
             appendAggregateTable(run, aggregate)
+        }
+    }
+
+    // ------------------------------------------------------ per-question rows
+
+    /**
+     * Every question the run scored, one row each (AC-18) -- the section the three above are means
+     * of.
+     *
+     * **The choice of what to print in each cell was the whole design of this section, and it is
+     * stated in the section itself rather than only here.** The full metric set is every side times
+     * every `k` times precision and recall, which is more columns than the question's own name has
+     * room next to: a table nobody can read on a laptop fails the job this one exists for. So each
+     * cell carries the question's reciprocal rank -- the per-question figure the MRR rows above are
+     * the mean of, which is what connects a row to its aggregate -- followed by the rank at which
+     * that side first returned a gold-cited file. That rank is the thing an average erases and the
+     * reason AC-18 exists: "found it at rank 1", "found it at rank 9" and "never found it" are three
+     * different results, and precision@k renders the last two identically whenever the hit sits
+     * past `k`. precision@k and recall@k stay in the result document, per question, for every
+     * reader who wants them.
+     *
+     * Rows are ordered by question id inside each repo and never by score, which is not a
+     * presentational detail: this table makes a row where any given side loses far easier to find
+     * than the aggregates did, and ordering, grouping or emphasis that made losses harder to spot
+     * than wins would be the same offence as inflating a number.
+     *
+     * Everything printed comes from [PerQuestionBreakdown] -- shared with the documentation site,
+     * so the two surfaces cannot disagree about the same question -- and nothing here names a repo,
+     * a side, a question or a verdict as a literal.
+     */
+    private fun StringBuilder.renderPerQuestion(run: RetrievalRun) {
+        appendLine("### Every Question")
+        appendLine()
+        val byRepo = PerQuestionBreakdown.byRepo(run)
+        if (byRepo.isEmpty()) {
+            appendLine("_No questions were scored in this run._")
+            appendLine()
+            return
+        }
+        val all = byRepo.values.flatten()
+        appendLine(
+            "Every section above this one is a mean. This one is the run itself: all ${all.size} " +
+                "question(s) it scored, one row each, grouped by repo and ordered by question id " +
+                "-- negative controls included, where the sections above hold them apart. It is " +
+                "here so that a repo's aggregate can be traced to the questions that produced it, " +
+                "and so that one catastrophic miss is distinguishable from a uniformly mediocre " +
+                "spread, which no mean can tell you."
+        )
+        appendLine()
+        appendLine(
+            "**Each cell is that side's reciprocal rank for the question, then the rank at which it " +
+                "first returned a gold-cited file.** The score is the per-question figure the MRR " +
+                "rows above are the mean of, so a row can be traced to its table; the rank is what " +
+                "the mean erases. \"Found it at rank 1\", \"found it at rank 9\" and \"never found " +
+                "it at all\" are three different results, and every capped metric here renders the " +
+                "last two identically whenever the hit sits past `k`. precision@k and recall@k are " +
+                "deliberately **not** printed per question: at ${RetrievalSide.entries.size} sides " +
+                "and ${run.kValues.size} `k` value(s) they are " +
+                "${RetrievalSide.entries.size * run.kValues.size * 2} further columns, and a table " +
+                "nobody can read is not a disclosure. They are in this run's own result document " +
+                "(`${run.runId}.json`), per question, per side, for every reader who wants them."
+        )
+        appendLine()
+        appendLine(
+            "`n/a` means that side has **no measurement** for that question -- excluded from every " +
+                "mean above, never folded in as 0.0. `${fmtScore(0.0)} (not found)` means the " +
+                "opposite: that side ran, and nothing anywhere in its ranked list was a gold-cited " +
+                "file. The two are different claims and are printed differently."
+        )
+        appendLine()
+        appendLine(
+            "Rows are ordered by question id, never by score. A table like this makes every " +
+                "question where ${RetrievalSide.CONTEXT_GRAPH.label} loses much easier to find " +
+                "than the aggregates did, and that is the point of printing it: those rows are " +
+                "here, in their place, formatted exactly like the ones where it wins."
+        )
+        appendLine()
+        renderUniversalMisses(all)
+        byRepo.forEach { (repoId, questions) ->
+            appendLine("#### `$repoId` — ${questions.size} question(s)")
+            appendLine()
+            run.summary?.byRepo?.get(repoId)?.let { renderExtractionCaveat(run, repoId, it) }
+            renderQuestionTable(questions)
+            renderExpectedFiles(questions)
+        }
+    }
+
+    /**
+     * The questions no side reached at all, named before the tables rather than left to be found in
+     * them. Such a row says something about the *question* -- its wording, or the gold set it was
+     * given -- rather than about any tool, and it is the one kind of row that a reader scanning for
+     * a tool's weaknesses would otherwise misread as four of them.
+     */
+    private fun StringBuilder.renderUniversalMisses(all: List<PerQuestionBreakdown>) {
+        val missed = all.filter { it.missedByEverySide }
+        if (missed.isEmpty()) {
+            appendLine(
+                "**Every question here was answered by at least one side.** None of the " +
+                    "${all.size} was missed by every side that measured it, so no row below is a " +
+                    "statement about the question rather than about the tools."
+            )
+        } else {
+            appendLine(
+                "**${missed.size} of ${all.size} question(s) were missed by every side that " +
+                    "measured them**: ${missed.joinToString(", ") { "`${it.questionId}`" }}. Not " +
+                    "one side put a gold-cited file anywhere in its ranked list -- not below `k`, " +
+                    "nowhere at all. A row like that says something about the question, its " +
+                    "wording or the gold set it was given, rather than about any of the tools, so " +
+                    "it is named here and marked in its own verdict rather than left to be noticed."
+            )
+        }
+        appendLine()
+    }
+
+    /** One repo's questions, one row each. */
+    private fun StringBuilder.renderQuestionTable(questions: List<PerQuestionBreakdown>) {
+        appendLine(
+            "| Question | Category | Gold files | " +
+                RetrievalSide.entries.joinToString(" | ") { it.label } + " | Verdict |"
+        )
+        appendLine("|---|---|---|" + "---|".repeat(RetrievalSide.entries.size) + "---|")
+        questions.forEach { question ->
+            appendLine(
+                "| ${question.questionId} | ${question.category.name} | " +
+                    "${question.expectedFileCount} | " +
+                    RetrievalSide.entries.joinToString(" | ") { fmtQuestionScore(question.scoreFor(it)) } +
+                    " | ${verdict(question)} |"
+            )
+        }
+        appendLine()
+    }
+
+    /**
+     * The gold set each row above was scored against, per question.
+     *
+     * Below the table rather than inside it, deliberately: a real gold set is up to five repository
+     * paths, and a column holding them would be wider than the seven that carry the measurement.
+     * The size stays in the table, where it qualifies every recall figure the row implies; the paths
+     * themselves are here, where their length costs nothing.
+     */
+    private fun StringBuilder.renderExpectedFiles(questions: List<PerQuestionBreakdown>) {
+        appendLine("Expected files -- the gold-fact-derived set each row above was scored against:")
+        appendLine()
+        questions.forEach { question ->
+            val files = question.expectedFiles.takeIf { it.isNotEmpty() }
+                ?.joinToString(", ") { "`$it`" }
+                ?: "_none cited_"
+            appendLine(
+                "- `${question.questionId}` (${question.expectedFileCount} " +
+                    "file${if (question.expectedFileCount == 1) "" else "s"}): $files"
+            )
+        }
+        appendLine()
+    }
+
+    /**
+     * One side's cell: its score and where in its own answer the first gold-cited file sat, or the
+     * absence of a measurement said as an absence.
+     */
+    private fun fmtQuestionScore(score: QuestionSideScore?): String = when {
+        score == null -> "n/a"
+        score.firstGoldHitRank == null -> "${fmtScore(score.reciprocalRank)} (not found)"
+        else -> "${fmtScore(score.reciprocalRank)} (rank ${score.firstGoldHitRank})"
+    }
+
+    /**
+     * Who won the question, by name.
+     *
+     * **Every leading side is named, including when they tie**, which costs width and buys the one
+     * thing this column exists for: a verdict reading "tie at rank 2" would name a winner when one
+     * side wins and name nobody when two do, so a loss to a pair of sides would read more quietly
+     * than a loss to a single one. Losing to two is not a smaller loss than losing to one.
+     */
+    private fun verdict(question: PerQuestionBreakdown): String {
+        if (question.measured.isEmpty()) return "nothing measured (see \"Skipped\")"
+        val leaders = question.leaders
+        if (leaders.isEmpty()) return "**no side found a gold-cited file**"
+        val rank = leaders.first().firstGoldHitRank
+        return if (leaders.size == 1) {
+            "${leaders.single().side.label} leads"
+        } else {
+            "${leaders.joinToString(", ") { it.side.label }} tie at rank $rank"
         }
     }
 

@@ -1,11 +1,20 @@
 package io.contextgraph.benchmark.cli
 
+import com.github.ajalt.clikt.core.parse
+import io.contextgraph.benchmark.model.QuestionCategory
 import io.contextgraph.benchmark.retrieval.BashProcess
+import io.contextgraph.benchmark.retrieval.RetrievalReportGenerator
+import io.contextgraph.benchmark.retrieval.RetrievalRun
+import io.contextgraph.benchmark.retrieval.RetrievalRunResult
 import io.contextgraph.benchmark.retrieval.RetrievalSide
+import io.contextgraph.benchmark.retrieval.SideResult
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import kotlinx.datetime.Instant
 import java.nio.file.Path
+import kotlin.io.path.createTempDirectory
+import kotlin.io.path.readText
 
 /**
  * What the operator sees before they run anything, which is the only place some of this axis's
@@ -63,6 +72,60 @@ class RetrievalCommandTest : FunSpec({
         // measured without reading the source.
         helpText() shouldContain BashProcess.BASE_SYSTEM_GREP
         Path.of(BashProcess.BASE_SYSTEM_GREP).isAbsolute shouldBe true
+    }
+
+    test("--from-result rewrites the report from an existing result, running no measurement") {
+        // AC-11 needs a supported way to regenerate, or the "generated, never hand-edited" claim is
+        // only keepable by writing throwaway code. The corpus and questions directories below do
+        // not exist: if this path touched the measurement at all, it could not get past them.
+        val dir = createTempDirectory("retrieval-from-result")
+        val run = RetrievalRun(
+            runId = "retrieval-from-result-fixture",
+            generatedAt = Instant.parse("2026-08-24T00:00:00Z"),
+            kValues = listOf(5),
+            results = listOf(
+                RetrievalRunResult(
+                    questionId = "gin-q1",
+                    repoId = "gin",
+                    category = QuestionCategory.GRAPH_HEAVY,
+                    expectedFiles = listOf("gin.go"),
+                    ripgrepQueryTokens = listOf("ServeHTTP"),
+                    contextGraph = SideResult(listOf("gin.go"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0),
+                    ripgrep = SideResult(listOf("gin.go"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0)
+                )
+            )
+        )
+        val resultFile = run.writeTo(dir)
+
+        command().parse(
+            arrayOf(
+                "--from-result", resultFile.toString(),
+                "--corpus-root", dir.resolve("no-such-corpus").toString(),
+                "--questions-dir", dir.resolve("no-such-questions").toString()
+            )
+        )
+
+        // Next to the result document it renders, not under --output-dir: that option resolves
+        // against the caller's working directory, which for the Gradle task is `modules/benchmark`
+        // rather than the repository root, and has already written one report into the wrong tree.
+        val report = dir.resolve("BENCHMARKS.md")
+        report.readText() shouldBe
+            RetrievalReportGenerator.upsert("", RetrievalReportGenerator.generate(run))
+    }
+
+    test("--from-result leaves the result document it read exactly as it found it") {
+        val dir = createTempDirectory("retrieval-from-result-readonly")
+        val run = RetrievalRun(
+            runId = "retrieval-from-result-untouched",
+            generatedAt = Instant.parse("2026-08-24T00:00:00Z"),
+            kValues = listOf(5)
+        )
+        val resultFile = run.writeTo(dir)
+        val before = resultFile.readText()
+
+        command().parse(arrayOf("--from-result", resultFile.toString()))
+
+        resultFile.readText() shouldBe before
     }
 
     test("the help's side names stay in step with RetrievalSide, which owns them") {

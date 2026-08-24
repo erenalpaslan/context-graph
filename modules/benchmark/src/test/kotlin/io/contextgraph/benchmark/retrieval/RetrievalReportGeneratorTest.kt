@@ -640,6 +640,78 @@ class RetrievalReportGeneratorTest : FunSpec({
 
         RetrievalReportGenerator.upsert(file, section) shouldBe file
     }
+
+    // ------------------------------------------------ the per-question breakdown
+
+    test("every question the run scored gets a row, grouped by repo and ordered by question id") {
+        // AC-18. The aggregates say a repo scored 0.264; only this says which questions produced
+        // it, and whether that was one catastrophic miss or a uniformly mediocre spread.
+        val section = RetrievalReportGenerator.generate(pooledLeadRun())
+
+        section shouldContain "### Every Question"
+        section shouldContain "#### `alpha` — 2 question(s)"
+        section shouldContain "#### `beta` — 2 question(s)"
+
+        // Only this section's rows: the negative-control table below repeats `beta-q9` in its own,
+        // narrower form, and a filter that swept both would assert on two tables at once.
+        val rows = section.substringAfter("### Every Question").substringBefore("### Negative Controls")
+            .lines()
+            .filter { it.startsWith("| alpha-") || it.startsWith("| beta-") }
+        rows.map { it.substringBefore(" |").removePrefix("| ") } shouldBe
+            listOf("alpha-q1", "alpha-q2", "beta-q1", "beta-q9")
+    }
+
+    test("each row carries the category, the gold-set size, every side's score and its first gold hit's rank") {
+        val section = RetrievalReportGenerator.generate(pooledLeadRun())
+
+        section shouldContain "| Question | Category | Gold files | ContextGraph (this project) | " +
+            "CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |"
+        // Found at rank 1, found at rank 2, and two sides that ran and found nothing anywhere --
+        // three states a single averaged score renders identically.
+        section shouldContain "| alpha-q1 | GRAPH_HEAVY | 1 | 1.000 (rank 1) | 0.500 (rank 2) | " +
+            "0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |"
+    }
+
+    test("a side with no measurement for a question renders absent, never as a zero") {
+        // The same distinction the aggregates keep: `kc-q2` had no CodeGraph measurement at all,
+        // and a `0.000` there would blame a tool for an invocation that never completed.
+        val section = RetrievalReportGenerator.generate(threeWayRun())
+
+        section shouldContain "| kc-q2 | NEGATIVE_CONTROL | 1 | 0.000 (not found) | n/a | n/a | " +
+            "1.000 (rank 1) | ripgrep (baseline) leads |"
+    }
+
+    test("the expected file set is printed for every question, not only its size") {
+        val section = RetrievalReportGenerator.generate(pooledLeadRun())
+
+        section shouldContain "- `alpha-q1` (1 file): `alpha/A.kt`"
+        section shouldContain "- `beta-q9` (1 file): `beta/A.kt`"
+    }
+
+    test("a question every measured side missed is marked in its row and named above the table") {
+        // `gin-q1`'s two graph sides return nothing and its two text-search sides return a file no
+        // gold fact cites -- four sides asked, none reaching it. That says something about the
+        // question, not about four tools, and must not be buried among the rows that don't.
+        val section = RetrievalReportGenerator.generate(universalMissRun())
+
+        section shouldContain "1 of 2 question(s) were missed by every side that measured them**: `gin-q1`"
+        section shouldContain "**no side found a gold-cited file**"
+
+        // And the claim is computed, not decorative: a run where every question was answered says so.
+        RetrievalReportGenerator.generate(pooledLeadRun()) shouldContain
+            "**Every question here was answered by at least one side.**"
+    }
+
+    test("the verdict names every leading side, so a loss to a tie is as visible as a loss to one") {
+        // `beta-q1` is a row where this project loses: it puts the gold file at rank 2 and both
+        // text-search sides put it at rank 1. A verdict reading "tie at rank 1" would name a winner
+        // when one side wins and nobody when two do, making the second kind of loss the quieter one.
+        val section = RetrievalReportGenerator.generate(pooledLeadRun())
+
+        section shouldContain "| beta-q1 | GRAPH_HEAVY | 1 | 0.500 (rank 2) | 0.500 (rank 2) | " +
+            "1.000 (rank 1) | 1.000 (rank 1) | bash (base-system shell only), ripgrep (baseline) " +
+            "tie at rank 1 |"
+    }
 })
 
 /**
@@ -795,9 +867,17 @@ private fun ceilingReorderRun(): RetrievalRun {
  * uses this for both. Neither a perfect score nor a zero, so nothing here can be read as a result;
  * where a fixture genuinely *is* about an asymmetry between two sides, it says so in a comment and
  * spells the values out at the point of use.
+ *
+ * [goldFile] is a parameter rather than a fixed placeholder because the reciprocal rank below is
+ * `0.5`, and a side whose ranked list contains no gold-cited file at all could not have scored that:
+ * the per-question table prints the score *and* the rank its own ranked list puts the first gold hit
+ * at, so a fixture that never placed one would render "0.500" beside "not found" and accuse the
+ * generator of a contradiction the fixture wrote. Putting the question's gold file second makes the
+ * `0.5` true, and changes no other figure -- the list is the same length, and the two metric maps
+ * are untouched.
  */
-private val NEUTRAL_GRAPH_SIDE =
-    SideResult(listOf("placeholder/One.kt", "placeholder/Two.kt"), mapOf(5 to 0.1), mapOf(5 to 0.5), 0.5)
+private fun neutralGraphSide(goldFile: String) =
+    SideResult(listOf("placeholder/One.kt", goldFile), mapOf(5 to 0.1), mapOf(5 to 0.5), 0.5)
 
 /**
  * A run whose two text-search sides return different ranked lists that agree on everything the
@@ -863,7 +943,7 @@ private fun textPair(
  * A single-repo run built from [pairs], one question each, for exercising the baseline subsection.
  *
  * The two graph sides are irrelevant to every assertion these fixtures carry -- that subsection
- * reads only the two text-search columns -- so both get [NEUTRAL_GRAPH_SIDE] and neither makes a
+ * reads only the two text-search columns -- so both get [neutralGraphSide] and neither makes a
  * claim. They used to read `1.0` for this project and `0.0` for the third party, which measured
  * nothing and looked like everything.
  */
@@ -878,9 +958,9 @@ private fun baselineRun(
             category = QuestionCategory.GRAPH_HEAVY,
             expectedFiles = expectedFiles,
             ripgrepQueryTokens = listOf("resolve"),
-            contextGraph = NEUTRAL_GRAPH_SIDE,
+            contextGraph = neutralGraphSide(expectedFiles.first()),
             ripgrep = ripgrep,
-            codeGraph = NEUTRAL_GRAPH_SIDE,
+            codeGraph = neutralGraphSide(expectedFiles.first()),
             bash = bash
         )
     }
@@ -900,7 +980,7 @@ private val NO_DECLARATIONS = mapOf("Document" to 847, "Concept" to 206, "CodeFi
 private val WITH_DECLARATIONS = mapOf("CodeFile" to 128, "Function" to 412, "Method" to 604, "Class" to 192)
 
 /**
- * The CodeGraph side here is [NEUTRAL_GRAPH_SIDE] and says nothing: no assertion in this file reads
+ * The CodeGraph side here is [neutralGraphSide] and says nothing: no assertion in this file reads
  * it, and the fixture it belongs to is about an *extraction* gap on this project's own side (below)
  * plus a plain-`grep` win on the negative control. It previously returned a non-gold file and
  * scored zero on everything, which is a loss no test was measuring.
@@ -920,7 +1000,7 @@ private fun fourSidedResult(
     ripgrepQueryTokens = listOf("ServeHTTP"),
     contextGraph = contextGraph,
     ripgrep = ripgrep,
-    codeGraph = NEUTRAL_GRAPH_SIDE,
+    codeGraph = neutralGraphSide("$repoId/A.go"),
     bash = bash
 )
 
@@ -966,6 +1046,38 @@ private fun fourWayRun(ginExtraction: Map<String, Int>? = NO_DECLARATIONS): Retr
     )
 }
 
+/**
+ * A run holding one question no side reached at all: all four were asked, all four answered, and
+ * not one of them named a gold-cited file anywhere in its ranked list.
+ *
+ * It encodes no win and no loss -- every side scores identically on both questions, which is the
+ * only way to exercise "this row is about the question" without also saying something about a tool.
+ * The second question exists so the count the report prints has a denominator to be short of.
+ */
+private fun universalMissRun(): RetrievalRun {
+    val missed = SideResult(listOf("gin/Other.go"), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0)
+    val found = SideResult(listOf("gin/A.go"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0)
+    fun question(questionId: String, side: SideResult) = RetrievalRunResult(
+        questionId = questionId,
+        repoId = "gin",
+        category = QuestionCategory.GRAPH_HEAVY,
+        expectedFiles = listOf("gin/A.go"),
+        ripgrepQueryTokens = listOf("ServeHTTP"),
+        contextGraph = side,
+        ripgrep = side,
+        codeGraph = side,
+        bash = side
+    )
+    val results = listOf(question("gin-q1", missed), question("gin-q2", found))
+    return RetrievalRun(
+        runId = "retrieval-universal-miss-fixture",
+        generatedAt = Instant.parse("2026-08-24T00:00:00Z"),
+        kValues = listOf(5),
+        results = results,
+        summary = RetrievalStats.summarize(results, listOf(5))
+    )
+}
+
 /** The same run as [fourWayRun], measured after a grammar for the repo's language landed. */
 private fun goSupportedRun(): RetrievalRun = fourWayRun(ginExtraction = WITH_DECLARATIONS)
 
@@ -994,7 +1106,7 @@ private fun reusedIndexRun(): RetrievalRun = fourWayRun().let { run ->
  *
  * The asymmetry between this project's side and the two text-search sides is therefore the fixture's
  * whole subject and is spelled out above. The CodeGraph side is *not* part of that subject: it takes
- * [NEUTRAL_GRAPH_SIDE], which is enough to keep it out of every pooled and per-repo lead this file
+ * [neutralGraphSide], which is enough to keep it out of every pooled and per-repo lead this file
  * asserts on without encoding a loss the test never measures.
  */
 private fun pooledLeadRun(): RetrievalRun {
@@ -1012,13 +1124,14 @@ private fun pooledLeadRun(): RetrievalRun {
         ripgrepQueryTokens = listOf("resolve"),
         contextGraph = contextGraph,
         ripgrep = textSearch,
-        codeGraph = NEUTRAL_GRAPH_SIDE,
+        codeGraph = neutralGraphSide("$repoId/A.kt"),
         bash = textSearch
     )
 
     val graphFound = SideResult(listOf("alpha/A.kt"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0)
     val textFoundNothing = SideResult(emptyList(), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0)
-    val graphPrecise = SideResult(listOf("beta/B.kt"), mapOf(5 to 0.2), mapOf(5 to 0.0), 0.5)
+    // The gold file second, so the 0.5 reciprocal rank is a rank this list actually produced.
+    val graphPrecise = SideResult(listOf("beta/B.kt", "beta/A.kt"), mapOf(5 to 0.2), mapOf(5 to 0.0), 0.5)
     val textFound = SideResult(listOf("beta/A.kt"), mapOf(5 to 0.1), mapOf(5 to 1.0), 1.0)
 
     val results = listOf(
