@@ -1,0 +1,1281 @@
+{
+    "nodes": [
+        {
+            "id": "binding/binding.go",
+            "type": "CodeFile",
+            "label": "binding.go",
+            "confidence": 1.0,
+            "properties": {
+                "language": "go"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#BindError",
+            "type": "TypeAlias",
+            "label": "BindError",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.BindError",
+                "kind": "type_alias"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 18,
+                    "lineEnd": 18,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#Binding",
+            "type": "Interface",
+            "label": "Binding",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.Binding",
+                "kind": "interface"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 7,
+                    "lineEnd": 10,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#Binding.Bind(*http.Request,any)",
+            "type": "Method",
+            "label": "Bind",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.Binding.Bind",
+                "kind": "interface_method",
+                "returns": "error"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 9,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#Binding.Name()",
+            "type": "Method",
+            "label": "Name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.Binding.Name",
+                "kind": "interface_method",
+                "returns": "string"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#JSON",
+            "type": "Variable",
+            "label": "JSON",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.JSON",
+                "kind": "var",
+                "type": "Binding"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 31,
+                    "lineEnd": 31,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#Validating",
+            "type": "Interface",
+            "label": "Validating",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.Validating",
+                "kind": "interface",
+                "supertypes": [
+                    "Binding"
+                ]
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 13,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#Validating.Validate(any)",
+            "type": "Method",
+            "label": "Validate",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.Validating.Validate",
+                "kind": "interface_method",
+                "returns": "error"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 15,
+                    "lineEnd": 15,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#XML",
+            "type": "Variable",
+            "label": "XML",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.XML",
+                "kind": "var",
+                "type": "Binding"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 32,
+                    "lineEnd": 32,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#decodeJSON(*http.Request,any)",
+            "type": "Function",
+            "label": "decodeJSON",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.decodeJSON",
+                "kind": "function",
+                "returns": "error"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 35,
+                    "lineEnd": 37,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#import:net/http",
+            "type": "Module",
+            "label": "net/http",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "net/http"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 3,
+                    "lineEnd": 3,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#jsonBinding",
+            "type": "Class",
+            "label": "jsonBinding",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.jsonBinding",
+                "kind": "struct"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 20,
+                    "lineEnd": 20,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#jsonBinding.Bind(*http.Request,any)",
+            "type": "Method",
+            "label": "Bind",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.jsonBinding.Bind",
+                "kind": "method",
+                "receiver": "jsonBinding",
+                "returns": "error"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 26,
+                    "lineEnd": 28,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "binding/binding.go#jsonBinding.Name()",
+            "type": "Method",
+            "label": "Name",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.jsonBinding.Name",
+                "kind": "method",
+                "receiver": "jsonBinding",
+                "returns": "string"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 24,
+                    "lineEnd": 24,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "broken/broken.go",
+            "type": "CodeFile",
+            "label": "broken.go",
+            "confidence": 1.0,
+            "properties": {
+                "language": "go"
+            },
+            "provenance": [
+                {
+                    "path": "broken/broken.go",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "broken/broken.go#Fine()",
+            "type": "Function",
+            "label": "Fine",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "broken.Fine",
+                "kind": "function",
+                "returns": "int"
+            },
+            "provenance": [
+                {
+                    "path": "broken/broken.go",
+                    "lineStart": 9,
+                    "lineEnd": 11,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "broken/broken.go#Oops()",
+            "type": "Function",
+            "label": "Oops",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "broken.Oops",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "broken/broken.go",
+                    "lineStart": 5,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/context_abort.go",
+            "type": "CodeFile",
+            "label": "context_abort.go",
+            "confidence": 1.0,
+            "properties": {
+                "language": "go"
+            },
+            "provenance": [
+                {
+                    "path": "server/context_abort.go",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/context_abort.go#Context.Abort()",
+            "type": "Method",
+            "label": "Abort",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Context.Abort",
+                "kind": "method",
+                "receiver": "Context"
+            },
+            "provenance": [
+                {
+                    "path": "server/context_abort.go",
+                    "lineStart": 6,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go",
+            "type": "CodeFile",
+            "label": "engine.go",
+            "confidence": 1.0,
+            "properties": {
+                "language": "go"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#DebugMode",
+            "type": "Constant",
+            "label": "DebugMode",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.DebugMode",
+                "kind": "const"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine",
+            "type": "Class",
+            "label": "Engine",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine",
+                "kind": "struct",
+                "supertypes": [
+                    "RouterGroup"
+                ]
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 19,
+                    "lineEnd": 24,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.Handlers",
+            "type": "Field",
+            "label": "Handlers",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.Handlers",
+                "kind": "field",
+                "type": "HandlerFunc"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 21,
+                    "lineEnd": 21,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.RouterGroup",
+            "type": "Field",
+            "label": "RouterGroup",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.RouterGroup",
+                "kind": "embedded_field",
+                "type": "RouterGroup"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 20,
+                    "lineEnd": 20,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.ServeHTTP(http.ResponseWriter,*http.Request)",
+            "type": "Method",
+            "label": "ServeHTTP",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.ServeHTTP",
+                "kind": "method",
+                "receiver": "Engine"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 34,
+                    "lineEnd": 37,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.Use(HandlerFunc)",
+            "type": "Method",
+            "label": "Use",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.Use",
+                "kind": "method",
+                "receiver": "Engine"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 47,
+                    "lineEnd": 50,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.binder",
+            "type": "Field",
+            "label": "binder",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.binder",
+                "kind": "field",
+                "type": "Binding"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 22,
+                    "lineEnd": 22,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.handleHTTPRequest(*Context)",
+            "type": "Method",
+            "label": "handleHTTPRequest",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.handleHTTPRequest",
+                "kind": "method",
+                "receiver": "Engine"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 39,
+                    "lineEnd": 43,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.pool",
+            "type": "Field",
+            "label": "pool",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.pool",
+                "kind": "field",
+                "type": "Context"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 23,
+                    "lineEnd": 23,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#Engine.rebuild404Handlers()",
+            "type": "Method",
+            "label": "rebuild404Handlers",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Engine.rebuild404Handlers",
+                "kind": "method",
+                "receiver": "Engine"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 52,
+                    "lineEnd": 54,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#EnvMode",
+            "type": "Constant",
+            "label": "EnvMode",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.EnvMode",
+                "kind": "const"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 9,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#HandlerFunc",
+            "type": "Type",
+            "label": "HandlerFunc",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.HandlerFunc",
+                "kind": "type"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 26,
+                    "lineEnd": 26,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#New()",
+            "type": "Function",
+            "label": "New",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.New",
+                "kind": "function",
+                "returns": "Engine"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 28,
+                    "lineEnd": 32,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#ReleaseMode",
+            "type": "Constant",
+            "label": "ReleaseMode",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.ReleaseMode",
+                "kind": "const"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 13,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#default404Body",
+            "type": "Variable",
+            "label": "default404Body",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.default404Body",
+                "kind": "var"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 16,
+                    "lineEnd": 16,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#import:github.com/example/app/binding",
+            "type": "Module",
+            "label": "github.com/example/app/binding",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "github.com/example/app/binding"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#import:net/http",
+            "type": "Module",
+            "label": "net/http",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "net/http"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 4,
+                    "lineEnd": 4,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/engine.go#serveError(*Context,[]byte)",
+            "type": "Function",
+            "label": "serveError",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.serveError",
+                "kind": "function"
+            },
+            "provenance": [
+                {
+                    "path": "server/engine.go",
+                    "lineStart": 56,
+                    "lineEnd": 58,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go",
+            "type": "CodeFile",
+            "label": "router.go",
+            "confidence": 1.0,
+            "properties": {
+                "language": "go"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": null,
+                    "lineEnd": null,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#Context",
+            "type": "Class",
+            "label": "Context",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Context",
+                "kind": "struct"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 11,
+                    "lineEnd": 14,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#Context.Next()",
+            "type": "Method",
+            "label": "Next",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Context.Next",
+                "kind": "method",
+                "receiver": "Context"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 29,
+                    "lineEnd": 31,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#Context.Use(HandlerFunc)",
+            "type": "Method",
+            "label": "Use",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Context.Use",
+                "kind": "method",
+                "receiver": "Context"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 33,
+                    "lineEnd": 35,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#Context.handlers",
+            "type": "Field",
+            "label": "handlers",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Context.handlers",
+                "kind": "field",
+                "type": "HandlersChain"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 12,
+                    "lineEnd": 12,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#Context.index",
+            "type": "Field",
+            "label": "index",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.Context.index",
+                "kind": "field",
+                "type": "int8"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 13,
+                    "lineEnd": 13,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#HandlersChain",
+            "type": "Type",
+            "label": "HandlersChain",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.HandlersChain",
+                "kind": "type"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 17,
+                    "lineEnd": 17,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#RouterGroup",
+            "type": "Class",
+            "label": "RouterGroup",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.RouterGroup",
+                "kind": "struct"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 5,
+                    "lineEnd": 9,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#RouterGroup.Handlers",
+            "type": "Field",
+            "label": "Handlers",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.RouterGroup.Handlers",
+                "kind": "field",
+                "type": "HandlersChain"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 6,
+                    "lineEnd": 6,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#RouterGroup.Use(HandlerFunc)",
+            "type": "Method",
+            "label": "Use",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.RouterGroup.Use",
+                "kind": "method",
+                "receiver": "RouterGroup"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 19,
+                    "lineEnd": 21,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#RouterGroup.basePath",
+            "type": "Field",
+            "label": "basePath",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.RouterGroup.basePath",
+                "kind": "field",
+                "type": "string"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 7,
+                    "lineEnd": 7,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#RouterGroup.combineHandlers(HandlersChain)",
+            "type": "Method",
+            "label": "combineHandlers",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.RouterGroup.combineHandlers",
+                "kind": "method",
+                "receiver": "RouterGroup",
+                "returns": "HandlersChain"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 23,
+                    "lineEnd": 27,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
+            "id": "server/router.go#RouterGroup.engine",
+            "type": "Field",
+            "label": "engine",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "server.RouterGroup.engine",
+                "kind": "field",
+                "type": "Engine"
+            },
+            "provenance": [
+                {
+                    "path": "server/router.go",
+                    "lineStart": 8,
+                    "lineEnd": 8,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#BindError",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#BindError",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#Binding",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#Binding",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#JSON",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#JSON",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#Validating",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#Validating",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#XML",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#XML",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#decodeJSON(*http.Request,any)",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#decodeJSON(*http.Request,any)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:binding/binding.go:binding/binding.go#import:net/http",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#import:net/http",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#jsonBinding",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#jsonBinding",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go#Binding:binding/binding.go#Binding.Bind(*http.Request,any)",
+            "source": "binding/binding.go#Binding",
+            "target": "binding/binding.go#Binding.Bind(*http.Request,any)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go#Binding:binding/binding.go#Binding.Name()",
+            "source": "binding/binding.go#Binding",
+            "target": "binding/binding.go#Binding.Name()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go#Validating:binding/binding.go#Validating.Validate(any)",
+            "source": "binding/binding.go#Validating",
+            "target": "binding/binding.go#Validating.Validate(any)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go#jsonBinding:binding/binding.go#jsonBinding.Bind(*http.Request,any)",
+            "source": "binding/binding.go#jsonBinding",
+            "target": "binding/binding.go#jsonBinding.Bind(*http.Request,any)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:binding/binding.go#jsonBinding:binding/binding.go#jsonBinding.Name()",
+            "source": "binding/binding.go#jsonBinding",
+            "target": "binding/binding.go#jsonBinding.Name()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:broken/broken.go:broken/broken.go#Fine()",
+            "source": "broken/broken.go",
+            "target": "broken/broken.go#Fine()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:broken/broken.go:broken/broken.go#Oops()",
+            "source": "broken/broken.go",
+            "target": "broken/broken.go#Oops()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/context_abort.go:server/context_abort.go#Context.Abort()",
+            "source": "server/context_abort.go",
+            "target": "server/context_abort.go#Context.Abort()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#DebugMode",
+            "source": "server/engine.go",
+            "target": "server/engine.go#DebugMode",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#Engine",
+            "source": "server/engine.go",
+            "target": "server/engine.go#Engine",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#EnvMode",
+            "source": "server/engine.go",
+            "target": "server/engine.go#EnvMode",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#HandlerFunc",
+            "source": "server/engine.go",
+            "target": "server/engine.go#HandlerFunc",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#New()",
+            "source": "server/engine.go",
+            "target": "server/engine.go#New()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#ReleaseMode",
+            "source": "server/engine.go",
+            "target": "server/engine.go#ReleaseMode",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#default404Body",
+            "source": "server/engine.go",
+            "target": "server/engine.go#default404Body",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:server/engine.go:server/engine.go#import:github.com/example/app/binding",
+            "source": "server/engine.go",
+            "target": "server/engine.go#import:github.com/example/app/binding",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "imports:server/engine.go:server/engine.go#import:net/http",
+            "source": "server/engine.go",
+            "target": "server/engine.go#import:net/http",
+            "type": "imports",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go:server/engine.go#serveError(*Context,[]byte)",
+            "source": "server/engine.go",
+            "target": "server/engine.go#serveError(*Context,[]byte)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.Handlers",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.Handlers",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.RouterGroup",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.RouterGroup",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.ServeHTTP(http.ResponseWriter,*http.Request)",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.ServeHTTP(http.ResponseWriter,*http.Request)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.Use(HandlerFunc)",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.Use(HandlerFunc)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.binder",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.binder",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.handleHTTPRequest(*Context)",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.handleHTTPRequest(*Context)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.pool",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.pool",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/engine.go#Engine:server/engine.go#Engine.rebuild404Handlers()",
+            "source": "server/engine.go#Engine",
+            "target": "server/engine.go#Engine.rebuild404Handlers()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go:server/router.go#Context",
+            "source": "server/router.go",
+            "target": "server/router.go#Context",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go:server/router.go#HandlersChain",
+            "source": "server/router.go",
+            "target": "server/router.go#HandlersChain",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go:server/router.go#RouterGroup",
+            "source": "server/router.go",
+            "target": "server/router.go#RouterGroup",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#Context:server/router.go#Context.Next()",
+            "source": "server/router.go#Context",
+            "target": "server/router.go#Context.Next()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#Context:server/router.go#Context.Use(HandlerFunc)",
+            "source": "server/router.go#Context",
+            "target": "server/router.go#Context.Use(HandlerFunc)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#Context:server/router.go#Context.handlers",
+            "source": "server/router.go#Context",
+            "target": "server/router.go#Context.handlers",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#Context:server/router.go#Context.index",
+            "source": "server/router.go#Context",
+            "target": "server/router.go#Context.index",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#RouterGroup:server/router.go#RouterGroup.Handlers",
+            "source": "server/router.go#RouterGroup",
+            "target": "server/router.go#RouterGroup.Handlers",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#RouterGroup:server/router.go#RouterGroup.Use(HandlerFunc)",
+            "source": "server/router.go#RouterGroup",
+            "target": "server/router.go#RouterGroup.Use(HandlerFunc)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#RouterGroup:server/router.go#RouterGroup.basePath",
+            "source": "server/router.go#RouterGroup",
+            "target": "server/router.go#RouterGroup.basePath",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#RouterGroup:server/router.go#RouterGroup.combineHandlers(HandlersChain)",
+            "source": "server/router.go#RouterGroup",
+            "target": "server/router.go#RouterGroup.combineHandlers(HandlersChain)",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:server/router.go#RouterGroup:server/router.go#RouterGroup.engine",
+            "source": "server/router.go#RouterGroup",
+            "target": "server/router.go#RouterGroup.engine",
+            "type": "contains",
+            "confidence": 0.98
+        }
+    ],
+    "diagnostics": [
+        {
+            "severity": "WARNING",
+            "message": "Syntax error(s) in broken/broken.go (tree-sitter/go); extraction is partial"
+        }
+    ]
+}

@@ -11,6 +11,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import java.nio.file.Files
 
 /**
@@ -37,7 +38,14 @@ import java.nio.file.Files
  */
 class RetrievalBenchmarkRunnerTest : FunSpec({
 
-    fun buildFixtureCorpus(): Triple<java.nio.file.Path, List<Question>, List<CorpusRepo>> {
+    /**
+     * [questionText] defaults to the zero-token `"foo"` the class KDoc above explains; only the
+     * bash-failure test overrides it, because a question deriving no tokens never reaches either
+     * text-search binary at all and so cannot exercise a failing one.
+     */
+    fun buildFixtureCorpus(
+        questionText: String = "foo"
+    ): Triple<java.nio.file.Path, List<Question>, List<CorpusRepo>> {
         val corpusRoot = Files.createTempDirectory("retrieval-runner-fixture-")
         val withDir = corpusRoot.resolve("fixture-repo").resolve("with")
         val withoutDir = corpusRoot.resolve("fixture-repo").resolve("without")
@@ -51,7 +59,7 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
         val question = Question(
             id = "fixture-q1",
             repoId = "fixture-repo",
-            text = "foo",
+            text = questionText,
             category = QuestionCategory.GRAPH_HEAVY,
             goldFacts = listOf(
                 GoldFact("fixture-q1-f1", "foo returns 42", Evidence.parse("src/Foo.kt:1")),
@@ -65,7 +73,7 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
         return Triple(corpusRoot, listOf(question), catalog)
     }
 
-    test("scores the ContextGraph and ripgrep sides end to end, and says out loud why CodeGraph's is absent") {
+    test("scores the ContextGraph, bash and ripgrep sides end to end, and says out loud why CodeGraph's is absent") {
         val (corpusRoot, questions, catalog) = buildFixtureCorpus()
         try {
             val runner = RetrievalBenchmarkRunner(corpusRoot, questions, catalog, kValues = listOf(5))
@@ -76,6 +84,18 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
             result.expectedFiles shouldBe listOf("src/Foo.kt")
             result.ripgrepQueryTokens shouldBe emptyList()
             result.ripgrep.rankedFiles shouldBe emptyList()
+
+            // Both text-search baselines were handed the *same* raw question and the same derived
+            // tokens, so both report the same true zero -- and the bash side reports it as a
+            // measurement (an empty ranked list) rather than as an absence. A question no grep
+            // query can be formed for is exactly the honest floor this fourth side exists to
+            // measure; nulling it here would quietly remove that floor from the published mean.
+            val bash = result.bash
+            (bash != null) shouldBe true
+            bash!!.rankedFiles shouldBe emptyList()
+            bash.reciprocalRank shouldBe 0.0
+            run.summary!!.headline.bash shouldNotBe null
+            run.summary!!.headline.bash!!.measuredCount shouldBe 1
 
             // The real index, queried for real: buildContext("foo") must find
             // the indexed foo() symbol and report its file as evidence.
@@ -134,6 +154,80 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
         }
     }
 
+    test("a grep call that fails leaves the bash side unmeasured and names the question -- never a zero") {
+        // The exact mirror of the CodeGraph case above, for the side this axis was extended to
+        // measure. A `grep` that exits outside its 0/1 contract must produce an ABSENT bash side
+        // plus a skip naming the question -- never an empty ranked list averaged in as 0.0, which
+        // would publish as "a shell alone retrieves nothing" and hand the project an unearned win
+        // over the very floor this fourth side exists to establish.
+        //
+        // The question text is code-shaped on purpose. The `"foo"` every other test here uses
+        // derives *no* tokens, so BashBaselineRunner returns early and never reaches a binary at
+        // all; `handleFoo` has an internal capital, so RipgrepQueryDeriver yields one token and
+        // both text-search sides really do spawn a process.
+        val (corpusRoot, questions, catalog) = buildFixtureCorpus(questionText = "handleFoo")
+        try {
+            // Exit 2: outside the `0` (matched) / `1` (ran clean, matched nothing) pair BashProcess
+            // treats as success, so this throws BashCommandExecutionException. `/usr/bin/false`
+            // would NOT serve here -- its exit 1 is grep's legitimate "no match", which is a real
+            // measured zero and must stay one.
+            val failingGrep = corpusRoot.resolve("failing-grep.sh")
+            Files.writeString(failingGrep, "#!/bin/sh\nexit 2\n")
+            failingGrep.toFile().setExecutable(true)
+
+            // The ripgrep side gets a stub exiting 1 -- `rg`'s own "ran clean, matched nothing" --
+            // so this test still shells out to no real `rg` and stays runnable on a machine without
+            // one, exactly as the first test in this class is, while that side is genuinely
+            // measured rather than skipped and can be checked as the isolation control below.
+            val silentRg = corpusRoot.resolve("silent-rg.sh")
+            Files.writeString(silentRg, "#!/bin/sh\nexit 1\n")
+            silentRg.toFile().setExecutable(true)
+
+            val run = RetrievalBenchmarkRunner(
+                corpusRoot, questions, catalog,
+                kValues = listOf(5),
+                rgPath = silentRg.toAbsolutePath().toString(),
+                grepPath = failingGrep.toAbsolutePath().toString()
+            ).run()
+
+            // The run completed rather than aborting: one question's failed subprocess must not
+            // sink a measurement that spans four repos.
+            run.results shouldHaveSize 1
+            val result = run.results.single()
+
+            // Both text-search sides really were handed the same single derived token, which is
+            // what makes "the bash side reached the binary and the binary failed" the only reading
+            // of the absence below.
+            result.ripgrepQueryTokens shouldBe listOf("handleFoo")
+
+            // Absent, not a zeroed SideResult.
+            result.bash shouldBe null
+
+            // The other sides for this same question are still scored -- the failure is isolated to
+            // the one tool that failed.
+            (result.contextGraph != null) shouldBe true
+            result.ripgrep.rankedFiles shouldBe emptyList()
+
+            val skip = run.skippedRepos.single { it.reason.contains("${RetrievalSide.BASH.label} side unmeasured") }
+            skip.repoId shouldBe "fixture-repo"
+            skip.reason.contains("fixture-q1") shouldBe true
+
+            // The one that matters: excluded from every published average rather than dragging one
+            // to zero. A SideAggregate here -- zeroed, or measured-and-scoring-zero -- would mean
+            // RetrievalStats.aggregateIfMeasured had been bypassed, and would read downstream as a
+            // real finding about what a shell alone retrieves. Asserted on all three groupings the
+            // report prints, since a bypass in any one of them publishes the same false claim.
+            run.summary!!.headline.bash shouldBe null
+            run.summary!!.byRepo.getValue("fixture-repo").bash shouldBe null
+            run.summary!!.byCategory.getValue(QuestionCategory.GRAPH_HEAVY).bash shouldBe null
+
+            // ...while ripgrep, handed the identical token, keeps its measurement.
+            run.summary!!.headline.ripgrep.measuredCount shouldBe 1
+        } finally {
+            corpusRoot.toFile().deleteRecursively()
+        }
+    }
+
     test("with the real CodeGraph binary, an indexed copy yields ranked files and a real coverage fraction") {
         if (!CodeGraphProcess.isAvailable("codegraph")) return@test
 
@@ -161,23 +255,30 @@ class RetrievalBenchmarkRunnerTest : FunSpec({
         }
     }
 
-    test("gold-file coverage is reported for all three sides, with ripgrep's stated as by-construction") {
+    test("gold-file coverage is reported for all four sides, with both working-tree sides stated as by-construction") {
         val (corpusRoot, questions, catalog) = buildFixtureCorpus()
         try {
             val run = RetrievalBenchmarkRunner(corpusRoot, questions, catalog, kValues = listOf(5)).run()
 
             val coverage = run.goldFileCoverage.associateBy { it.side }
+            // Every side gets a row. An omitted one renders as NOT_DETERMINABLE, which for a
+            // working-tree side would be a false statement rather than a missing one.
             coverage.keys shouldBe setOf(
-                RetrievalSide.CONTEXT_GRAPH, RetrievalSide.CODE_GRAPH, RetrievalSide.RIPGREP
+                RetrievalSide.CONTEXT_GRAPH, RetrievalSide.CODE_GRAPH,
+                RetrievalSide.BASH, RetrievalSide.RIPGREP
             )
 
             // ContextGraph's index really holds the one cited file.
             coverage[RetrievalSide.CONTEXT_GRAPH]!!.presentFileCount shouldBe 1
             coverage[RetrievalSide.CONTEXT_GRAPH]!!.basis shouldBe CoverageBasis.INDEX_QUERY
 
-            // ripgrep reads the working tree, so it can reach every cited file by construction --
-            // said explicitly, so 100% does not read as a suspiciously perfect measurement.
+            // Both text-search baselines read the working tree, so each can reach every cited file
+            // by construction -- said explicitly, so 100% does not read as a suspiciously perfect
+            // measurement, and so bash's row is never mistaken for an unknown.
             coverage[RetrievalSide.RIPGREP]!!.basis shouldBe CoverageBasis.READS_WORKING_TREE
+            coverage[RetrievalSide.BASH]!!.basis shouldBe CoverageBasis.READS_WORKING_TREE
+            coverage[RetrievalSide.BASH]!!.presentFileCount shouldBe coverage[RetrievalSide.BASH]!!.citedFileCount
+            coverage[RetrievalSide.BASH]!!.fraction shouldBe 1.0
 
             // No CodeGraph index here, so an explicit unknown -- not 0%, which would be a claim.
             coverage[RetrievalSide.CODE_GRAPH]!!.basis shouldBe CoverageBasis.NOT_DETERMINABLE

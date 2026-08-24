@@ -35,7 +35,7 @@ interface LanguageSupport {
      * Default is "extract nothing" so a grammar can be registered (parses, proves the
      * native binary loads) before its extraction is implemented. A language earns real
      * coverage by overriding this one method; nothing else in the seam changes. All
-     * eight registered grammars override it as of slice 18.
+     * nine registered grammars override it.
      */
     fun extract(request: SymbolExtractionRequest): SymbolExtraction = SymbolExtraction.EMPTY
 }
@@ -89,7 +89,7 @@ class SourceText(source: String) {
  * [source]'s pre-encoded UTF-8 bytes via this node's tree-sitter-reported
  * [Node.getStartByte]/[Node.getEndByte], rather than (mis)indexing a char-indexed `String`
  * with byte offsets. See [SourceText]'s doc for why that distinction matters. Every one of
- * this module's six grammars calls this instead of [Node.text].
+ * this module's grammars calls this instead of [Node.text].
  */
 fun Node.textIn(source: SourceText): String {
     val start = startByte.toInt()

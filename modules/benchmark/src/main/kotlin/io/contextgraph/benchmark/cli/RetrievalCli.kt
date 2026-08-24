@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import io.contextgraph.benchmark.corpus.CorpusCatalog
 import io.contextgraph.benchmark.questions.QuestionSetLoader
+import io.contextgraph.benchmark.retrieval.BashProcess
 import io.contextgraph.benchmark.retrieval.RetrievalBenchmarkRunner
 import io.contextgraph.benchmark.retrieval.RetrievalReportGenerator
 import java.nio.file.Files
@@ -30,11 +31,14 @@ class RetrievalCommand(
     private val explicitRepoRoot: Path?
 ) : CliktCommand(name = "retrieval") {
     override fun help(context: Context) =
-        "Measure ContextGraph (this project), CodeGraph (third-party) and ripgrep (baseline) " +
-            "against each other over the same question set, LLM-free and deterministic. Every " +
-            "side gets the same raw question text and is scored against the same gold-derived " +
-            "expected files with the same metrics. Requires an already-prepared corpus (see " +
-            "prepareCorpus), `rg` on PATH, and — for the CodeGraph side — `codegraph` on PATH."
+        "Measure four sides against each other over the same question set, LLM-free and " +
+            "deterministic: ContextGraph (this project), CodeGraph (third-party), bash " +
+            "(base-system shell only, no third-party tools) and ripgrep (third-party, retained " +
+            "for comparison). Every side gets the same raw question text and is scored against " +
+            "the same gold-derived expected files with the same metrics. Requires an " +
+            "already-prepared corpus (see prepareCorpus), `rg` on PATH, and — for the CodeGraph " +
+            "side — `codegraph` on PATH. The bash side needs nothing installed, which is the " +
+            "point of it."
 
     private val corpusRootArg by option(
         "--corpus-root",
@@ -61,8 +65,16 @@ class RetrievalCommand(
         "--codegraph-path",
         help = "Path to the CodeGraph binary (default: 'codegraph', resolved via PATH). A repo " +
             "whose codegraph working copy is missing or unindexed is skipped on that side alone, " +
-            "with the reason recorded — the other two sides are still measured."
+            "with the reason recorded — the other three sides are still measured."
     ).default("codegraph")
+
+    private val grepPath by option(
+        "--grep-path",
+        help = "Path to the grep binary for the bash side (default: " +
+            "${BashProcess.BASE_SYSTEM_GREP}, an absolute path, deliberately NOT resolved via " +
+            "PATH — a PATH lookup can pick up a Homebrew or nix GNU grep, which would silently " +
+            "turn this side back into a third-party measurement)."
+    ).default(BashProcess.BASE_SYSTEM_GREP)
 
     private val kValuesArg by option(
         "--k-values",
@@ -88,6 +100,7 @@ class RetrievalCommand(
             kValues = kValues,
             rgPath = rgPath,
             codegraphPath = codegraphPath,
+            grepPath = grepPath,
             progress = { echo(it) }
         )
         val run = runner.run()

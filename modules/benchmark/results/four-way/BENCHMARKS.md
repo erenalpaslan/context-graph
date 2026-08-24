@@ -17,7 +17,7 @@ Four sides are compared, and they are named this way everywhere below:
 
 So is a result favouring bash. The fourth side exists because the third one is not the floor: `rg` is a separate install that brings its own `.gitignore` awareness, binary skipping and ranking to the fight, so beating it is not the same as beating *nothing*. **bash (base-system shell only)** is what a developer with a stock shell and no installs gets, and it is the honest thing an index has to earn its cost against. Where it wins, that is the finding — printed, not explained away. *Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir sayıdır.*
 
-_Generated from retrieval result `retrieval-1787566899411` (schema v3) at 2026-08-24T10:21:39.411711Z. Regenerate by re-running the retrieval measurement; this section is not hand-edited._
+_Generated from retrieval result `retrieval-1787568863031` (schema v3) at 2026-08-24T10:54:23.031605Z. Regenerate by re-running the retrieval measurement; this section is not hand-edited._
 
 ### Methodology
 
@@ -85,10 +85,12 @@ What it cost to build each tool's index, so query-time results are read next to 
 | `calcom` | ContextGraph (this project) | 1m 38s | 268.6 MB |
 | `excalidraw` | CodeGraph (third-party) | 17.8s | 36.5 MB |
 | `excalidraw` | ContextGraph (this project) | 22.9s | 32.7 MB |
-| `gin` | CodeGraph (third-party) | 3.5s | 7.9 MB |
+| `gin` | CodeGraph (third-party) | reused existing index | 7.9 MB |
 | `gin` | ContextGraph (this project) | 2.7s | 8.2 MB |
 | `keycloak` | CodeGraph (third-party) | 1m 53s | 811.6 MB |
 | `keycloak` | ContextGraph (this project) | 4m 14s | 1.58 GB |
+
+A row reading _reused existing index_ is one whose index this run found already built and did not rebuild -- the working copy is pinned at a SHA and verified never to change, so an index that exists for it cannot be stale. **That is a statement about this run, not a claim that the index was free.** Whatever it cost belongs to the earlier run that built it and is reported in that run's own result document; it is deliberately not carried forward into this one. A duration written into a result that did not measure it is exactly the figure nobody can later check, and this axis prints the sentinel rather than becoming that.
 
 ### Gold-file coverage
 
@@ -128,6 +130,18 @@ n=29 question(s). Measured: ContextGraph (this project) 29/29; CodeGraph (third-
 | recall@5 | 38.7% | 28.0% | 27.0% | 27.0% |
 | recall@10 | 46.0% | 28.0% | 35.1% | 35.1% |
 | MRR | 0.485 | 0.326 | 0.218 | 0.218 |
+
+**That table is a pooled mean over 29 question(s) drawn from 4 repo(s). It is not a verdict, and it is not a per-repo result.** The repos contribute unequal shares of the pool -- `calcom` 7 of 29 (24.1%), `excalidraw` 8 of 29 (27.6%), `gin` 7 of 29 (24.1%), `keycloak` 7 of 29 (24.1%) -- so one repo's column moving moves every pooled row with it, in rough proportion to that share, whether or not anything changed on any other repo. A row where one side leads here is a lead **on this pool**; whether it is also a lead on each repo in it is a separate question, and this is the answer to it:
+
+_Each figure below is this pool sliced by repo -- the same questions, the same metrics, one repo at a time. That is deliberately **not** the same aggregation as the per-repo tables under "By Repo", which also include each repo's negative controls, so the two will disagree wherever a repo has any. Compared here is like with like; compared across the two sections it is not._
+
+| Headline metric | Leads the pooled row | Where another side leads |
+|---|---|---|
+| `precision@5` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 34.3% against 31.4% for ContextGraph (this project) |
+| `precision@10` | ContextGraph (this project) | _leads on every repo measured_ |
+| `recall@5` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 81.0% against 72.6% for ContextGraph (this project); `keycloak` -- bash (base-system shell only), ripgrep (baseline) lead there, 28.6% against 12.1% for ContextGraph (this project) |
+| `recall@10` | ContextGraph (this project) | `keycloak` -- bash (base-system shell only), ripgrep (baseline) lead there, 38.1% against 19.8% for ContextGraph (this project) |
+| `MRR` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 0.857 against 0.714 for ContextGraph (this project) |
 
 ### By Category
 

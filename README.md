@@ -12,7 +12,7 @@ that matter, the source of the symbols involved, what calls them, and what break
 change them.
 
 **Languages.** Tree-sitter grammars for Kotlin, Java, TypeScript, TSX, JavaScript, Python,
-Swift and Objective-C. Symbols carry scope-correct identity — a `getName` in one class is
+Swift, Objective-C and Go. Symbols carry scope-correct identity — a `getName` in one class is
 not confused with a `getName` in another.
 
 **Also ingested.** Markdown, PDF, SQL schemas and config files land in the same graph, so

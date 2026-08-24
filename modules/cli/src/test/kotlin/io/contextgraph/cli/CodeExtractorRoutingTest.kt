@@ -47,9 +47,8 @@ import kotlin.io.path.isDirectory
  *
  * 1. A file type tree-sitter covers gets real symbols under tree-sitter's declaration-site
  *    IDs (`Auth/UserService.java#UserService`).
- * 2. A file type NO grammar covers -- demonstrated here with `.go`, which
- *    [io.contextgraph.treesitter.LanguageRegistry] has never claimed and never will (Go
- *    and Rust were dropped, not deferred, per the interview decision) -- still gets a
+ * 2. A file type NO grammar covers -- demonstrated here with `.rs`, which
+ *    [io.contextgraph.treesitter.LanguageRegistry] does not claim -- still gets a
  *    file node (so the artifact isn't silently missing from the graph), but *no* symbol
  *    nodes and *no* [io.contextgraph.core.ExtractionDiagnostic]. That last part is the
  *    substance of slice 18: an uncovered file type is not a failure, so it must not look
@@ -61,7 +60,10 @@ import kotlin.io.path.isDirectory
  *    regression among them.
  *
  * `test-fixtures/mixed-language-routing` has one Java file (tree-sitter, real grammar) and
- * one Go file (no grammar at all, and never will have one).
+ * one Rust file (no grammar at all). Rust replaced Go here when Go gained a grammar: this
+ * test needs a genuinely uncovered extension to say anything, and `.go` stopped being one.
+ * If Rust is ever added, this fixture needs the same substitution again -- the property
+ * under test is about uncovered extensions in general, not about any particular language.
  */
 class CodeExtractorRoutingTest : FunSpec({
 
@@ -117,16 +119,15 @@ class CodeExtractorRoutingTest : FunSpec({
                 val nameField = allNodes.first { it.id.value == "Auth/UserService.java#UserService.name" }
                 nameField.type shouldBe NodeType.Custom("Field")
 
-                // Go: no LanguageRegistry entry exists for ".go" and never will (dropped, not
-                // deferred) -- exactly one file node, no symbol nodes at all, and no Contains
-                // edge out of it. This is the honest, sparse outcome the spec asks for, not a
-                // regex-derived approximation.
-                val goFileNode = allNodes.single { it.id.value == "Billing/invoice.go" }
-                goFileNode.type shouldBe NodeType.CodeFile
+                // Rust: no LanguageRegistry entry exists for ".rs" -- exactly one file node, no
+                // symbol nodes at all, and no Contains edge out of it. This is the honest,
+                // sparse outcome the spec asks for, not a regex-derived approximation.
+                val uncoveredFileNode = allNodes.single { it.id.value == "Billing/invoice.rs" }
+                uncoveredFileNode.type shouldBe NodeType.CodeFile
 
                 allNodes.none { it.label == "Invoice" } shouldBe true
-                allNodes.none { it.label == "Amount" } shouldBe true
-                reopened.getEdgesFrom(goFileNode.id).filter { it.type == EdgeType.Contains }.shouldBeEmpty()
+                allNodes.none { it.label == "amount" } shouldBe true
+                reopened.getEdgesFrom(uncoveredFileNode.id).filter { it.type == EdgeType.Contains }.shouldBeEmpty()
             } finally {
                 reopened.close()
             }
@@ -137,14 +138,14 @@ class CodeExtractorRoutingTest : FunSpec({
 
     test("an uncovered file type produces no ExtractionDiagnostic, unlike a covered language's parse failure") {
         val fixtureRoot = findFixture("mixed-language-routing")
-        val goFile = fixtureRoot.resolve("Billing/invoice.go")
+        val uncoveredFile = fixtureRoot.resolve("Billing/invoice.rs")
         val now = Clock.System.now()
         val artifact = Artifact(
-            id = ArtifactId("Billing/invoice.go"),
+            id = ArtifactId("Billing/invoice.rs"),
             type = NodeType.CodeFile,
-            path = goFile.absolutePathString(),
+            path = uncoveredFile.absolutePathString(),
             checksum = "routing-test",
-            size = Files.size(goFile),
+            size = Files.size(uncoveredFile),
             lastModified = now,
             indexedAt = now
         )
@@ -157,7 +158,7 @@ class CodeExtractorRoutingTest : FunSpec({
         // no symbols (nothing to extract), and critically no diagnostic -- an uncovered file
         // type is not a failure, so it must not be reported like one.
         result.nodes shouldHaveSize 1
-        result.nodes.single().id.value shouldBe "Billing/invoice.go"
+        result.nodes.single().id.value shouldBe "Billing/invoice.rs"
         result.edges.shouldBeEmpty()
         result.diagnostics.shouldBeEmpty()
     }
@@ -198,7 +199,7 @@ class CodeExtractorRoutingTest : FunSpec({
 
     test("AC-4: a real IngestPipeline run over an uncovered file type reports zero parseWarnings") {
         // mixed-language-routing has one covered, well-formed Java file and one uncovered
-        // .go file -- no grammar failure anywhere in this fixture, so parseWarnings must
+        // .rs file -- no grammar failure anywhere in this fixture, so parseWarnings must
         // stay at zero: an uncovered extension is not a parse failure.
         val fixtureRoot = findFixture("mixed-language-routing")
         val dbDir = Files.createTempDirectory("contextgraph-parse-diagnostics-uncovered-")

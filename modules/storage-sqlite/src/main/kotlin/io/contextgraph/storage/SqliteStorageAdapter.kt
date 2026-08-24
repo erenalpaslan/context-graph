@@ -536,6 +536,18 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         )
     }
 
+    /**
+     * One grouped count rather than [StorageAdapter.countNodesByType]'s default, which would
+     * materialise every node -- several million of them on a repo the size of Keycloak -- to
+     * arrive at a handful of integers.
+     */
+    override fun countNodesByType(): Map<String, Int> = transaction {
+        val tally = NodesTable.type.count()
+        NodesTable.select(NodesTable.type, tally)
+            .groupBy(NodesTable.type)
+            .associate { it[NodesTable.type] to it[tally].toInt() }
+    }
+
     override fun close() {}
 
     override fun findNodesByLabel(label: String): List<GraphNode> = transaction {

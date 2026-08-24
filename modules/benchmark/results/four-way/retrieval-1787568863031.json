@@ -1,7 +1,7 @@
 {
     "schemaVersion": 3,
-    "runId": "retrieval-1787566899411",
-    "generatedAt": "2026-08-24T10:21:39.411711Z",
+    "runId": "retrieval-1787568863031",
+    "generatedAt": "2026-08-24T10:54:23.031605Z",
     "kValues": [
         5,
         10
@@ -18604,7 +18604,7 @@
         {
             "repoId": "gin",
             "tool": "CODEGRAPH",
-            "durationMillis": 3454,
+            "durationMillis": 0,
             "indexSizeBytes": 7905509,
             "absentReason": null
         },

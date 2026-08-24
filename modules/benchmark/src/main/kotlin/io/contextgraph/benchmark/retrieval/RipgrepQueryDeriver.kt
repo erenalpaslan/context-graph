@@ -2,9 +2,18 @@ package io.contextgraph.benchmark.retrieval
 
 /**
  * The **single place** (AC-25) that turns a benchmark question's English sentence into the
- * search terms a `ripgrep` baseline is run with. Every caller in this module that needs a
- * ripgrep query goes through [deriveTokens] -- there is no second tokenizer anywhere else in
+ * search terms a text-search baseline is run with. Every caller in this module that needs one
+ * goes through [deriveTokens] -- there is no second tokenizer anywhere else in
  * `io.contextgraph.benchmark.retrieval`.
+ *
+ * It now serves **both** text-search baselines: [RipgrepBaselineRunner] (`rg`, a third-party
+ * install) and [BashBaselineRunner] (base-system `grep` only). The name is historical and stays
+ * that way deliberately -- its persisted output is the `ripgrepQueryTokens` field on
+ * [RetrievalRunResult], and renaming it would break the archived-result decode guarantee that
+ * every `retrieval-*.json` already written must keep decoding. That the two sides are handed the
+ * *identical* list from *this* function is the fairness invariant the comparison rests on: they
+ * differ in the tool and in nothing else, which is why one function serving two callers is the
+ * point rather than an accident awaiting a refactor.
  *
  * ## Why this exists, and what it must not do
  *
@@ -71,8 +80,9 @@ package io.contextgraph.benchmark.retrieval
  * an entry off the undo stack" names no symbol, file, or constant at all) yields an empty list.
  * That is not a bug to work around -- it is itself a true, honest measurement: a question a
  * human could not even form a `grep` query for is a question `grep` structurally cannot help
- * with, and [RipgrepBaselineRunner] reports it as such (zero ranked files, scoring zero on every
- * metric) rather than substituting something the question didn't actually say.
+ * with, and both [RipgrepBaselineRunner] and [BashBaselineRunner] report it as such (zero ranked
+ * files, scoring zero on every metric) rather than substituting something the question didn't
+ * actually say.
  */
 object RipgrepQueryDeriver {
 

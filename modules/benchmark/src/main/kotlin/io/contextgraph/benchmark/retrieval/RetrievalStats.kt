@@ -31,15 +31,26 @@ object RetrievalStats {
             questionCount = results.size,
             contextGraph = sideAggregate(results.mapNotNull { it.contextGraph }, kValues),
             ripgrep = sideAggregate(results.map { it.ripgrep }, kValues),
-            // Null, not a zeroed aggregate, when this run measured no CodeGraph side anywhere in
-            // the group: "CodeGraph was not in this run" and "CodeGraph was in this run and scored
-            // 0" are different claims, and only the second is evidence about CodeGraph. The same
-            // distinction `SideAggregate`'s KDoc already draws between an excluded question and a
-            // zero-scoring one, one level up.
-            codeGraph = results.mapNotNull { it.codeGraph }
-                .takeIf { it.isNotEmpty() }
-                ?.let { sideAggregate(it, kValues) }
+            codeGraph = aggregateIfMeasured(results.mapNotNull { it.codeGraph }, kValues),
+            // The bash side takes the same rule, and takes it as the rule rather than as a
+            // special case: it reads the working tree and so is never blocked by an index, but a
+            // run predating the fourth side -- or one whose every `grep` invocation failed --
+            // still measured no bash side.
+            bash = aggregateIfMeasured(results.mapNotNull { it.bash }, kValues)
         )
+
+    /**
+     * `null`, not a zeroed [SideAggregate], when a side was measured nowhere in the group.
+     *
+     * "This side was not in this run" and "this side was in this run and scored 0" are different
+     * claims, and only the second is evidence about the tool. The zeroed aggregate [sideAggregate]
+     * returns for an empty list is the right answer only for the two sides whose per-question
+     * result is non-null by type; for every nullable side it would publish an unearned win over a
+     * comparator that never ran. Same distinction `SideAggregate`'s KDoc draws between an excluded
+     * question and a zero-scoring one, one level up.
+     */
+    private fun aggregateIfMeasured(sides: List<SideResult>, kValues: List<Int>): SideAggregate? =
+        sides.takeIf { it.isNotEmpty() }?.let { sideAggregate(it, kValues) }
 
     private fun sideAggregate(sides: List<SideResult>, kValues: List<Int>): SideAggregate {
         if (sides.isEmpty()) {

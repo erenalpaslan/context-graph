@@ -55,8 +55,12 @@ class RetrievalSchemaV2Test : FunSpec({
         summary = RetrievalStats.summarize(results.toList(), K)
     )
 
-    test("the retrieval schema is v2 and the agent-A/B schema deliberately stays v1") {
-        RetrievalRun.SCHEMA_VERSION shouldBe 2
+    test("the retrieval schema has moved past v2 while the agent-A/B schema deliberately stays v1") {
+        // This spec's own subject -- the three-sided shape -- is v2's; the constant moved to 3
+        // when the bash side landed, and RetrievalSchemaV3Test pins the new value. Asserted as a
+        // floor here so the three-sided guarantees below keep applying to every later version
+        // rather than having to be restated at each bump.
+        (RetrievalRun.SCHEMA_VERSION >= 2) shouldBe true
         io.contextgraph.benchmark.model.BenchmarkRun.SCHEMA_VERSION shouldBe 1
     }
 

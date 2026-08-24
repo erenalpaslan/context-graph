@@ -75,10 +75,10 @@ object RetrievalReportGenerator {
                 "asked the same question, which *files* does each tool put in front of you? " +
                 "Deterministic: no LLM call, the same corpus and question set always produce the " +
                 "same numbers (proven by the determinism tests in `RetrievalBenchmarkRunnerTest`, " +
-                "`RipgrepQueryDeriverTest` and `RipgrepBaselineRunnerTest`)."
+                "`RipgrepQueryDeriverTest`, `RipgrepBaselineRunnerTest` and `BashBaselineRunnerTest`)."
         )
         appendLine()
-        appendLine("Three sides are compared, and they are named this way everywhere below:")
+        appendLine("Four sides are compared, and they are named this way everywhere below:")
         appendLine()
         appendLine("| Side | What it is | What it was asked |")
         appendLine("|---|---|---|")
@@ -91,6 +91,11 @@ object RetrievalReportGenerator {
                 "as a CLI via `codegraph explore` | the raw question text |"
         )
         appendLine(
+            "| **${RetrievalSide.BASH.label}** | `grep` from the stock base system, over a clean, " +
+                "never-indexed checkout — **no third-party tools** are installed, invoked or " +
+                "assumed anywhere in this side | the same derived tokens the ripgrep side is given |"
+        )
+        appendLine(
             "| **${RetrievalSide.RIPGREP.label}** | plain `rg` over a clean, never-indexed " +
                 "checkout | tokens derived from the raw question text by `RipgrepQueryDeriver` |"
         )
@@ -101,6 +106,17 @@ object RetrievalReportGenerator {
                 "project; \"CodeGraph\" is the third-party tool being compared against it. A " +
                 "result favouring CodeGraph is a legitimate outcome of this measurement, not an " +
                 "error in it."
+        )
+        appendLine()
+        appendLine(
+            "So is a result favouring bash. The fourth side exists because the third one is not " +
+                "the floor: `rg` is a separate install that brings its own `.gitignore` " +
+                "awareness, binary skipping and ranking to the fight, so beating it is not the " +
+                "same as beating *nothing*. **${RetrievalSide.BASH.label}** is what a developer " +
+                "with a stock shell and no installs gets, and it is the honest thing an index " +
+                "has to earn its cost against. Where it wins, that is the finding — printed, not " +
+                "explained away. *Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir " +
+                "sayıdır.*"
         )
         appendLine()
         appendLine(
@@ -119,7 +135,7 @@ object RetrievalReportGenerator {
         appendLine(
             "For every question, the expected file set is derived from its own gold facts' " +
                 "`file:line` evidence -- never a hand-written second ground truth, and never a " +
-                "per-tool one. All three sides are scored against that same set with " +
+                "per-tool one. All four sides are scored against that same set with " +
                 "precision@k, recall@k, and reciprocal rank (`RetrievalMetrics`, unit-tested " +
                 "against known input/output pairs)."
         )
@@ -145,6 +161,15 @@ object RetrievalReportGenerator {
         )
         appendLine()
         appendLine(
+            "That rule is the rule for **${RetrievalSide.BASH.label}** too, and is deliberately " +
+                "not relaxed for it. Neither text-search side can be blocked by an index -- both " +
+                "read the working tree -- but a `grep` that exits on a real error still leaves " +
+                "that question unmeasured, and it is excluded exactly as a timed-out " +
+                "`codegraph explore` is. A `grep` that ran clean and matched nothing is a real " +
+                "zero and is counted as one: that is the honest floor this side exists to measure."
+        )
+        appendLine()
+        appendLine(
             "`k` = ${run.kValues.joinToString(", ")}: the real gold set's expected-file-set size " +
                 "across all questions has a median of 3 and a maximum of 5, so k=5 is the " +
                 "smallest k at which every question's recall@k can reach 1.0 in principle; k=10 " +
@@ -161,8 +186,9 @@ object RetrievalReportGenerator {
         )
         appendLine()
         appendLine(
-            "**This axis has already found and driven two product defects. Read both before the " +
-                "numbers below.**\n" +
+            "**This axis has already found and driven one product defect, and it re-measures a " +
+                "second gap from scratch every time it runs. Read both before the numbers " +
+                "below.**\n" +
                 "\n" +
                 "1. **Natural-language queries returned nothing at all -- found here, since fixed.** " +
                 "`buildContext`'s seed search passed the *entire* question sentence to SQLite FTS5 " +
@@ -176,19 +202,10 @@ object RetrievalReportGenerator {
                 "across all 22 measurable questions. `searchNodes` now tokenizes the query and " +
                 "OR's the terms as quoted phrases ranked by bm25; the numbers below are from after " +
                 "that fix. This is what the axis is for: it found a defect on the exact path MCP's " +
-                "`build_context` tool uses, and made the repair measurable.\n" +
-                "\n" +
-                "2. **Go source yields no symbols at all -- found here, NOT yet fixed.** gin's " +
-                "index contains 847 `Document`, 206 `Concept` and 128 file-level nodes and " +
-                "*zero* `Function`, `Method`, `Class`, `Interface` or `Module` nodes; " +
-                "`ServeHTTP`, `handleHTTPRequest`, `combineHandlers` and `Engine` all return 0 " +
-                "hits. The TypeScript repos in the same corpus extract thousands of each " +
-                "(excalidraw 1284 functions, calcom 5969). gin's flat 0.0% below is that gap, not " +
-                "a retrieval-quality result: there is nothing indexed for the query to find. Any " +
-                "Go row in the tables below should be read as measuring extraction coverage, not " +
-                "retrieval."
+                "`build_context` tool uses, and made the repair measurable."
         )
         appendLine()
+        renderExtractionDisclosure(run)
         appendLine(
             "**${RetrievalSide.CODE_GRAPH.label} side**: `codegraph explore -- <raw question " +
                 "text>` against a third working copy of the same pinned checkout, indexed by " +
@@ -231,6 +248,188 @@ object RetrievalReportGenerator {
                 "as such, not padded."
         )
         appendLine()
+        renderBashMethodology()
+    }
+
+    /**
+     * The bash side's argv and its flag-by-flag justification, read from [BashBaselineFlags] --
+     * the same value [BashBaselineRunner] builds its command line from -- rather than retyped
+     * here. A report that describes a search the runner did not perform is worse than one that
+     * describes none, and copying the list into a string literal is exactly how the two drift.
+     */
+    private fun StringBuilder.renderBashMethodology() {
+        appendLine(
+            "**${RetrievalSide.BASH.label} side**: `${BashBaselineFlags.describeArgv()}` against " +
+                "the same WITHOUT (clean, never-indexed) working copy the ripgrep side reads, " +
+                "given the same tokens from the same `RipgrepQueryDeriver`, ranked by the same " +
+                "rule (matching-line count descending, ties alphabetical). The two text-search " +
+                "sides therefore differ in the binary and in nothing else, which is what makes " +
+                "the gap between them attributable to `rg`'s engineering rather than to the " +
+                "query. `grep` is invoked at its base-system path, not resolved through `PATH`, " +
+                "so a developer's Homebrew GNU grep cannot quietly become the thing being " +
+                "measured."
+        )
+        appendLine()
+        appendLine(
+            "**Why these flags and not others.** `rg` brings defaults to the fight that `grep` " +
+                "has none of, so an honest floor needs a different flag list rather than the " +
+                "same one. Each flag below either states out loud something `rg` assumes, or " +
+                "states nothing at all:"
+        )
+        appendLine()
+        appendLine("| Flag | Why it is there |")
+        appendLine("|---|---|")
+        BashBaselineFlags.RATIONALE.forEach { (flag, why) ->
+            appendLine("| `$flag` | $why |")
+        }
+        appendLine()
+        appendLine(
+            "There is, deliberately, **no emulation of `rg`'s `.gitignore` awareness** here. " +
+                "That is `rg`'s engineering, not plain text search's, and " +
+                "reproducing it with `--exclude-dir` lists would quietly strengthen this side " +
+                "into a second ripgrep. A number won by starving the baseline is not the " +
+                "baseline's number, and neither is one won by secretly strengthening it."
+        )
+        appendLine()
+    }
+
+    // ------------------------------------------------- extraction disclosure
+
+    /**
+     * The second thing to read before the numbers: whether any repo's ContextGraph row is an
+     * *extraction* result wearing a retrieval result's clothes.
+     *
+     * **Every word of this is computed from [GoldFileCoverage.extractedNodeCounts] in the result
+     * document -- no repo, language or grammar is named in the source of this generator.** That
+     * is deliberate and it is the difference between a disclosure and a stale sentence. The
+     * previous run of this axis published a hand-written paragraph about `gin`'s missing Go
+     * grammar; the moment a Go grammar lands, a paragraph like that becomes a falsehood printed
+     * with the authority of a generated document, and nobody regenerating the report would be
+     * told. This branches on the census instead, so the same generator prints the gap while the
+     * gap exists and prints its absence the moment it closes.
+     */
+    private fun StringBuilder.renderExtractionDisclosure(run: RetrievalRun) {
+        val censused = run.goldFileCoverage
+            .filter { it.side == RetrievalSide.CONTEXT_GRAPH && it.extractedNodeCounts != null }
+            .sortedBy { it.repoId }
+
+        if (censused.isEmpty()) {
+            appendLine(
+                "2. **Extracted-declaration counts were not recorded in this run**, so this " +
+                    "document cannot tell you whether any ${RetrievalSide.CONTEXT_GRAPH.label} " +
+                    "row below is a retrieval result or an extraction gap. Read it as the " +
+                    "unknown it is, not as a clean bill: an archived result predating the census, " +
+                    "and an index that could not be read, both land here. A repo whose language " +
+                    "the indexer does not parse still gets its files stored, so its gold-file " +
+                    "coverage can read 100% while every query returns nothing -- that is " +
+                    "**extraction coverage, not retrieval quality**, and without the census it is " +
+                    "indistinguishable from a genuinely poor result."
+            )
+            appendLine()
+            return
+        }
+
+        val gaps = censused.filter { it.extractedDeclarationCount == 0 }
+        if (gaps.isEmpty()) {
+            appendLine(
+                "2. **Every repo measured here yielded code declarations -- no " +
+                    "${RetrievalSide.CONTEXT_GRAPH.label} row below is an extraction gap in " +
+                    "disguise.** A repo whose language the indexer cannot parse still gets its " +
+                    "files read and stored, so its gold-file coverage can read 100% while every " +
+                    "query returns nothing; such a row would be measuring **extraction coverage, " +
+                    "not retrieval quality**, and this run has none. The census below is the " +
+                    "evidence for that claim, not a reassurance about it."
+            )
+        } else {
+            val named = gaps.joinToString(", ") { "`${it.repoId}`" }
+            val verb = if (gaps.size == 1) "yields" else "yield"
+            appendLine(
+                "2. **$named $verb no code declarations at all -- an extraction gap, not a " +
+                    "retrieval result.** " +
+                    gaps.joinToString(" ") { describeGap(it) } +
+                    " A repo whose language the indexer does not parse is measuring " +
+                    "**extraction coverage, not retrieval quality**: there is nothing indexed " +
+                    "for the query to find, so every ${RetrievalSide.CONTEXT_GRAPH.label} figure " +
+                    "for it below is a floor set by the extractor rather than a verdict on " +
+                    "retrieval, and its own table below repeats this warning next to the " +
+                    "numbers. The other three sides are unaffected -- two read the working tree, " +
+                    "and the third has its own index."
+            )
+        }
+        appendLine()
+        appendLine(
+            "**What each ${RetrievalSide.CONTEXT_GRAPH.label} index actually extracted**, which " +
+                "is the census the paragraph above is computed from:"
+        )
+        appendLine()
+        appendLine("| Repo | Declaration nodes | Node census (all types, most numerous first) |")
+        appendLine("|---|---|---|")
+        censused.forEach { c ->
+            appendLine("| `${c.repoId}` | ${c.extractedDeclarationCount} | ${fmtCensus(c.extractedNodeCounts)} |")
+        }
+        appendLine()
+        appendLine(
+            "Declaration nodes are `${GoldFileCoverage.DECLARATION_NODE_TYPES.joinToString("`, `")}` " +
+                "-- what a language grammar emits for something it parsed out of a source file. " +
+                "`Document`, `Concept` and file-level nodes are excluded from that total on " +
+                "purpose: a repo the indexer could not parse a line of still accumulates them, so " +
+                "counting them would hide the very gap this census exists to show."
+        )
+        appendLine()
+    }
+
+    /**
+     * The same data-driven test as [renderExtractionDisclosure], applied to one repo and printed
+     * immediately above its own numbers. Silent for every repo whose index did extract
+     * declarations, and silent when no census was taken -- a warning that fires on all repos
+     * warns about none of them.
+     */
+    private fun StringBuilder.renderExtractionCaveat(
+        run: RetrievalRun,
+        repoId: String,
+        aggregate: RetrievalAggregate
+    ) {
+        // Nothing to qualify when that column reads `n/a` all the way down: the side was skipped
+        // outright, the "Skipped" table already says why, and a caveat about a figure that is not
+        // there would be the report explaining a number it did not print.
+        if (aggregate.contextGraph.measuredCount == 0) return
+        val coverage = run.goldFileCoverage.firstOrNull {
+            it.repoId == repoId && it.side == RetrievalSide.CONTEXT_GRAPH
+        } ?: return
+        if (coverage.extractedDeclarationCount != 0) return
+        appendLine(
+            "> **Read the ${RetrievalSide.CONTEXT_GRAPH.label} column here as extraction " +
+                "coverage, not retrieval quality.** `$repoId`'s index holds ${fmtGoldFiles(coverage)} and zero code " +
+                "declarations (${fmtCensus(coverage.extractedNodeCounts)}), so there is nothing " +
+                "indexed for a query to match. The figure below is the extractor's floor, not a " +
+                "retrieval verdict; the other three columns are unaffected."
+        )
+        appendLine()
+    }
+
+    /** One repo's gap, in facts: what its index holds, and what it does not. */
+    private fun describeGap(coverage: GoldFileCoverage): String {
+        val declarations = GoldFileCoverage.DECLARATION_NODE_TYPES.joinToString(", ") { type ->
+            "${coverage.extractedNodeCounts?.get(type) ?: 0} `$type`"
+        }
+        return "`${coverage.repoId}`'s index holds ${fmtGoldFiles(coverage)} and *zero* declarations: " +
+            "$declarations. What it does hold is ${fmtCensus(coverage.extractedNodeCounts)}."
+    }
+
+    /** The coverage fraction as words, with the unknown said rather than rendered as a shortfall. */
+    private fun fmtGoldFiles(coverage: GoldFileCoverage): String =
+        coverage.presentFileCount?.let { "$it / ${coverage.citedFileCount} gold-cited files" }
+            ?: "a gold-cited file count that could not be determined"
+
+    /**
+     * The whole census, most numerous type first, ties broken by type name so the same result
+     * document always renders to the same bytes.
+     */
+    private fun fmtCensus(counts: Map<String, Int>?): String {
+        if (counts.isNullOrEmpty()) return "_no nodes at all_"
+        return counts.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .joinToString(", ") { "${it.value} `${it.key}`" }
     }
 
     // --------------------------------------------------------- ingest cost
@@ -245,8 +444,11 @@ object RetrievalReportGenerator {
         appendLine()
         appendLine(
             "What it cost to build each tool's index, so query-time results are read next to the " +
-                "price of getting there. `ripgrep (baseline)` has no ingest step at all -- it " +
-                "searches the working tree directly, which is exactly why it is the baseline."
+                "price of getting there. Neither text-search side has an ingest step at all: " +
+                "`${RetrievalSide.BASH.label}` and `${RetrievalSide.RIPGREP.label}` both search " +
+                "the working tree directly, and pay nothing before the first query. That is " +
+                "exactly why they are the baselines, and it is the number every index-building " +
+                "row below is being compared against."
         )
         appendLine()
         if (run.ingestCosts.isEmpty()) {
@@ -267,6 +469,30 @@ object RetrievalReportGenerator {
                 )
             }
         }
+        appendLine()
+        renderReuseSentinelNote(run)
+    }
+
+    /**
+     * What a zero-duration row means, printed only when there is one.
+     *
+     * `${fmtDuration(0)}` is a sentinel, not a measurement, and it exists so that a re-run over an
+     * already-built index says so instead of quietly reporting a cost it did not observe. Left
+     * unexplained in a column headed "Index build time" it reads as "free", which is the opposite
+     * of what it says -- so the explanation is printed next to it, and only when a row carries it.
+     */
+    private fun StringBuilder.renderReuseSentinelNote(run: RetrievalRun) {
+        if (run.ingestCosts.none { it.absentReason == null && it.durationMillis == 0L }) return
+        appendLine(
+            "A row reading _${fmtDuration(0)}_ is one whose index this run found already built and " +
+                "did not rebuild -- the working copy is pinned at a SHA and verified never to " +
+                "change, so an index that exists for it cannot be stale. **That is a statement " +
+                "about this run, not a claim that the index was free.** Whatever it cost belongs " +
+                "to the earlier run that built it and is reported in that run's own result " +
+                "document; it is deliberately not carried forward into this one. A duration " +
+                "written into a result that did not measure it is exactly the figure nobody can " +
+                "later check, and this axis prints the sentinel rather than becoming that."
+        )
         appendLine()
     }
 
@@ -358,7 +584,154 @@ object RetrievalReportGenerator {
             return
         }
         appendAggregateTable(run, summary.headline)
+        renderPooledMeanCaveat(run, summary.headline)
     }
+
+    /**
+     * The headline table's own qualification, printed immediately under it (AC-15's reasoning
+     * applied to the pooled row rather than to one repo): a mean over every repo's questions is a
+     * result about that pool, and reading it as a per-repo verdict is the specific mistake this
+     * table invites.
+     *
+     * **Every word of it is computed -- no repo, side or metric is named in this generator's
+     * source.** The shares come from counting the headline questions per repo; the "where another
+     * side leads" column comes from ranking each repo's own aggregate on the same metric. That is
+     * what makes it survive the data changing: a run in which one side leads every repo prints
+     * that, a run in which a repo's share doubles prints the new share, and neither needs anyone
+     * to remember to come back and edit a sentence. The measurement it was written for is one
+     * where a single repo's column moved off a floor and carried the pooled row with it, while
+     * every other repo stayed exactly where it was -- from the pooled table alone that is
+     * indistinguishable from retrieval improving everywhere.
+     *
+     * Sides are ranked on the value **as printed**, rounded to the same precision the tables use,
+     * so a claim here can never contradict the figures a reader checks it against.
+     */
+    private fun StringBuilder.renderPooledMeanCaveat(run: RetrievalRun, headline: RetrievalAggregate) {
+        val headlineResults = run.results.filter { it.category != QuestionCategory.NEGATIVE_CONTROL }
+        if (headlineResults.isEmpty()) return
+        val byRepo = RetrievalStats.summarize(headlineResults, run.kValues).byRepo.toSortedMap()
+        if (byRepo.isEmpty()) return
+
+        val shares = byRepo.entries.joinToString(", ") { (repoId, aggregate) ->
+            "`$repoId` ${aggregate.questionCount} of ${headline.questionCount} " +
+                "(${fmtPercent(aggregate.questionCount.toDouble() / headline.questionCount)})"
+        }
+        appendLine(
+            "**That table is a pooled mean over ${headline.questionCount} question(s) drawn from " +
+                "${byRepo.size} repo(s). It is not a verdict, and it is not a per-repo result.** " +
+                "The repos contribute unequal shares of the pool -- $shares -- so one repo's " +
+                "column moving moves every pooled row with it, in rough proportion to that share, " +
+                "whether or not anything changed on any other repo. A row where one side leads " +
+                "here is a lead **on this pool**; whether it is also a lead on each repo in it is " +
+                "a separate question, and this is the answer to it:"
+        )
+        appendLine()
+        appendLine(
+            "_Each figure below is this pool sliced by repo -- the same questions, the same " +
+                "metrics, one repo at a time. That is deliberately **not** the same aggregation " +
+                "as the per-repo tables under \"By Repo\", which also include each repo's " +
+                "negative controls, so the two will disagree wherever a repo has any. Compared " +
+                "here is like with like; compared across the two sections it is not._"
+        )
+        appendLine()
+        appendLine("| Headline metric | Leads the pooled row | Where another side leads |")
+        appendLine("|---|---|---|")
+        headlineMetrics(run).forEach { metric ->
+            // The metric name is a code span here and bare in the tables above, deliberately: the
+            // two tables are read by machines as well as people (the report's own tests filter
+            // rows by their first cell), and two tables whose rows start identically are two
+            // tables that get mistaken for each other.
+            val pooled = leadingSides(headline, metric)
+            if (pooled.isEmpty()) {
+                appendLine("| `${metric.label}` | _nothing measured_ | _nothing measured_ |")
+                return@forEach
+            }
+            val pooledLabel = pooled.joinToString(", ") { it.side.label } +
+                if (pooled.size > 1) " (tied)" else ""
+            val beaten = byRepo.entries.mapNotNull { (repoId, aggregate) ->
+                describeIfBeaten(repoId, aggregate, metric, pooled)
+            }
+            val where = if (beaten.isEmpty()) "_leads on every repo measured_" else beaten.joinToString("; ")
+            appendLine("| `${metric.label}` | $pooledLabel | $where |")
+        }
+        appendLine()
+    }
+
+    /**
+     * One repo's row-fragment, or null when a side leading the pooled row leads that repo too.
+     * A tie counts as leading: the pooled leader is not "beaten" by a side it draws level with.
+     */
+    private fun describeIfBeaten(
+        repoId: String,
+        aggregate: RetrievalAggregate,
+        metric: HeadlineMetric,
+        pooled: List<SideScore>
+    ): String? {
+        val local = leadingSides(aggregate, metric)
+        if (local.isEmpty()) return null
+        val pooledSides = pooled.map { it.side }.toSet()
+        if (local.any { it.side in pooledSides }) return null
+        val pooledHere = measuredSides(aggregate, metric)
+            .filter { it.side in pooledSides }
+            .maxByOrNull { rounded(it.value) }
+        val against = pooledHere?.let { "${metric.render(it.value)} for ${it.side.label}" }
+            ?: "a side unmeasured on this repo"
+        return "`$repoId` -- ${local.joinToString(", ") { it.side.label }} " +
+            "${if (local.size > 1) "lead" else "leads"} there, " +
+            "${metric.render(local.first().value)} against $against"
+    }
+
+    /** One side's value for one metric on one aggregate. */
+    private data class SideScore(val side: RetrievalSide, val value: Double)
+
+    /**
+     * A row of the metric tables, as something that can be extracted and formatted rather than
+     * only printed -- so the caveat above ranks exactly the numbers the tables show, for exactly
+     * the `k` values this run used, without either list being retyped.
+     */
+    private class HeadlineMetric(
+        val label: String,
+        val extract: (SideAggregate) -> Double,
+        val render: (Double) -> String
+    )
+
+    private fun headlineMetrics(run: RetrievalRun): List<HeadlineMetric> =
+        run.kValues.map { k ->
+            HeadlineMetric("precision@$k", { it.meanPrecisionAtK[k] ?: 0.0 }, { fmtPercent(it) })
+        } + run.kValues.map { k ->
+            HeadlineMetric("recall@$k", { it.meanRecallAtK[k] ?: 0.0 }, { fmtPercent(it) })
+        } + listOf(HeadlineMetric("MRR", { it.mrr }, { fmtScore(it) }))
+
+    /**
+     * The sides that actually measured something in [aggregate], scored on [metric]. A side with a
+     * `measuredCount` of 0 is omitted rather than ranked at its zeroed placeholder -- it renders
+     * as `n/a` in the tables, and a comparison against `n/a` would be a comparison against nothing.
+     */
+    private fun measuredSides(aggregate: RetrievalAggregate, metric: HeadlineMetric): List<SideScore> =
+        listOfNotNull(
+            aggregate.contextGraph.takeIf { it.measuredCount > 0 }
+                ?.let { SideScore(RetrievalSide.CONTEXT_GRAPH, metric.extract(it)) },
+            aggregate.codeGraph?.takeIf { it.measuredCount > 0 }
+                ?.let { SideScore(RetrievalSide.CODE_GRAPH, metric.extract(it)) },
+            aggregate.bash?.takeIf { it.measuredCount > 0 }
+                ?.let { SideScore(RetrievalSide.BASH, metric.extract(it)) },
+            aggregate.ripgrep.takeIf { it.measuredCount > 0 }
+                ?.let { SideScore(RetrievalSide.RIPGREP, metric.extract(it)) }
+        )
+
+    private fun leadingSides(aggregate: RetrievalAggregate, metric: HeadlineMetric): List<SideScore> {
+        val sides = measuredSides(aggregate, metric)
+        val best = sides.maxOfOrNull { rounded(it.value) } ?: return emptyList()
+        return sides.filter { rounded(it.value) == best }
+    }
+
+    /**
+     * The value as the tables print it. Both formats resolve to three decimals of the underlying
+     * fraction (`%.1f` of a percentage, `%.3f` of a score), so ranking on this is ranking on what
+     * the reader sees -- and two sides the tables render identically can never be reported here as
+     * one beating the other.
+     */
+    private fun rounded(value: Double): Double = Math.round(value * 1000.0) / 1000.0
 
     // ------------------------------------------------------- category breakdown
 
@@ -398,6 +771,10 @@ object RetrievalReportGenerator {
         summary.byRepo.toSortedMap().forEach { (repoId, aggregate) ->
             appendLine("#### `$repoId`")
             appendLine()
+            // Repeated here rather than left to the section above: a repo's own table is what
+            // gets read, quoted and pasted elsewhere, and a caveat a reader has to scroll back
+            // for is a caveat that does not travel with the number it qualifies.
+            renderExtractionCaveat(run, repoId, aggregate)
             appendAggregateTable(run, aggregate)
         }
     }
@@ -410,7 +787,9 @@ object RetrievalReportGenerator {
         appendLine(
             "Questions where `grep` is expected to clearly win (AC-5, AC-26). Reported " +
                 "separately from the headline above, including every place ContextGraph loses -- " +
-                "that is this section's entire purpose."
+                "that is this section's entire purpose. With the fourth side present that " +
+                "expectation is now testable against `grep` itself rather than only against a " +
+                "third-party stand-in for it."
         )
         appendLine()
         val summary = run.summary
@@ -427,32 +806,37 @@ object RetrievalReportGenerator {
         appendLine("Per-question breakdown (recall@${run.kValues.max()}, higher is better):")
         appendLine()
         appendLine(
-            "| Question | Repo | ripgrep tokens | ${RetrievalSide.CONTEXT_GRAPH.label} | " +
-                "${RetrievalSide.CODE_GRAPH.label} | ${RetrievalSide.RIPGREP.label} | Verdict |"
+            "| Question | Repo | derived query tokens | ${RetrievalSide.CONTEXT_GRAPH.label} | " +
+                "${RetrievalSide.CODE_GRAPH.label} | ${RetrievalSide.BASH.label} | " +
+                "${RetrievalSide.RIPGREP.label} | Verdict |"
         )
-        appendLine("|---|---|---|---|---|---|---|")
+        appendLine("|---|---|---|---|---|---|---|---|")
         negativeControlResults.sortedBy { it.questionId }.forEach { result ->
             val k = run.kValues.max()
             val cgRecall = result.contextGraph?.recallAtK?.get(k)
             val codeRecall = result.codeGraph?.recallAtK?.get(k)
+            val bashRecall = result.bash?.recallAtK?.get(k)
             val rgRecall = result.ripgrep.recallAtK[k] ?: 0.0
             // Named in full, because "CodeGraph wins" and "ContextGraph wins" differ by two
             // letters and this column is exactly where a reader skims.
             val best = listOfNotNull(
                 cgRecall?.let { RetrievalSide.CONTEXT_GRAPH to it },
                 codeRecall?.let { RetrievalSide.CODE_GRAPH to it },
+                bashRecall?.let { RetrievalSide.BASH to it },
                 RetrievalSide.RIPGREP to rgRecall
             ).maxByOrNull { it.second }
             val verdict = when {
                 best == null -> "nothing measured (see Skipped)"
                 best.second == 0.0 -> "no side found a gold file"
-                listOfNotNull(cgRecall, codeRecall, rgRecall).count { it == best.second } > 1 -> "tie at ${fmtPercent(best.second)}"
+                listOfNotNull(cgRecall, codeRecall, bashRecall, rgRecall).count { it == best.second } > 1 ->
+                    "tie at ${fmtPercent(best.second)}"
                 else -> "${best.first.label} leads"
             }
             appendLine(
                 "| ${result.questionId} | ${result.repoId} | " +
                     (result.ripgrepQueryTokens.takeIf { it.isNotEmpty() }?.joinToString(", ") { "`$it`" } ?: "_none derivable_") +
-                    " | ${fmtPercent(cgRecall)} | ${fmtPercent(codeRecall)} | ${fmtPercent(rgRecall)} | $verdict |"
+                    " | ${fmtPercent(cgRecall)} | ${fmtPercent(codeRecall)} | ${fmtPercent(bashRecall)} | " +
+                    "${fmtPercent(rgRecall)} | $verdict |"
             )
         }
         appendLine()
@@ -466,8 +850,8 @@ object RetrievalReportGenerator {
         appendLine("Reproduce this retrieval result, against an already-prepared corpus:")
         appendLine()
         appendLine("```bash")
-        appendLine("./gradlew :modules:benchmark:prepareCorpus --args=\"--repos keycloak,excalidraw\"")
-        appendLine("./gradlew :modules:benchmark:runRetrieval  --args=\"--output-dir results/three-way\"")
+        appendLine("./gradlew :modules:benchmark:prepareCorpus --args=\"--repos gin,excalidraw,calcom,keycloak\"")
+        appendLine("./gradlew :modules:benchmark:runRetrieval  --args=\"--output-dir results/four-way\"")
         appendLine("```")
         appendLine()
         appendLine(
@@ -499,18 +883,27 @@ object RetrievalReportGenerator {
                 "`ingest.json` and echoed to the console."
         )
         appendLine()
+        appendLine(
+            "**${RetrievalSide.BASH.label} needs none of that, and that is the entire point of " +
+                "it.** `grep` is on the base system already, so the fourth side is the only one " +
+                "of the four that a fresh machine can reproduce with nothing installed — which " +
+                "is precisely the floor the other three are being asked to justify their setup " +
+                "cost against."
+        )
+        appendLine()
     }
 
     // ------------------------------------------------------------- shared UI
 
     private fun StringBuilder.appendAggregateTable(run: RetrievalRun, aggregate: RetrievalAggregate) {
-        val codeGraphMeasured = aggregate.codeGraph?.let { "${it.measuredCount}/${aggregate.questionCount}" }
-            ?: "not in this run"
+        fun measured(side: SideAggregate?) =
+            side?.let { "${it.measuredCount}/${aggregate.questionCount}" } ?: "not in this run"
         appendLine(
             "n=${aggregate.questionCount} question(s). Measured: " +
                 "${RetrievalSide.CONTEXT_GRAPH.label} " +
                 "${aggregate.contextGraph.measuredCount}/${aggregate.questionCount}; " +
-                "${RetrievalSide.CODE_GRAPH.label} $codeGraphMeasured; " +
+                "${RetrievalSide.CODE_GRAPH.label} ${measured(aggregate.codeGraph)}; " +
+                "${RetrievalSide.BASH.label} ${measured(aggregate.bash)}; " +
                 "${RetrievalSide.RIPGREP.label} ${aggregate.ripgrep.measuredCount}/${aggregate.questionCount}. " +
                 "Where a count is short of n, those questions are listed under \"Skipped\" — they " +
                 "are excluded from that column's mean, not counted as zero."
@@ -518,13 +911,14 @@ object RetrievalReportGenerator {
         appendLine()
         appendLine(
             "| Metric | ${RetrievalSide.CONTEXT_GRAPH.label} | ${RetrievalSide.CODE_GRAPH.label} | " +
-                "${RetrievalSide.RIPGREP.label} |"
+                "${RetrievalSide.BASH.label} | ${RetrievalSide.RIPGREP.label} |"
         )
-        appendLine("|---|---|---|---|")
+        appendLine("|---|---|---|---|---|")
         run.kValues.forEach { k ->
             appendLine(
                 "| precision@$k | ${fmtPercent(aggregate.contextGraph.meanPrecisionAtK[k])} | " +
                     "${fmtPercent(aggregate.codeGraph?.meanPrecisionAtK?.get(k))} | " +
+                    "${fmtPercent(aggregate.bash?.meanPrecisionAtK?.get(k))} | " +
                     "${fmtPercent(aggregate.ripgrep.meanPrecisionAtK[k])} |"
             )
         }
@@ -532,12 +926,14 @@ object RetrievalReportGenerator {
             appendLine(
                 "| recall@$k | ${fmtPercent(aggregate.contextGraph.meanRecallAtK[k])} | " +
                     "${fmtPercent(aggregate.codeGraph?.meanRecallAtK?.get(k))} | " +
+                    "${fmtPercent(aggregate.bash?.meanRecallAtK?.get(k))} | " +
                     "${fmtPercent(aggregate.ripgrep.meanRecallAtK[k])} |"
             )
         }
         appendLine(
             "| MRR | ${fmtScore(aggregate.contextGraph.mrr)} | " +
                 "${aggregate.codeGraph?.let { fmtScore(it.mrr) } ?: "n/a"} | " +
+                "${aggregate.bash?.let { fmtScore(it.mrr) } ?: "n/a"} | " +
                 "${fmtScore(aggregate.ripgrep.mrr)} |"
         )
         appendLine()

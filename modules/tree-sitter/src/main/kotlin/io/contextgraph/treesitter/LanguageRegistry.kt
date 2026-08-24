@@ -1,5 +1,6 @@
 package io.contextgraph.treesitter
 
+import io.contextgraph.treesitter.grammars.GoLanguageSupport
 import io.contextgraph.treesitter.grammars.JavaLanguageSupport
 import io.contextgraph.treesitter.grammars.JavaScriptLanguageSupport
 import io.contextgraph.treesitter.grammars.KotlinLanguageSupport
@@ -12,11 +13,11 @@ import io.contextgraph.treesitter.grammars.TypeScriptLanguageSupport
 /**
  * Resolves a file to the [LanguageSupport] that parses it.
  *
- * All eight grammar entries (seven languages; TypeScript and TSX are two grammars) are
+ * All nine grammar entries (eight languages; TypeScript and TSX are two grammars) are
  * pre-registered here so slices adding real extraction for one language never need to
  * touch this file -- see the per-language files under `grammars/` for what each one adds.
- * Registering a *ninth* language means implementing [LanguageSupport] in one new file and
- * adding one line to [all] below.
+ * Registering a *tenth* language means implementing [LanguageSupport] in one new file,
+ * adding one line to [all] below, and pinning its grammar in `build.gradle.kts`.
  */
 object LanguageRegistry {
     val all: List<LanguageSupport> = listOf(
@@ -28,6 +29,7 @@ object LanguageRegistry {
         KotlinLanguageSupport,
         SwiftLanguageSupport,
         ObjectiveCLanguageSupport,
+        GoLanguageSupport,
     )
 
     private val byExtension: Map<String, LanguageSupport> = buildMap {
