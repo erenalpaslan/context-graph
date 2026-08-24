@@ -179,6 +179,20 @@ class GoGrammarSnapshotTest : FunSpec({
         contains.getValue("broken/broken.go#BrokenReceiver()").source.value shouldBe "broken/broken.go"
     }
 
+    test("a type alias to an anonymous struct is a bare TypeAlias node, not a struct declaration (S1)") {
+        val extracted = GoldenSnapshotHarness.extractFixture(fixtureRoot)
+
+        // `type AliasAnonymousStruct = struct { A int }` -- a legal Go alias to an anonymous
+        // struct. `kind` is "type_alias" here (decided from spec.type == "type_alias" before
+        // `underlying` is even inspected), and dispatch must follow `kind`, not
+        // `underlying.type` ("struct_type") -- otherwise this alias would gain Field children
+        // as if the line had declared a new struct type, which it did not.
+        val alias = extracted.nodes.first { it.id.value == "binding/binding.go#AliasAnonymousStruct" }
+        alias.type shouldBe NodeType.Custom("TypeAlias")
+        (alias.properties["kind"] as JsonPrimitive).content shouldBe "type_alias"
+        extracted.nodes.none { it.id.value.startsWith("binding/binding.go#AliasAnonymousStruct.") } shouldBe true
+    }
+
     test("every declaration node carries a non-blank fqn") {
         val extracted = GoldenSnapshotHarness.extractFixture(fixtureRoot)
         requireFqnOnDeclarations(extracted.nodes)

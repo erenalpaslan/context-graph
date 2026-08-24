@@ -18,6 +18,24 @@
             ]
         },
         {
+            "id": "binding/binding.go#AliasAnonymousStruct",
+            "type": "TypeAlias",
+            "label": "AliasAnonymousStruct",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "binding.AliasAnonymousStruct",
+                "kind": "type_alias"
+            },
+            "provenance": [
+                {
+                    "path": "binding/binding.go",
+                    "lineStart": 25,
+                    "lineEnd": 27,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
             "id": "binding/binding.go#BindError",
             "type": "TypeAlias",
             "label": "BindError",
@@ -104,8 +122,8 @@
             "provenance": [
                 {
                     "path": "binding/binding.go",
-                    "lineStart": 31,
-                    "lineEnd": 31,
+                    "lineStart": 40,
+                    "lineEnd": 40,
                     "extractor": "tree-sitter"
                 }
             ]
@@ -163,8 +181,8 @@
             "provenance": [
                 {
                     "path": "binding/binding.go",
-                    "lineStart": 32,
-                    "lineEnd": 32,
+                    "lineStart": 41,
+                    "lineEnd": 41,
                     "extractor": "tree-sitter"
                 }
             ]
@@ -182,8 +200,8 @@
             "provenance": [
                 {
                     "path": "binding/binding.go",
-                    "lineStart": 35,
-                    "lineEnd": 37,
+                    "lineStart": 44,
+                    "lineEnd": 46,
                     "extractor": "tree-sitter"
                 }
             ]
@@ -217,8 +235,8 @@
             "provenance": [
                 {
                     "path": "binding/binding.go",
-                    "lineStart": 20,
-                    "lineEnd": 20,
+                    "lineStart": 29,
+                    "lineEnd": 29,
                     "extractor": "tree-sitter"
                 }
             ]
@@ -237,8 +255,8 @@
             "provenance": [
                 {
                     "path": "binding/binding.go",
-                    "lineStart": 26,
-                    "lineEnd": 28,
+                    "lineStart": 35,
+                    "lineEnd": 37,
                     "extractor": "tree-sitter"
                 }
             ]
@@ -257,8 +275,8 @@
             "provenance": [
                 {
                     "path": "binding/binding.go",
-                    "lineStart": 24,
-                    "lineEnd": 24,
+                    "lineStart": 33,
+                    "lineEnd": 33,
                     "extractor": "tree-sitter"
                 }
             ]
@@ -967,6 +985,13 @@
         }
     ],
     "edges": [
+        {
+            "id": "contains:binding/binding.go:binding/binding.go#AliasAnonymousStruct",
+            "source": "binding/binding.go",
+            "target": "binding/binding.go#AliasAnonymousStruct",
+            "type": "contains",
+            "confidence": 0.98
+        },
         {
             "id": "contains:binding/binding.go:binding/binding.go#BindError",
             "source": "binding/binding.go",
