@@ -158,9 +158,12 @@ one second.
 **This file does not print a test count.** It printed 426, then 472, and by
 the time either number was read here it was already wrong — the total rises
 whenever anyone adds a test, and any figure written down is a snapshot, not a
-contract. Run `./gradlew :modules:benchmark:test` and read its own summary
-line for the current total. What this file holds itself to is the rest of
-the sentence: 0 failing, and exactly one skip, which is a deliberate one.
+contract. Read the current total yourself instead: `./gradlew
+:modules:benchmark:test` if you have network access, as the top of this
+section describes — or the recipe above with `:modules:benchmark:test` as
+the final target in place of `:modules:benchmark:build`, if you don't. What
+this file holds itself to is the rest of the sentence: 0 failing, and
+exactly one skip, which is a deliberate one.
 
 ## Package map
 
