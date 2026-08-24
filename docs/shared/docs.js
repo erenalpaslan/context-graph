@@ -24,6 +24,12 @@
         { id: 'mcp-server', label: 'MCP Server', path: 'reference/mcp-server/index.html' },
         { id: 'cli',        label: 'CLI',         path: 'reference/cli/index.html' },
       ]
+    },
+    {
+      title: 'Benchmarks',
+      items: [
+        { id: 'benchmarks', label: 'Retrieval, by question', path: 'benchmarks/index.html' },
+      ]
     }
   ];
 
@@ -85,6 +91,7 @@
       <ul class="nav-right">
         <li><a href="${BASE}getting-started/introduction/index.html">Docs</a></li>
         <li><a href="${BASE}reference/mcp-server/index.html">Reference</a></li>
+        <li><a href="${BASE}benchmarks/index.html">Benchmarks</a></li>
         <li><a class="nav-gh" href="https://github.com/erenalpaslan/context-graph" target="_blank">${ghIcon()} GitHub</a></li>
       </ul>
     </nav>

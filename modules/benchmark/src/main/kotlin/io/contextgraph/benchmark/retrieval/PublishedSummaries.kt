@@ -38,6 +38,12 @@ object PublishedSummaries {
     /** Where the full report lives, relative to the repository root. */
     private const val FULL_REPORT = "modules/benchmark/results/four-way/BENCHMARKS.md"
 
+    /**
+     * The interactive per-question page, taken from [RetrievalSitePage] rather than retyped: the
+     * README's link and the page's own home cannot then disagree about where it is.
+     */
+    private val SITE_PAGE = RetrievalSitePage.PAGE_PATH
+
     /** The width the rest of `README.md` is hand-wrapped to. */
     private const val WRAP_WIDTH = 92
 
@@ -155,6 +161,14 @@ object PublishedSummaries {
         renderIngestTable(run)
         paragraph(ingestSentence(run))
         paragraph(caveatParagraph(run, repos, topK))
+        paragraph(
+            "**The same run, question by question, as a page you can interrogate:** " +
+                "[`$SITE_PAGE`]($SITE_PAGE) lists every one of the ${run.results.size} questions " +
+                "with all four sides' scores, filters by repository and category, sorts by any " +
+                "metric, and opens a question to show its expected files against each side's own " +
+                "ranked answer. It is generated from the same result document as everything above " +
+                "and needs no server: open it from a clone with the network off and it works."
+        )
         paragraph(
             "Full methodology, the per-question breakdown, the flags both text-search sides were " +
                 "given, every skip and every place this project loses: " +

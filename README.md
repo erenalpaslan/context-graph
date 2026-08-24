@@ -210,6 +210,13 @@ agent-level axis is measured separately and never mixed with this one. Ingest wa
 per repo per tool on one machine, with no repeats and no variance. And the rows this project
 loses — `gin`'s MRR, `keycloak`'s recall@10 — are part of the result, not exceptions to it.
 
+**The same run, question by question, as a page you can interrogate:**
+[`docs/benchmarks/index.html`](docs/benchmarks/index.html) lists every one of the 33
+questions with all four sides' scores, filters by repository and category, sorts by any
+metric, and opens a question to show its expected files against each side's own ranked
+answer. It is generated from the same result document as everything above and needs no
+server: open it from a clone with the network off and it works.
+
 Full methodology, the per-question breakdown, the flags both text-search sides were given,
 every skip and every place this project loses:
 [`modules/benchmark/results/four-way/BENCHMARKS.md`](modules/benchmark/results/four-way/BENCHMARKS.md).
