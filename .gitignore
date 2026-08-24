@@ -1,7 +1,6 @@
 # Gradle
 .gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
 
 # Kotlin compiler build artifacts (e.g. .kotlin/sessions)
 .kotlin/
@@ -12,6 +11,14 @@ build/
 *.war
 *.ear
 *.log
+
+# The Gradle wrapper jar is committed on purpose: without it a fresh clone cannot run
+# ./gradlew at all (ClassNotFoundException: org.gradle.wrapper.GradleWrapperMain), which
+# breaks both new contributors and CI, whose checkout is always fresh. This negation has to
+# sit *after* `*.jar` above -- git applies the last matching pattern, so a negation placed
+# before the broad rule is silently overridden by it. That is exactly how this file was
+# wrong until 2026-08-24, and why the jar was never actually committed.
+!gradle/wrapper/gradle-wrapper.jar
 
 # IDE
 .idea/

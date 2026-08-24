@@ -23,13 +23,14 @@ them on.
 
 ## Quick Start
 
-Requires Java 17+.
+```bash
+brew tap erenalpaslan/contextgraph
+brew install contextgraph
+```
+
+macOS arm64 and Linux x64. The formula brings its own JDK 17, so no system Java is needed.
 
 ```bash
-# Build the launcher once
-./gradlew :modules:cli:installDist
-export PATH="$PWD/modules/cli/build/install/contextgraph/bin:$PATH"
-
 # Set up and index a project
 cd /path/to/your/project
 contextgraph init
@@ -43,22 +44,58 @@ contextgraph report          # GRAPH_REPORT.md + interactive graph.html
 contextgraph serve-mcp
 ```
 
+Prefer to run the jar directly? Every release is on Maven Central, unauthenticated:
+
+```bash
+curl -fsSLO https://repo1.maven.org/maven2/io/github/erenalpaslan/contextgraph-cli/0.2.0/contextgraph-cli-0.2.0-all.jar
+java -jar contextgraph-cli-0.2.0-all.jar --help
+```
+
 Working on the ContextGraph sources themselves? `./gradlew :modules:cli:run --args="index ."`
 runs the same CLI without installing, at the cost of a Gradle startup per command.
 
 ## MCP Integration
 
-Point your MCP client at the installed launcher:
+`mcp bind` prints the block Claude Code needs, so nothing has to be typed by hand:
+
+```bash
+cd /path/to/your/project
+contextgraph mcp bind > .mcp.json
+```
 
 ```json
 {
   "mcpServers": {
     "contextgraph": {
-      "command": "/absolute/path/to/modules/cli/build/install/contextgraph/bin/contextgraph",
-      "args": ["serve-mcp"]
+      "command": "sh",
+      "args": ["-c", "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && exec contextgraph serve-mcp"]
     }
   }
 }
+```
+
+Commit that file: it names `contextgraph` on `PATH` rather than one machine's absolute path,
+and resolves the project root at launch, so it works for every developer on the team and
+whichever directory they start Claude Code from.
+
+## Continuous Indexing
+
+To keep a repository's graph fresh from CI, install the CLI with the composite action and
+run `ci-reindex` — it needs no credentials, since it forces LiteLLM off:
+
+```yaml
+- uses: erenalpaslan/context-graph/action@v0.2.0
+- run: contextgraph ci-reindex .
+```
+
+Or hand the whole job over to the reusable workflow, which indexes and uploads the graph as
+a build artifact, leaving what to do with it — commit it, publish it, discard it — and when
+to run at all to you:
+
+```yaml
+jobs:
+  graph:
+    uses: erenalpaslan/context-graph/.github/workflows/reindex.yml@v0.2.0
 ```
 
 ### The primary tool
@@ -242,6 +279,7 @@ did *not* ship: [`docs/retrieval-ranking-ablation.md`](docs/retrieval-ranking-ab
 | `describe-modules` | Author LLM descriptions for modules lacking one, embed them, and flag descriptions made stale by a changed symbol inventory. `--regenerate-stale` |
 | `export [file.json]` | Export full graph snapshot to JSON |
 | `serve-mcp` | Start the MCP server over stdio |
+| `mcp bind` | Print the `.mcp.json` block binding this project to the MCP server |
 | `config set <key> <value>` | Update configuration |
 
 ## How It Works

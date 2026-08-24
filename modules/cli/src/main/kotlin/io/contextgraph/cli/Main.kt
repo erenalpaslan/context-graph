@@ -379,7 +379,8 @@ fun main(args: Array<String>) {
             DescribeModulesCommand(),
             ServeMcpCommand(),
             ExportCommand(),
-            ConfigCommand().subcommands(ConfigSetCommand())
+            ConfigCommand().subcommands(ConfigSetCommand()),
+            McpCommand().subcommands(McpBindCommand())
         )
         .main(args)
 }

@@ -19,6 +19,8 @@ kotlin-logging = "7.0.3"
 logback = "1.5.12"
 kotest = "5.9.1"
 ktreesitter = "0.24.1"
+shadow = "8.3.5"
+maven-publish = "0.30.0"
 
 [libraries]
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -54,3 +56,5 @@ ktreesitter = { module = "io.github.tree-sitter:ktreesitter", version.ref = "ktr
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }

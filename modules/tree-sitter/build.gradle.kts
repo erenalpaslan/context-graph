@@ -170,6 +170,18 @@ val grammarSrcCache = layout.buildDirectory.dir("tree-sitter-src")
 val grammarDownloadCache = layout.buildDirectory.dir("tree-sitter-download")
 val nativesOutputDir = layout.buildDirectory.dir("generated/tree-sitter-natives")
 
+/**
+ * Prints how many grammars a release jar is expected to carry per platform. `release.yml`
+ * compares this against what it finds in the built jar, rather than hardcoding a number that
+ * would silently go stale the next time [grammarSpecs] gains an entry.
+ */
+tasks.register("printGrammarCount") {
+    group = "tree-sitter"
+    description = "Prints the number of vendored tree-sitter grammars, for release verification."
+    val count = grammarSpecs.size
+    doLast { println(count) }
+}
+
 val compileTreeSitterGrammars = tasks.register("compileTreeSitterGrammars") {
     group = "tree-sitter"
     description = "Downloads pinned tree-sitter grammar sources and compiles each into a " +
@@ -296,6 +308,18 @@ val compileTreeSitterGrammars = tasks.register("compileTreeSitterGrammars") {
 sourceSets {
     main {
         resources.srcDir(nativesOutputDir)
+        // Second drop point, for natives compiled on a *different* platform than this build
+        // is running on. `compileTreeSitterGrammars` above only ever produces host-platform
+        // libraries, so a release jar covering both macOS arm64 and Linux x64 is assembled
+        // by compiling on both runners and having one of them download the other's output
+        // into this directory (see .github/workflows/release.yml).
+        //
+        // Deliberately not `nativesOutputDir`: that is a declared task output, and Gradle's
+        // stale-output cleanup is entitled to delete foreign files it finds there. A plain
+        // source directory is not subject to that. PrebuiltNativesResourceTest guards the
+        // wiring, since losing it would produce a jar that works on one platform and throws
+        // UnsatisfiedLinkError on the other, with nothing failing at build time.
+        resources.srcDir("prebuilt-natives")
     }
 }
 
