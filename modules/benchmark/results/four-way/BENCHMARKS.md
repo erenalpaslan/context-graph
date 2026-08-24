@@ -17,7 +17,7 @@ Four sides are compared, and they are named this way everywhere below:
 
 So is a result favouring bash. The fourth side exists because the third one is not the floor: `rg` is a separate install that brings its own `.gitignore` awareness, binary skipping and ranking to the fight, so beating it is not the same as beating *nothing*. **bash (base-system shell only)** is what a developer with a stock shell and no installs gets, and it is the honest thing an index has to earn its cost against. Where it wins, that is the finding — printed, not explained away. *Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir sayıdır.*
 
-_Generated from retrieval result `retrieval-1787565961442` (schema v3) at 2026-08-24T10:06:01.443713Z. Regenerate by re-running the retrieval measurement; this section is not hand-edited._
+_Generated from retrieval result `retrieval-1787566899411` (schema v3) at 2026-08-24T10:21:39.411711Z. Regenerate by re-running the retrieval measurement; this section is not hand-edited._
 
 ### Methodology
 
@@ -37,7 +37,7 @@ That rule is the rule for **bash (base-system shell only)** too, and is delibera
 
 1. **Natural-language queries returned nothing at all -- found here, since fixed.** `buildContext`'s seed search passed the *entire* question sentence to SQLite FTS5 as one literal `MATCH` expression. FTS5 gives bareword queries implicit-AND semantics, so every token had to co-occur in one indexed row; punctuation in the sentence could also be parsed as FTS5 query syntax and throw, and that exception was swallowed into a `label LIKE '%<whole sentence>%'` fallback that could not match either. Measured on excalidraw's real index at the time: full sentence 0 rows, LIKE fallback 0 rows, the same words OR'd 28 rows. The first run of this axis therefore scored ContextGraph 0.0% on precision@5/10, recall@5/10 and MRR across all 22 measurable questions. `searchNodes` now tokenizes the query and OR's the terms as quoted phrases ranked by bm25; the numbers below are from after that fix. This is what the axis is for: it found a defect on the exact path MCP's `build_context` tool uses, and made the repair measurable.
 
-2. **`gin` yields no code declarations at all -- an extraction gap, not a retrieval result.** `gin`'s index holds 10 / 10 gold-cited files and *zero* declarations: 0 `Function`, 0 `Method`, 0 `Class`, 0 `Interface`. What it does hold is 847 `Document`, 206 `Concept`, 56 `CodeFile`, 42 `TestFile`, 11 `ConfigFile`, 10 `MarkdownFile`, 7 `Requirement`. A repo whose language the indexer does not parse is measuring **extraction coverage, not retrieval quality**: there is nothing indexed for the query to find, so every ContextGraph (this project) figure for it below is a floor set by the extractor rather than a verdict on retrieval, and its own table below repeats this warning next to the numbers. The other three sides are unaffected -- two read the working tree, and the third has its own index.
+2. **Every repo measured here yielded code declarations -- no ContextGraph (this project) row below is an extraction gap in disguise.** A repo whose language the indexer cannot parse still gets its files read and stored, so its gold-file coverage can read 100% while every query returns nothing; such a row would be measuring **extraction coverage, not retrieval quality**, and this run has none. The census below is the evidence for that claim, not a reassurance about it.
 
 **What each ContextGraph (this project) index actually extracted**, which is the census the paragraph above is computed from:
 
@@ -45,7 +45,7 @@ That rule is the rule for **bash (base-system shell only)** too, and is delibera
 |---|---|---|
 | `calcom` | 14660 | 40022 `Module`, 8708 `Field`, 6580 `CodeFile`, 6003 `Function`, 5721 `Method`, 3653 `TypeAlias`, 3331 `Concept`, 2987 `Component`, 2521 `Variable`, 1721 `Class`, 1215 `Interface`, 816 `TestFile`, 593 `DatabaseSchema`, 571 `Document`, 533 `Column`, 472 `MarkdownFile`, 130 `Requirement`, 129 `Enum`, 126 `DatabaseTable`, 120 `PackageFile`, 113 `CodeModule`, 79 `ConfigFile` |
 | `excalidraw` | 1789 | 3923 `Module`, 1508 `Document`, 1284 `Function`, 1086 `Field`, 451 `CodeFile`, 394 `Concept`, 387 `Component`, 386 `TypeAlias`, 350 `Method`, 289 `Variable`, 91 `Interface`, 89 `TestFile`, 64 `Class`, 46 `MarkdownFile`, 15 `ConfigFile`, 8 `PackageFile`, 6 `CodeModule`, 3 `Enum`, 3 `Requirement` |
-| `gin` | 0 | 847 `Document`, 206 `Concept`, 56 `CodeFile`, 42 `TestFile`, 11 `ConfigFile`, 10 `MarkdownFile`, 7 `Requirement` |
+| `gin` | 1497 | 882 `Function`, 847 `Document`, 515 `Module`, 473 `Method`, 313 `Field`, 206 `Concept`, 123 `Class`, 111 `Variable`, 100 `Constant`, 56 `CodeFile`, 42 `TestFile`, 35 `Type`, 19 `Interface`, 11 `ConfigFile`, 10 `MarkdownFile`, 7 `Requirement` |
 | `keycloak` | 82776 | 105248 `Module`, 72147 `Method`, 27390 `Field`, 8278 `Class`, 7183 `CodeFile`, 5334 `Concept`, 2031 `TestFile`, 1831 `Document`, 1189 `Interface`, 1162 `Function`, 820 `TypeAlias`, 670 `Component`, 304 `Enum`, 194 `Record`, 101 `ConfigFile`, 88 `Requirement`, 82 `MarkdownFile`, 77 `Variable`, 9 `Constant`, 8 `DatabaseSchema`, 8 `PackageFile` |
 
 Declaration nodes are `Function`, `Method`, `Class`, `Interface` -- what a language grammar emits for something it parsed out of a source file. `Document`, `Concept` and file-level nodes are excluded from that total on purpose: a repo the indexer could not parse a line of still accumulates them, so counting them would hide the very gap this census exists to show.
@@ -86,7 +86,7 @@ What it cost to build each tool's index, so query-time results are read next to 
 | `excalidraw` | CodeGraph (third-party) | 17.8s | 36.5 MB |
 | `excalidraw` | ContextGraph (this project) | 22.9s | 32.7 MB |
 | `gin` | CodeGraph (third-party) | 3.5s | 7.9 MB |
-| `gin` | ContextGraph (this project) | 4.3s | 1.3 MB |
+| `gin` | ContextGraph (this project) | 2.7s | 8.2 MB |
 | `keycloak` | CodeGraph (third-party) | 1m 53s | 811.6 MB |
 | `keycloak` | ContextGraph (this project) | 4m 14s | 1.58 GB |
 
@@ -123,11 +123,11 @@ n=29 question(s). Measured: ContextGraph (this project) 29/29; CodeGraph (third-
 
 | Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
 |---|---|---|---|---|
-| precision@5 | 12.4% | 12.4% | 11.0% | 11.0% |
-| precision@10 | 7.2% | 6.2% | 8.3% | 8.3% |
-| recall@5 | 21.1% | 28.0% | 27.0% | 27.0% |
-| recall@10 | 23.9% | 28.0% | 35.1% | 35.1% |
-| MRR | 0.312 | 0.326 | 0.218 | 0.218 |
+| precision@5 | 20.0% | 12.4% | 11.0% | 11.0% |
+| precision@10 | 12.4% | 6.2% | 8.3% | 8.3% |
+| recall@5 | 38.7% | 28.0% | 27.0% | 27.0% |
+| recall@10 | 46.0% | 28.0% | 35.1% | 35.1% |
+| MRR | 0.485 | 0.326 | 0.218 | 0.218 |
 
 ### By Category
 
@@ -137,11 +137,11 @@ n=20 question(s). Measured: ContextGraph (this project) 20/20; CodeGraph (third-
 
 | Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
 |---|---|---|---|---|
-| precision@5 | 11.0% | 14.0% | 12.0% | 12.0% |
-| precision@10 | 6.5% | 7.0% | 10.0% | 10.0% |
-| recall@5 | 14.9% | 24.6% | 19.1% | 19.1% |
-| recall@10 | 17.8% | 24.6% | 30.9% | 30.9% |
-| MRR | 0.278 | 0.335 | 0.254 | 0.254 |
+| precision@5 | 20.0% | 14.0% | 12.0% | 12.0% |
+| precision@10 | 13.0% | 7.0% | 10.0% | 10.0% |
+| recall@5 | 30.3% | 24.6% | 19.1% | 19.1% |
+| recall@10 | 39.9% | 24.6% | 30.9% | 30.9% |
+| MRR | 0.453 | 0.335 | 0.254 | 0.254 |
 
 #### NEUTRAL
 
@@ -149,11 +149,11 @@ n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-par
 
 | Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
 |---|---|---|---|---|
-| precision@5 | 15.6% | 8.9% | 8.9% | 8.9% |
-| precision@10 | 8.9% | 4.4% | 4.4% | 4.4% |
-| recall@5 | 35.0% | 35.6% | 44.4% | 44.4% |
-| recall@10 | 37.2% | 35.6% | 44.4% | 44.4% |
-| MRR | 0.389 | 0.306 | 0.140 | 0.140 |
+| precision@5 | 20.0% | 8.9% | 8.9% | 8.9% |
+| precision@10 | 11.1% | 4.4% | 4.4% | 4.4% |
+| recall@5 | 57.2% | 35.6% | 44.4% | 44.4% |
+| recall@10 | 59.4% | 35.6% | 44.4% | 44.4% |
+| MRR | 0.556 | 0.306 | 0.140 | 0.140 |
 
 #### NEGATIVE_CONTROL
 
@@ -161,11 +161,11 @@ n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-par
 
 | Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
 |---|---|---|---|---|
-| precision@5 | 5.0% | 10.0% | 5.0% | 5.0% |
-| precision@10 | 2.5% | 5.0% | 5.0% | 5.0% |
-| recall@5 | 25.0% | 37.5% | 25.0% | 25.0% |
-| recall@10 | 25.0% | 37.5% | 37.5% | 37.5% |
-| MRR | 0.250 | 0.175 | 0.185 | 0.185 |
+| precision@5 | 10.0% | 10.0% | 5.0% | 5.0% |
+| precision@10 | 5.0% | 5.0% | 5.0% | 5.0% |
+| recall@5 | 50.0% | 37.5% | 25.0% | 25.0% |
+| recall@10 | 50.0% | 37.5% | 37.5% | 37.5% |
+| MRR | 0.313 | 0.175 | 0.185 | 0.185 |
 
 ### By Repo
 
@@ -195,17 +195,15 @@ n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-par
 
 #### `gin`
 
-> **Read the ContextGraph (this project) column here as extraction coverage, not retrieval quality.** `gin`'s index holds 10 / 10 gold-cited files and zero code declarations (847 `Document`, 206 `Concept`, 56 `CodeFile`, 42 `TestFile`, 11 `ConfigFile`, 10 `MarkdownFile`, 7 `Requirement`), so there is nothing indexed for a query to match. The figure below is the extractor's floor, not a retrieval verdict; the other three columns are unaffected.
-
 n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (baseline) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
 | Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
 |---|---|---|---|---|
-| precision@5 | 0.0% | 32.5% | 22.5% | 22.5% |
-| precision@10 | 0.0% | 16.3% | 17.5% | 17.5% |
-| recall@5 | 0.0% | 83.3% | 63.5% | 63.5% |
-| recall@10 | 0.0% | 83.3% | 82.3% | 82.3% |
-| MRR | 0.000 | 0.813 | 0.352 | 0.352 |
+| precision@5 | 30.0% | 32.5% | 22.5% | 22.5% |
+| precision@10 | 20.0% | 16.3% | 17.5% | 17.5% |
+| recall@5 | 76.0% | 83.3% | 63.5% | 63.5% |
+| recall@10 | 92.7% | 83.3% | 82.3% | 82.3% |
+| MRR | 0.656 | 0.813 | 0.352 | 0.352 |
 
 #### `keycloak`
 
@@ -227,11 +225,11 @@ n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-par
 
 | Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
 |---|---|---|---|---|
-| precision@5 | 5.0% | 10.0% | 5.0% | 5.0% |
-| precision@10 | 2.5% | 5.0% | 5.0% | 5.0% |
-| recall@5 | 25.0% | 37.5% | 25.0% | 25.0% |
-| recall@10 | 25.0% | 37.5% | 37.5% | 37.5% |
-| MRR | 0.250 | 0.175 | 0.185 | 0.185 |
+| precision@5 | 10.0% | 10.0% | 5.0% | 5.0% |
+| precision@10 | 5.0% | 5.0% | 5.0% | 5.0% |
+| recall@5 | 50.0% | 37.5% | 25.0% | 25.0% |
+| recall@10 | 50.0% | 37.5% | 37.5% | 37.5% |
+| MRR | 0.313 | 0.175 | 0.185 | 0.185 |
 
 Per-question breakdown (recall@10, higher is better):
 
@@ -239,7 +237,7 @@ Per-question breakdown (recall@10, higher is better):
 |---|---|---|---|---|---|---|---|
 | calcom-q8 | calcom | `packages/features/bookings/lib/handleCancelBooking.ts`, `handleCancelBooking.ts`, `handleCancelBooking`, `calendar/payment` | 100.0% | 0.0% | 0.0% | 0.0% | ContextGraph (this project) leads |
 | excalidraw-q8 | excalidraw | `localStorage` | 0.0% | 0.0% | 0.0% | 0.0% | no side found a gold file |
-| gin-q8 | gin | `404`, `405` | 0.0% | 100.0% | 100.0% | 100.0% | tie at 100.0% |
+| gin-q8 | gin | `404`, `405` | 100.0% | 100.0% | 100.0% | 100.0% | tie at 100.0% |
 | keycloak-q8 | keycloak | `PolicyError` | 0.0% | 50.0% | 50.0% | 50.0% | tie at 50.0% |
 
 ### Reproduction

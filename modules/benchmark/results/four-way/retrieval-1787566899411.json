@@ -1,7 +1,7 @@
 {
     "schemaVersion": 3,
-    "runId": "retrieval-1787565961442",
-    "generatedAt": "2026-08-24T10:06:01.443713Z",
+    "runId": "retrieval-1787566899411",
+    "generatedAt": "2026-08-24T10:21:39.411711Z",
     "kValues": [
         5,
         10
@@ -1381,16 +1381,24 @@
                 "Context.Next"
             ],
             "contextGraph": {
-                "rankedFiles": [],
+                "rankedFiles": [
+                    "middleware_test.go",
+                    "gin.go",
+                    "benchmarks_test.go",
+                    "context.go",
+                    "internal/fs/fs.go",
+                    "binding/default_validator.go",
+                    "ginS/gins.go"
+                ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.4,
+                    "10": 0.2
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.6666666666666666,
+                    "10": 0.6666666666666666
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 0.5
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -1477,16 +1485,29 @@
                 "404"
             ],
             "contextGraph": {
-                "rankedFiles": [],
+                "rankedFiles": [
+                    "middleware_test.go",
+                    "gin.go",
+                    "benchmarks_test.go",
+                    "response_writer.go",
+                    "binding/default_validator.go",
+                    "context.go",
+                    "routergroup.go",
+                    "internal/fs/fs.go",
+                    "binding/form_mapping.go",
+                    "auth.go",
+                    "binding/json.go",
+                    "binding/protobuf.go"
+                ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.2,
+                    "10": 0.2
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.5,
+                    "10": 1.0
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 0.5
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -1565,16 +1586,22 @@
                 "Engine.Routes"
             ],
             "contextGraph": {
-                "rankedFiles": [],
+                "rankedFiles": [
+                    "tree.go",
+                    "gin.go",
+                    "benchmarks_test.go",
+                    "routergroup.go",
+                    "internal/bytesconv/bytesconv.go"
+                ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.6,
+                    "10": 0.3
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 1.0,
+                    "10": 1.0
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 1.0
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -1685,16 +1712,28 @@
                 "http.Request"
             ],
             "contextGraph": {
-                "rankedFiles": [],
+                "rankedFiles": [
+                    "binding/binding_nomsgpack.go",
+                    "binding/binding.go",
+                    "binding/form.go",
+                    "binding/plain.go",
+                    "binding/query.go",
+                    "auth.go",
+                    "binding/json.go",
+                    "binding/bson.go",
+                    "binding/msgpack.go",
+                    "context.go",
+                    "binding/form_mapping.go"
+                ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.2,
+                    "10": 0.3
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.25,
+                    "10": 0.75
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 0.5
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -1816,16 +1855,30 @@
                 "HTMLRender"
             ],
             "contextGraph": {
-                "rankedFiles": [],
+                "rankedFiles": [
+                    "gin.go",
+                    "binding/binding.go",
+                    "binding/binding_nomsgpack.go",
+                    "benchmarks_test.go",
+                    "render/html.go",
+                    "debug.go",
+                    "response_writer.go",
+                    "context.go",
+                    "binding/default_validator.go",
+                    "binding/binding_test.go",
+                    "binding/protobuf.go",
+                    "binding/form_mapping.go",
+                    "render/json.go"
+                ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.4,
+                    "10": 0.3
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.6666666666666666,
+                    "10": 1.0
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 1.0
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -1912,20 +1965,27 @@
             "contextGraph": {
                 "rankedFiles": [
                     "LICENSE",
-                    "Makefile",
+                    "mode.go",
                     ".github/PULL_REQUEST_TEMPLATE.md",
                     "README.md",
-                    "docs/doc.md"
+                    "docs/doc.md",
+                    "gin.go",
+                    "context_appengine.go",
+                    "errors.go",
+                    "response_writer.go",
+                    "debug.go",
+                    "context.go",
+                    "recovery.go"
                 ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.2,
+                    "10": 0.1
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 1.0,
+                    "10": 1.0
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 0.5
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -2011,22 +2071,31 @@
             ],
             "contextGraph": {
                 "rankedFiles": [
-                    "LICENSE",
+                    "logger.go",
                     "README.md",
-                    ".github/ISSUE_TEMPLATE/feature-request.yaml",
+                    "test_helpers.go",
+                    "LICENSE",
                     "docs/doc.md",
-                    "ginS/README.md",
-                    "AUTHORS.md"
+                    "errors.go",
+                    "binding/protobuf.go",
+                    "binding/form_mapping.go",
+                    "binding/multipart_form_mapping.go",
+                    "gin.go",
+                    "context.go",
+                    "tree.go",
+                    "binding/json.go",
+                    "binding/bson.go",
+                    "routergroup.go"
                 ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.2,
+                    "10": 0.1
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 1.0,
+                    "10": 1.0
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 1.0
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -2092,16 +2161,30 @@
                 "405"
             ],
             "contextGraph": {
-                "rankedFiles": [],
+                "rankedFiles": [
+                    "gin_test.go",
+                    "routes_test.go",
+                    "auth.go",
+                    "gin.go",
+                    "response_writer.go",
+                    "binding/default_validator.go",
+                    "binding/form_mapping_test.go",
+                    "routergroup.go",
+                    "internal/bytesconv/bytesconv.go",
+                    "errors.go",
+                    "binding/form_mapping.go",
+                    "context.go",
+                    "tree.go"
+                ],
                 "precisionAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 0.2,
+                    "10": 0.1
                 },
                 "recallAtK": {
-                    "5": 0.0,
-                    "10": 0.0
+                    "5": 1.0,
+                    "10": 1.0
                 },
-                "reciprocalRank": 0.0
+                "reciprocalRank": 0.25
             },
             "ripgrep": {
                 "rankedFiles": [
@@ -17825,14 +17908,14 @@
             "contextGraph": {
                 "measuredCount": 29,
                 "meanPrecisionAtK": {
-                    "5": 0.12413793103448277,
-                    "10": 0.0724137931034483
+                    "5": 0.20000000000000007,
+                    "10": 0.12413793103448277
                 },
                 "meanRecallAtK": {
-                    "5": 0.21149425287356324,
-                    "10": 0.23850574712643677
+                    "5": 0.3867816091954023,
+                    "10": 0.4597701149425287
                 },
-                "mrr": 0.31245210727969347
+                "mrr": 0.4848659003831417
             },
             "ripgrep": {
                 "measuredCount": 29,
@@ -17876,14 +17959,14 @@
             "contextGraph": {
                 "measuredCount": 4,
                 "meanPrecisionAtK": {
-                    "5": 0.05,
-                    "10": 0.025
+                    "5": 0.1,
+                    "10": 0.05
                 },
                 "meanRecallAtK": {
-                    "5": 0.25,
-                    "10": 0.25
+                    "5": 0.5,
+                    "10": 0.5
                 },
-                "mrr": 0.25
+                "mrr": 0.3125
             },
             "ripgrep": {
                 "measuredCount": 4,
@@ -17928,14 +18011,14 @@
                 "contextGraph": {
                     "measuredCount": 20,
                     "meanPrecisionAtK": {
-                        "5": 0.10999999999999999,
-                        "10": 0.065
+                        "5": 0.20000000000000004,
+                        "10": 0.13000000000000003
                     },
                     "meanRecallAtK": {
-                        "5": 0.14916666666666667,
-                        "10": 0.17833333333333334
+                        "5": 0.30333333333333334,
+                        "10": 0.39916666666666667
                     },
-                    "mrr": 0.27805555555555556
+                    "mrr": 0.4530555555555555
                 },
                 "ripgrep": {
                     "measuredCount": 20,
@@ -17979,14 +18062,14 @@
                 "contextGraph": {
                     "measuredCount": 9,
                     "meanPrecisionAtK": {
-                        "5": 0.15555555555555556,
-                        "10": 0.08888888888888889
+                        "5": 0.19999999999999998,
+                        "10": 0.1111111111111111
                     },
                     "meanRecallAtK": {
-                        "5": 0.35,
-                        "10": 0.37222222222222223
+                        "5": 0.5722222222222223,
+                        "10": 0.5944444444444444
                     },
-                    "mrr": 0.3888888888888889
+                    "mrr": 0.5555555555555556
                 },
                 "ripgrep": {
                     "measuredCount": 9,
@@ -18030,14 +18113,14 @@
                 "contextGraph": {
                     "measuredCount": 4,
                     "meanPrecisionAtK": {
-                        "5": 0.05,
-                        "10": 0.025
+                        "5": 0.1,
+                        "10": 0.05
                     },
                     "meanRecallAtK": {
-                        "5": 0.25,
-                        "10": 0.25
+                        "5": 0.5,
+                        "10": 0.5
                     },
-                    "mrr": 0.25
+                    "mrr": 0.3125
                 },
                 "ripgrep": {
                     "measuredCount": 4,
@@ -18185,14 +18268,14 @@
                 "contextGraph": {
                     "measuredCount": 8,
                     "meanPrecisionAtK": {
-                        "5": 0.0,
-                        "10": 0.0
+                        "5": 0.3000000000000001,
+                        "10": 0.20000000000000004
                     },
                     "meanRecallAtK": {
-                        "5": 0.0,
-                        "10": 0.0
+                        "5": 0.7604166666666666,
+                        "10": 0.9270833333333333
                     },
-                    "mrr": 0.0
+                    "mrr": 0.65625
                 },
                 "ripgrep": {
                     "measuredCount": 8,
@@ -18344,13 +18427,22 @@
             "presentFileCount": 10,
             "basis": "INDEX_QUERY",
             "extractedNodeCounts": {
+                "Class": 123,
                 "CodeFile": 56,
                 "Concept": 206,
                 "ConfigFile": 11,
+                "Constant": 100,
                 "Document": 847,
+                "Field": 313,
+                "Function": 882,
+                "Interface": 19,
                 "MarkdownFile": 10,
+                "Method": 473,
+                "Module": 515,
                 "Requirement": 7,
-                "TestFile": 42
+                "TestFile": 42,
+                "Type": 35,
+                "Variable": 111
             }
         },
         {
@@ -18505,8 +18597,8 @@
         {
             "repoId": "gin",
             "tool": "CONTEXTGRAPH",
-            "durationMillis": 4267,
-            "indexSizeBytes": 1339392,
+            "durationMillis": 2659,
+            "indexSizeBytes": 8163328,
             "absentReason": null
         },
         {
