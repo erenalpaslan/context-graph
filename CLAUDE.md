@@ -99,7 +99,7 @@ benchmark  → core, extractors, graph, ingest, mcp-server, query, storage-sqlit
 
 `core` has no internal dependencies — it defines the domain (`GraphNode`, `GraphEdge`, `Artifact`, `StorageAdapter`, `ResourceExtractor`, `ContextGraphConfig`).
 
-Note the direction between `ingest` and `extractors`: **`ingest` depends on `extractors`**, which depends on `tree-sitter`. `eval` grades `explore` answers against curated questions; `benchmark` runs the three-way retrieval and ingest-cost comparison against CodeGraph and ripgrep, and is the only module that depends on `cli`.
+Note the direction between `ingest` and `extractors`: **`ingest` depends on `extractors`**, which depends on `tree-sitter`. `eval` grades `explore` answers against curated questions; `benchmark` runs the four-way retrieval and ingest-cost comparison against CodeGraph, a base-system `grep` baseline and ripgrep, and is the only module that depends on `cli`.
 
 ## Project Configuration
 
