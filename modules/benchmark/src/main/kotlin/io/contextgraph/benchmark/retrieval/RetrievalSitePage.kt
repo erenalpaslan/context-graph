@@ -409,21 +409,6 @@ object RetrievalSitePage {
 
     // ------------------------------------------------------------ formatting
 
-    /**
-     * The [SideAggregate] a [RetrievalSide] names, `null` where that side is not in the run at all.
-     *
-     * A local copy of the `when` [RetrievalReportGenerator] keeps privately for the same purpose.
-     * Sharing one would be better and is deliberately not done here: that generator's rendering is
-     * pinned byte-for-byte to the published report, and reaching into it to hoist a helper is a
-     * change to a file this work has no reason to touch.
-     */
-    private fun RetrievalAggregate.sideAggregate(side: RetrievalSide): SideAggregate? = when (side) {
-        RetrievalSide.CONTEXT_GRAPH -> contextGraph
-        RetrievalSide.CODE_GRAPH -> codeGraph
-        RetrievalSide.BASH -> bash
-        RetrievalSide.RIPGREP -> ripgrep
-    }
-
     /** `n/a` for an absent figure, never `0.0%` -- an unknown must not read as a result. */
     private fun fmtPercent(value: Double?): String =
         if (value == null) "n/a" else String.format(Locale.ROOT, "%.1f%%", value * 100.0)

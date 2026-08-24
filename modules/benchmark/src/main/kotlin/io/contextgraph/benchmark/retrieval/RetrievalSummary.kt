@@ -88,3 +88,20 @@ data class RetrievalSummary(
     val byCategory: Map<QuestionCategory, RetrievalAggregate>,
     val byRepo: Map<String, RetrievalAggregate>
 )
+
+/**
+ * One side's aggregate, reached from the side rather than through a `when` at each call site -- the
+ * single place that knows which field of a [RetrievalAggregate] a [RetrievalSide] names. `null`
+ * means that side was not in the run at all and is never a zeroed stand-in, which
+ * [RetrievalAggregate.codeGraph] and [RetrievalAggregate.bash] explain is a different claim.
+ *
+ * It lives beside the type, not inside a generator, because both [RetrievalReportGenerator] and
+ * [RetrievalSitePage] need exactly this mapping and neither owns it. The same shape and the same
+ * reason as [sideResult], which does this for one question rather than for a group.
+ */
+internal fun RetrievalAggregate.sideAggregate(side: RetrievalSide): SideAggregate? = when (side) {
+    RetrievalSide.CONTEXT_GRAPH -> contextGraph
+    RetrievalSide.CODE_GRAPH -> codeGraph
+    RetrievalSide.BASH -> bash
+    RetrievalSide.RIPGREP -> ripgrep
+}

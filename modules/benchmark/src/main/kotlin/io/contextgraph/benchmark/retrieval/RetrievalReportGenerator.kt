@@ -1232,14 +1232,6 @@ object RetrievalReportGenerator {
         return if (sorted.size % 2 == 1) sorted[mid].toDouble() else (sorted[mid - 1] + sorted[mid]) / 2.0
     }
 
-    /** One side's aggregate, or null when that side was not in the run at all (never a zeroed stand-in). */
-    private fun RetrievalAggregate.sideAggregate(side: RetrievalSide): SideAggregate? = when (side) {
-        RetrievalSide.CONTEXT_GRAPH -> contextGraph
-        RetrievalSide.CODE_GRAPH -> codeGraph
-        RetrievalSide.BASH -> bash
-        RetrievalSide.RIPGREP -> ripgrep
-    }
-
     // -------------------------------------------------------------- headline
 
     private fun StringBuilder.renderHeadline(run: RetrievalRun) {
