@@ -480,6 +480,19 @@ class RetrievalReportGeneratorTest : FunSpec({
         subsection.contains("that is the finding, not a footnote to one") shouldBe false
     }
 
+    test("a reciprocal-rank divergence inside k is never described as far beyond every k") {
+        // H4: `fourWayRun`'s gin-q8 already has bash finding the gold file at rank 1 and ripgrep
+        // at rank 2 -- both well inside k=5 -- while also scoring differently on precision@5 and
+        // recall@5, so it lands in the `cappedDivergent.isNotEmpty()` branch this pins. Before the
+        // fix, the shallowest-rank sentence claimed "far beyond every `k` measured here" for a
+        // rank that is the shallowest one possible.
+        val subsection = baselineSubsection(RetrievalReportGenerator.generate(fourWayRun()))
+
+        subsection shouldContain "where the first gold-cited file sits at rank 1 -- inside every " +
+            "`k` measured here, not beyond it."
+        subsection.contains("far beyond every `k` measured here") shouldBe false
+    }
+
     test("the agreement is reported as a finding, and the fairness invariant it discharges") {
         val subsection = baselineSubsection(RetrievalReportGenerator.generate(tailDivergenceRun()))
 

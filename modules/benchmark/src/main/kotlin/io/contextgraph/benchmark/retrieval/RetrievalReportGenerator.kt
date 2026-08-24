@@ -878,8 +878,20 @@ object RetrievalReportGenerator {
                     "one place a tail difference could still show -- is identical on both sides too."
             )
         } else {
-            val depth = shallowest?.let { "rank $it or deeper, far beyond every `k` measured here" }
-                ?: "a depth this document cannot state, because neither side found a gold file there"
+            // Gated on the prefix, not assumed: `rankDivergent` is a different check from
+            // `cappedDivergent` (reciprocal rank versus precision@k/recall@k), so a pair can land
+            // here with its first gold hit sitting well inside `k` -- reachable whenever the
+            // `cappedDivergent.isNotEmpty()` branch above already fired, since that means a gold
+            // position moved somewhere the metrics could see it, i.e. inside the scored ranks.
+            // "Far beyond every k measured here" must not be printed about a rank that isn't.
+            val depth = when {
+                shallowest == null ->
+                    "a depth this document cannot state, because neither side found a gold file there"
+                shallowest > prefix ->
+                    "rank $shallowest or deeper, far beyond every `k` measured here"
+                else ->
+                    "rank $shallowest -- inside every `k` measured here, not beyond it"
+            }
             val survival = if (aggregatesAgree) {
                 "They are carried into the pooled MRR and are the only thing that is -- and not " +
                     "one of them survives rounding to the precision the tables print, which is why " +
