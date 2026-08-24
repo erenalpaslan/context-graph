@@ -11,7 +11,7 @@ Four sides are compared, and they are named this way everywhere below:
 | **ContextGraph (this project)** | this repository's own graph, queried in-process through `QueryEngine.buildContext` | the raw question text |
 | **CodeGraph (third-party)** | `@colbymchenry/codegraph` v1.5.0, driven as a CLI via `codegraph explore` | the raw question text |
 | **bash (base-system shell only)** | `grep` from the stock base system, over a clean, never-indexed checkout — **no third-party tools** are installed, invoked or assumed anywhere in this side | the same derived tokens the ripgrep side is given |
-| **ripgrep (baseline)** | plain `rg` over a clean, never-indexed checkout | tokens derived from the raw question text by `RipgrepQueryDeriver` |
+| **ripgrep (third-party)** | plain `rg` over a clean, never-indexed checkout | tokens derived from the raw question text by `RipgrepQueryDeriver` |
 
 **The two graph tools' names differ by two letters, so they are never written bare in a table header, a column label, or a verdict.** "ContextGraph" is this project; "CodeGraph" is the third-party tool being compared against it. A result favouring CodeGraph is a legitimate outcome of this measurement, not an error in it.
 
@@ -57,7 +57,7 @@ Two parsing decisions were made here, and both move the numbers, so both are sta
 1. **The ranked files are the ones CodeGraph rendered source for** -- its `Source Code` section, in emission order. Those are the files its own header counts ("Found N symbols across M files") and the ones its output tells an agent to treat as already read. The paths named in the preceding **blast-radius** section are *not* counted: they are annotations about impact on those same symbols. On a representative real response that is 4 ranked files against 7 further paths mentioned only in blast radius, so counting them would raise CodeGraph's recall and lower its precision.
 2. **The `### ⚠️ Low-confidence match` sentinel neither truncates the list nor adds to it.** Files above it stay ranked. The section itself contains no file paths at all -- only advisory prose and *directory* hints -- and in v1.5.0 `codegraph explore` cannot emit it in the first place (only its `ContextBuilder` path does, which the CLI does not reach). The parser handles it defensively so a future version routing `explore` through that builder cannot silently truncate a ranked list.
 
-**ripgrep (baseline) side**: `rg -F -w --count -e <token1> -e <token2> ...` against the WITHOUT (clean, never-indexed) working copy. The tokens are never the raw question sentence -- `RipgrepQueryDeriver` is the single place that derives them, extracting quoted spans, identifier-shaped words (camelCase, `snake_case`, dotted symbols, file-like tokens), and bare numeric literals from the question text, exactly what a human reading the question and reaching for `rg` would notice and search for. Files are ranked by matching-line count, descending. A question with no derivable tokens (a purely conceptual question naming no symbol, file, or constant) yields an empty ripgrep result -- reported as such, not padded.
+**ripgrep (third-party) side**: `rg -F -w --count -e <token1> -e <token2> ...` against the WITHOUT (clean, never-indexed) working copy. The tokens are never the raw question sentence -- `RipgrepQueryDeriver` is the single place that derives them, extracting quoted spans, identifier-shaped words (camelCase, `snake_case`, dotted symbols, file-like tokens), and bare numeric literals from the question text, exactly what a human reading the question and reaching for `rg` would notice and search for. Files are ranked by matching-line count, descending. A question with no derivable tokens (a purely conceptual question naming no symbol, file, or constant) yields an empty ripgrep result -- reported as such, not padded.
 
 **bash (base-system shell only) side**: `grep -r -F -w -I -s --exclude-dir=.git -c -e <token> [-e <token> …] .` against the same WITHOUT (clean, never-indexed) working copy the ripgrep side reads, given the same tokens from the same `RipgrepQueryDeriver`, ranked by the same rule (matching-line count descending, ties alphabetical). The two text-search sides therefore differ in the binary and in nothing else, which is what makes the gap between them attributable to `rg`'s engineering rather than to the query. `grep` is invoked at its base-system path, not resolved through `PATH`, so a developer's Homebrew GNU grep cannot quietly become the thing being measured.
 
@@ -77,7 +77,7 @@ There is, deliberately, **no emulation of `rg`'s `.gitignore` awareness** here. 
 
 ### Ingest cost
 
-What it cost to build each tool's index, so query-time results are read next to the price of getting there. Neither text-search side has an ingest step at all: `bash (base-system shell only)` and `ripgrep (baseline)` both search the working tree directly, and pay nothing before the first query. That is exactly why they are the baselines, and it is the number every index-building row below is being compared against.
+What it cost to build each tool's index, so query-time results are read next to the price of getting there. Neither text-search side has an ingest step at all: `bash (base-system shell only)` and `ripgrep (third-party)` both search the working tree directly, and pay nothing before the first query. That is exactly why they are the baselines, and it is the number every index-building row below is being compared against.
 
 | Repo | Tool | Index build time | Index size |
 |---|---|---|---|
@@ -103,19 +103,19 @@ How much of each repo's gold-fact-cited file set each tool's index can answer fo
 | `calcom` | ContextGraph (this project) | 19 / 19 | 100.0% | queried the index, file by file |
 | `calcom` | CodeGraph (third-party) | 9 / 19 | 47.4% | queried the index, file by file |
 | `calcom` | bash (base-system shell only) | 19 / 19 | 100.0% | 100% by construction — reads the working tree directly |
-| `calcom` | ripgrep (baseline) | 19 / 19 | 100.0% | 100% by construction — reads the working tree directly |
+| `calcom` | ripgrep (third-party) | 19 / 19 | 100.0% | 100% by construction — reads the working tree directly |
 | `excalidraw` | ContextGraph (this project) | 21 / 21 | 100.0% | queried the index, file by file |
 | `excalidraw` | CodeGraph (third-party) | 17 / 21 | 81.0% | queried the index, file by file |
 | `excalidraw` | bash (base-system shell only) | 21 / 21 | 100.0% | 100% by construction — reads the working tree directly |
-| `excalidraw` | ripgrep (baseline) | 21 / 21 | 100.0% | 100% by construction — reads the working tree directly |
+| `excalidraw` | ripgrep (third-party) | 21 / 21 | 100.0% | 100% by construction — reads the working tree directly |
 | `gin` | ContextGraph (this project) | 10 / 10 | 100.0% | queried the index, file by file |
 | `gin` | CodeGraph (third-party) | 10 / 10 | 100.0% | queried the index, file by file |
 | `gin` | bash (base-system shell only) | 10 / 10 | 100.0% | 100% by construction — reads the working tree directly |
-| `gin` | ripgrep (baseline) | 10 / 10 | 100.0% | 100% by construction — reads the working tree directly |
+| `gin` | ripgrep (third-party) | 10 / 10 | 100.0% | 100% by construction — reads the working tree directly |
 | `keycloak` | ContextGraph (this project) | 26 / 26 | 100.0% | queried the index, file by file |
 | `keycloak` | CodeGraph (third-party) | 22 / 26 | 84.6% | queried the index, file by file |
 | `keycloak` | bash (base-system shell only) | 26 / 26 | 100.0% | 100% by construction — reads the working tree directly |
-| `keycloak` | ripgrep (baseline) | 26 / 26 | 100.0% | 100% by construction — reads the working tree directly |
+| `keycloak` | ripgrep (third-party) | 26 / 26 | 100.0% | 100% by construction — reads the working tree directly |
 
 ### Skipped
 
@@ -125,11 +125,11 @@ Every side measured every question it was given: across 4 repo(s) and 33 questio
 
 ### The two text-search columns
 
-**Read this before the tables: every figure below is the same for bash (base-system shell only) and for ripgrep (baseline).** All 45 aggregate figure(s) this document computes for the two -- every metric, in every grouping -- come out identical at the precision it prints. Two columns that read alike are what a wiring fault looks like, so the check is published here rather than left for a reader to suspect.
+**Read this before the tables: every figure below is the same for bash (base-system shell only) and for ripgrep (third-party).** All 45 aggregate figure(s) this document computes for the two -- every metric, in every grouping -- come out identical at the precision it prints. Two columns that read alike are what a wiring fault looks like, so the check is published here rather than left for a reader to suspect.
 
 **The two are computed independently.** They share exactly one thing, on purpose: `RipgrepQueryDeriver` derives the query tokens once and both sides are handed the same list, which is what makes the pair comparable at all. Below that they have nothing in common -- `BashBaselineRunner` spawns the base-system `grep` through `BashProcess` at an absolute path, `RipgrepBaselineRunner` spawns `rg` through `RipgrepProcess`, each parses its own binary's output, and each ranked list is recorded in its own field of the result document. Neither ever reads the other's answer.
 
-**They did not, however, return the same thing.** 12 of 33 question(s) produce ranked lists that are not equal, which is the check that these are two measurements rather than one printed twice. What they share is the part the metrics can see: 30 of 33 have an identical first-10 prefix, and the 3 that do not are `calcom-q3`, `calcom-q5`, `keycloak-q6`. The bash (base-system shell only) side never returns fewer files than the ripgrep (baseline) side, and at most 29 more.
+**They did not, however, return the same thing.** 12 of 33 question(s) produce ranked lists that are not equal, which is the check that these are two measurements rather than one printed twice. What they share is the part the metrics can see: 30 of 33 have an identical first-10 prefix, and the 3 that do not are `calcom-q3`, `calcom-q5`, `keycloak-q6`. The bash (base-system shell only) side never returns fewer files than the ripgrep (third-party) side, and at most 29 more.
 
 **Why they differ at all -- two causes, not one:**
 
@@ -153,13 +153,13 @@ Over the 29 headline question(s), which is the pool the headline table below is 
 | ContextGraph (this project) | 11 | 35 | 2 of 29 | 6 of 29 |
 | CodeGraph (third-party) | 4 | 8 | 20 of 29 | 0 of 29 |
 | bash (base-system shell only) | 72 | 992 | 6 of 29 | 6 of 29 |
-| ripgrep (baseline) | 64 | 988 | 6 of 29 | 6 of 29 |
+| ripgrep (third-party) | 64 | 988 | 6 of 29 | 6 of 29 |
 
 **The shortest lists are CodeGraph (third-party)'s** -- a median of 4 against bash (base-system shell only)'s 72, and 20 of its 29 question(s) return 5 file(s) or fewer. A list that length caps precision@10 at 40.0% before retrieval quality is considered at all.
 
 **One consequence sits in the headline table and looks like something it is not.** recall@5 and recall@10 read the same figure for CodeGraph (third-party) (28.0%). That is not the ranked list running out before rank 10: not one question in this pool places a gold-cited file at ranks 6-10 for that side at all, so raising `k` finds nothing that was not already found. precision@10 is precision@5 scaled by exactly 5/10 for the same reason -- the same hit count over a `k` that is larger -- which makes those two rows arithmetic rather than a second measurement.
 
-The sides whose recall does move between those two rows are the ones that put gold-cited files in that band: ContextGraph (this project) on 6 of 29, bash (base-system shell only) on 6 of 29, ripgrep (baseline) on 6 of 29.
+The sides whose recall does move between those two rows are the ones that put gold-cited files in that band: ContextGraph (this project) on 6 of 29, bash (base-system shell only) on 6 of 29, ripgrep (third-party) on 6 of 29.
 
 **And here is the half that stops the paragraph above from being an excuse.** A short list caps precision@10, so the question a reader needs answered is how much of the measured spread that cap accounts for -- and it is computable exactly. For one question the cap is the smallest of (files returned, 10, gold-cited files), over 10: the score that side would have got if every file it returned had been a gold one. Averaged over the pool, it is the highest precision@10 its own lists left available to it.
 
@@ -168,7 +168,7 @@ The sides whose recall does move between those two rows are the ones that put go
 | ContextGraph (this project) | 29.7% | 12.4% | 41.9% |
 | CodeGraph (third-party) | 26.6% | 6.2% | 23.4% |
 | bash (base-system shell only) | 25.5% | 8.3% | 32.4% |
-| ripgrep (baseline) | 25.5% | 8.3% | 32.4% |
+| ripgrep (third-party) | 25.5% | 8.3% | 32.4% |
 
 The ceilings span 4.2 percentage points, from 25.5% to 29.7%; the measured figures span 6.2 percentage points, from 6.2% to 12.4%. **Scoring each side against its own ceiling, rather than against a flat k=10, leaves them in the same order.** The side with the shortest lists is also the one furthest below what those lists allowed -- 23.4% of its own ceiling, the lowest share of any side here. List length therefore explains part of the spread and not the result: the asymmetry above is real, is published, and does not account for the difference the tables show.
 
@@ -176,9 +176,9 @@ The ceilings span 4.2 percentage points, from 25.5% to 29.7%; the measured figur
 
 Negative-control questions are excluded here on purpose (AC-26) -- see "Negative Controls" below.
 
-n=29 question(s). Measured: ContextGraph (this project) 29/29; CodeGraph (third-party) 29/29; bash (base-system shell only) 29/29; ripgrep (baseline) 29/29. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=29 question(s). Measured: ContextGraph (this project) 29/29; CodeGraph (third-party) 29/29; bash (base-system shell only) 29/29; ripgrep (third-party) 29/29. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 20.0% | 12.4% | 11.0% | 11.0% |
 | precision@10 | 12.4% | 6.2% | 8.3% | 8.3% |
@@ -194,17 +194,17 @@ _Each figure below is this pool sliced by repo -- the same questions, the same m
 |---|---|---|
 | `precision@5` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 34.3% against 31.4% for ContextGraph (this project) |
 | `precision@10` | ContextGraph (this project) | _leads on every repo measured_ |
-| `recall@5` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 81.0% against 72.6% for ContextGraph (this project); `keycloak` -- bash (base-system shell only), ripgrep (baseline) lead there, 28.6% against 12.1% for ContextGraph (this project) |
-| `recall@10` | ContextGraph (this project) | `keycloak` -- bash (base-system shell only), ripgrep (baseline) lead there, 38.1% against 19.8% for ContextGraph (this project) |
+| `recall@5` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 81.0% against 72.6% for ContextGraph (this project); `keycloak` -- bash (base-system shell only), ripgrep (third-party) lead there, 28.6% against 12.1% for ContextGraph (this project) |
+| `recall@10` | ContextGraph (this project) | `keycloak` -- bash (base-system shell only), ripgrep (third-party) lead there, 38.1% against 19.8% for ContextGraph (this project) |
 | `MRR` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 0.857 against 0.714 for ContextGraph (this project) |
 
 ### By Category
 
 #### GRAPH_HEAVY
 
-n=20 question(s). Measured: ContextGraph (this project) 20/20; CodeGraph (third-party) 20/20; bash (base-system shell only) 20/20; ripgrep (baseline) 20/20. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=20 question(s). Measured: ContextGraph (this project) 20/20; CodeGraph (third-party) 20/20; bash (base-system shell only) 20/20; ripgrep (third-party) 20/20. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 20.0% | 14.0% | 12.0% | 12.0% |
 | precision@10 | 13.0% | 7.0% | 10.0% | 10.0% |
@@ -214,9 +214,9 @@ n=20 question(s). Measured: ContextGraph (this project) 20/20; CodeGraph (third-
 
 #### NEUTRAL
 
-n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-party) 9/9; bash (base-system shell only) 9/9; ripgrep (baseline) 9/9. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-party) 9/9; bash (base-system shell only) 9/9; ripgrep (third-party) 9/9. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 20.0% | 8.9% | 8.9% | 8.9% |
 | precision@10 | 11.1% | 4.4% | 4.4% | 4.4% |
@@ -226,9 +226,9 @@ n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-par
 
 #### NEGATIVE_CONTROL
 
-n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-party) 4/4; bash (base-system shell only) 4/4; ripgrep (baseline) 4/4. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-party) 4/4; bash (base-system shell only) 4/4; ripgrep (third-party) 4/4. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 10.0% | 10.0% | 5.0% | 5.0% |
 | precision@10 | 5.0% | 5.0% | 5.0% | 5.0% |
@@ -240,9 +240,9 @@ n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-par
 
 #### `calcom`
 
-n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (baseline) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (third-party) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 12.5% | 2.5% | 5.0% | 5.0% |
 | precision@10 | 6.3% | 1.3% | 3.8% | 3.8% |
@@ -252,9 +252,9 @@ n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-par
 
 #### `excalidraw`
 
-n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-party) 9/9; bash (base-system shell only) 9/9; ripgrep (baseline) 9/9. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-party) 9/9; bash (base-system shell only) 9/9; ripgrep (third-party) 9/9. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 22.2% | 8.9% | 4.4% | 4.4% |
 | precision@10 | 12.2% | 4.4% | 2.2% | 2.2% |
@@ -264,9 +264,9 @@ n=9 question(s). Measured: ContextGraph (this project) 9/9; CodeGraph (third-par
 
 #### `gin`
 
-n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (baseline) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (third-party) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 30.0% | 32.5% | 22.5% | 22.5% |
 | precision@10 | 20.0% | 16.3% | 17.5% | 17.5% |
@@ -276,9 +276,9 @@ n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-par
 
 #### `keycloak`
 
-n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (baseline) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-party) 8/8; bash (base-system shell only) 8/8; ripgrep (third-party) 8/8. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 10.0% | 5.0% | 10.0% | 10.0% |
 | precision@10 | 7.5% | 2.5% | 8.8% | 8.8% |
@@ -300,14 +300,14 @@ Rows are ordered by question id, never by score. A table like this makes every q
 
 #### `calcom` — 8 question(s)
 
-| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |
 |---|---|---|---|---|---|---|---|
-| calcom-q1 | GRAPH_HEAVY | 4 | 0.000 (not found) | 0.000 (not found) | 0.040 (rank 25) | 0.040 (rank 25) | bash (base-system shell only), ripgrep (baseline) tie at rank 25 |
+| calcom-q1 | GRAPH_HEAVY | 4 | 0.000 (not found) | 0.000 (not found) | 0.040 (rank 25) | 0.040 (rank 25) | bash (base-system shell only), ripgrep (third-party) tie at rank 25 |
 | calcom-q2 | GRAPH_HEAVY | 4 | 0.250 (rank 4) | 0.000 (not found) | 0.005 (rank 199) | 0.005 (rank 193) | ContextGraph (this project) leads |
 | calcom-q3 | GRAPH_HEAVY | 4 | 0.200 (rank 5) | 1.000 (rank 1) | 0.007 (rank 145) | 0.007 (rank 140) | CodeGraph (third-party) leads |
-| calcom-q4 | GRAPH_HEAVY | 5 | 0.000 (not found) | 0.000 (not found) | 0.500 (rank 2) | 0.500 (rank 2) | bash (base-system shell only), ripgrep (baseline) tie at rank 2 |
-| calcom-q5 | GRAPH_HEAVY | 5 | 0.500 (rank 2) | 0.000 (not found) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), bash (base-system shell only), ripgrep (baseline) tie at rank 2 |
-| calcom-q6 | NEUTRAL | 1 | 0.000 (not found) | 0.000 (not found) | 0.091 (rank 11) | 0.091 (rank 11) | bash (base-system shell only), ripgrep (baseline) tie at rank 11 |
+| calcom-q4 | GRAPH_HEAVY | 5 | 0.000 (not found) | 0.000 (not found) | 0.500 (rank 2) | 0.500 (rank 2) | bash (base-system shell only), ripgrep (third-party) tie at rank 2 |
+| calcom-q5 | GRAPH_HEAVY | 5 | 0.500 (rank 2) | 0.000 (not found) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), bash (base-system shell only), ripgrep (third-party) tie at rank 2 |
+| calcom-q6 | NEUTRAL | 1 | 0.000 (not found) | 0.000 (not found) | 0.091 (rank 11) | 0.091 (rank 11) | bash (base-system shell only), ripgrep (third-party) tie at rank 11 |
 | calcom-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 0.000 (not found) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |
 | calcom-q8 | NEGATIVE_CONTROL | 1 | 1.000 (rank 1) | 0.000 (not found) | 0.071 (rank 14) | 0.071 (rank 14) | ContextGraph (this project) leads |
 
@@ -324,12 +324,12 @@ Expected files -- the gold-fact-derived set each row above was scored against:
 
 #### `excalidraw` — 9 question(s)
 
-| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |
 |---|---|---|---|---|---|---|---|
 | excalidraw-q1 | GRAPH_HEAVY | 2 | 0.500 (rank 2) | 0.000 (not found) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |
 | excalidraw-q2 | GRAPH_HEAVY | 2 | 0.000 (not found) | 0.200 (rank 5) | 0.000 (not found) | 0.000 (not found) | CodeGraph (third-party) leads |
 | excalidraw-q3 | GRAPH_HEAVY | 4 | 1.000 (rank 1) | 0.500 (rank 2) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project) leads |
-| excalidraw-q4 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 0.000 (not found) | 1.000 (rank 1) | 1.000 (rank 1) | ContextGraph (this project), bash (base-system shell only), ripgrep (baseline) tie at rank 1 |
+| excalidraw-q4 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 0.000 (not found) | 1.000 (rank 1) | 1.000 (rank 1) | ContextGraph (this project), bash (base-system shell only), ripgrep (third-party) tie at rank 1 |
 | excalidraw-q5 | GRAPH_HEAVY | 4 | 1.000 (rank 1) | 1.000 (rank 1) | 0.000 (not found) | 0.000 (not found) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
 | excalidraw-q6 | NEUTRAL | 4 | 0.500 (rank 2) | 0.000 (not found) | 0.022 (rank 46) | 0.022 (rank 46) | ContextGraph (this project) leads |
 | excalidraw-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 0.000 (not found) | 0.038 (rank 26) | 0.038 (rank 26) | ContextGraph (this project) leads |
@@ -350,7 +350,7 @@ Expected files -- the gold-fact-derived set each row above was scored against:
 
 #### `gin` — 8 question(s)
 
-| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |
 |---|---|---|---|---|---|---|---|
 | gin-q1 | GRAPH_HEAVY | 3 | 0.500 (rank 2) | 1.000 (rank 1) | 0.250 (rank 4) | 0.250 (rank 4) | CodeGraph (third-party) leads |
 | gin-q2 | GRAPH_HEAVY | 2 | 0.500 (rank 2) | 1.000 (rank 1) | 0.333 (rank 3) | 0.333 (rank 3) | CodeGraph (third-party) leads |
@@ -359,7 +359,7 @@ Expected files -- the gold-fact-derived set each row above was scored against:
 | gin-q5 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 1.000 (rank 1) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
 | gin-q6 | NEUTRAL | 1 | 0.500 (rank 2) | 1.000 (rank 1) | 0.200 (rank 5) | 0.200 (rank 5) | CodeGraph (third-party) leads |
 | gin-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 1.000 (rank 1) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
-| gin-q8 | NEGATIVE_CONTROL | 1 | 0.250 (rank 4) | 0.500 (rank 2) | 0.500 (rank 2) | 0.500 (rank 2) | CodeGraph (third-party), bash (base-system shell only), ripgrep (baseline) tie at rank 2 |
+| gin-q8 | NEGATIVE_CONTROL | 1 | 0.250 (rank 4) | 0.500 (rank 2) | 0.500 (rank 2) | 0.500 (rank 2) | CodeGraph (third-party), bash (base-system shell only), ripgrep (third-party) tie at rank 2 |
 
 Expected files -- the gold-fact-derived set each row above was scored against:
 
@@ -374,15 +374,15 @@ Expected files -- the gold-fact-derived set each row above was scored against:
 
 #### `keycloak` — 8 question(s)
 
-| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+| Question | Category | Gold files | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |
 |---|---|---|---|---|---|---|---|
 | keycloak-q1 | GRAPH_HEAVY | 5 | 0.500 (rank 2) | 0.000 (not found) | 0.007 (rank 134) | 0.008 (rank 131) | ContextGraph (this project) leads |
-| keycloak-q2 | GRAPH_HEAVY | 3 | 0.000 (not found) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | bash (base-system shell only), ripgrep (baseline) tie at rank 5 |
+| keycloak-q2 | GRAPH_HEAVY | 3 | 0.000 (not found) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | bash (base-system shell only), ripgrep (third-party) tie at rank 5 |
 | keycloak-q3 | NEUTRAL | 5 | 1.000 (rank 1) | 0.250 (rank 4) | 0.012 (rank 81) | 0.013 (rank 80) | ContextGraph (this project) leads |
 | keycloak-q4 | GRAPH_HEAVY | 4 | 0.500 (rank 2) | 0.000 (not found) | 0.029 (rank 34) | 0.029 (rank 34) | ContextGraph (this project) leads |
-| keycloak-q5 | GRAPH_HEAVY | 3 | 0.111 (rank 9) | 0.000 (not found) | 0.167 (rank 6) | 0.167 (rank 6) | bash (base-system shell only), ripgrep (baseline) tie at rank 6 |
-| keycloak-q6 | NEUTRAL | 1 | 0.000 (not found) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | bash (base-system shell only), ripgrep (baseline) tie at rank 5 |
-| keycloak-q7 | GRAPH_HEAVY | 3 | 0.000 (not found) | 0.000 (not found) | 1.000 (rank 1) | 1.000 (rank 1) | bash (base-system shell only), ripgrep (baseline) tie at rank 1 |
+| keycloak-q5 | GRAPH_HEAVY | 3 | 0.111 (rank 9) | 0.000 (not found) | 0.167 (rank 6) | 0.167 (rank 6) | bash (base-system shell only), ripgrep (third-party) tie at rank 6 |
+| keycloak-q6 | NEUTRAL | 1 | 0.000 (not found) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | bash (base-system shell only), ripgrep (third-party) tie at rank 5 |
+| keycloak-q7 | GRAPH_HEAVY | 3 | 0.000 (not found) | 0.000 (not found) | 1.000 (rank 1) | 1.000 (rank 1) | bash (base-system shell only), ripgrep (third-party) tie at rank 1 |
 | keycloak-q8 | NEGATIVE_CONTROL | 2 | 0.000 (not found) | 0.200 (rank 5) | 0.167 (rank 6) | 0.167 (rank 6) | CodeGraph (third-party) leads |
 
 Expected files -- the gold-fact-derived set each row above was scored against:
@@ -400,9 +400,9 @@ Expected files -- the gold-fact-derived set each row above was scored against:
 
 Questions where `grep` is expected to clearly win (AC-5, AC-26). Reported separately from the headline above, including every place ContextGraph loses -- that is this section's entire purpose. With the fourth side present that expectation is now testable against `grep` itself rather than only against a third-party stand-in for it.
 
-n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-party) 4/4; bash (base-system shell only) 4/4; ripgrep (baseline) 4/4. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
+n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-party) 4/4; bash (base-system shell only) 4/4; ripgrep (third-party) 4/4. Where a count is short of n, those questions are listed under "Skipped" — they are excluded from that column's mean, not counted as zero.
 
-| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) |
+| Metric | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) |
 |---|---|---|---|---|
 | precision@5 | 10.0% | 10.0% | 5.0% | 5.0% |
 | precision@10 | 5.0% | 5.0% | 5.0% | 5.0% |
@@ -412,7 +412,7 @@ n=4 question(s). Measured: ContextGraph (this project) 4/4; CodeGraph (third-par
 
 Per-question breakdown (recall@10, higher is better):
 
-| Question | Repo | derived query tokens | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |
+| Question | Repo | derived query tokens | ContextGraph (this project) | CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |
 |---|---|---|---|---|---|---|---|
 | calcom-q8 | calcom | `packages/features/bookings/lib/handleCancelBooking.ts`, `handleCancelBooking.ts`, `handleCancelBooking`, `calendar/payment` | 100.0% | 0.0% | 0.0% | 0.0% | ContextGraph (this project) leads |
 | excalidraw-q8 | excalidraw | `localStorage` | 0.0% | 0.0% | 0.0% | 0.0% | no side found a gold file |

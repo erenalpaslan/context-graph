@@ -31,7 +31,16 @@ enum class RetrievalSide(val label: String) {
      * not allowed to assume.
      */
     BASH("bash (base-system shell only)"),
-    RIPGREP("ripgrep (baseline)");
+
+    /**
+     * A separate install kept as the comparator the earlier runs used. Worded *third-party*
+     * rather than *baseline* on purpose: [BASH] is the honest floor now, and calling both sides
+     * "baseline" would leave a reader unable to tell, from the table alone, which of the two is
+     * meant to be the one nothing beats without an install. "Third-party" says what ripgrep
+     * actually is instead -- matches Spec AC-9's own wording for this side, and is the one fact
+     * about it every published surface needs to agree on.
+     */
+    RIPGREP("ripgrep (third-party)");
 
     companion object {
         /** The side that measures [tool]. Lets a caller holding a [GraphTool] reach the side without a `when`. */

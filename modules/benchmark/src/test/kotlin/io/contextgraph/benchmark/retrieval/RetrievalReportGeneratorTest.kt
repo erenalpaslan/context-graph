@@ -121,11 +121,11 @@ class RetrievalReportGeneratorTest : FunSpec({
         val section = RetrievalReportGenerator.generate(threeWayRun())
 
         section shouldContain "| Metric | ContextGraph (this project) | CodeGraph (third-party) | " +
-            "bash (base-system shell only) | ripgrep (baseline) |"
+            "bash (base-system shell only) | ripgrep (third-party) |"
         section shouldContain "ContextGraph (this project)"
         section shouldContain "CodeGraph (third-party)"
         section shouldContain "bash (base-system shell only) not in this run"
-        section shouldContain "ripgrep (baseline)"
+        section shouldContain "ripgrep (third-party)"
     }
 
     test("neither graph tool is ever named bare in a table header or a verdict") {
@@ -213,7 +213,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         section shouldContain "| **ContextGraph (this project)** |"
         section shouldContain "| **CodeGraph (third-party)** |"
         section shouldContain "| **bash (base-system shell only)** |"
-        section shouldContain "| **ripgrep (baseline)** |"
+        section shouldContain "| **ripgrep (third-party)** |"
         // The fourth side's whole point: no third-party install anywhere in it.
         section shouldContain "no third-party tools"
     }
@@ -225,7 +225,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         metricHeaders.shouldNotBeEmpty()
         metricHeaders.forEach {
             it shouldBe "| Metric | ContextGraph (this project) | CodeGraph (third-party) | " +
-                "bash (base-system shell only) | ripgrep (baseline) |"
+                "bash (base-system shell only) | ripgrep (third-party) |"
         }
         // Headline, GRAPH_HEAVY, NEGATIVE_CONTROL, by-repo `gin`, negative control. NEUTRAL has
         // no questions in this fixture and renders as prose rather than an unfillable table.
@@ -235,7 +235,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         section shouldContain "| `gin` | bash (base-system shell only) |"
         // The per-question negative-control table carries the fourth column too.
         section shouldContain "| Question | Repo | derived query tokens | ContextGraph (this project) | " +
-            "CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |"
+            "CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |"
     }
 
     test("each side's measured count is printed, bash included, so a short denominator is visible") {
@@ -357,10 +357,10 @@ class RetrievalReportGeneratorTest : FunSpec({
         // and 0.500 on `beta`, where both text-search sides beat it. That is precisely the swing
         // a pooled row hides, so it is named: repo, side, and both figures.
         section shouldContain "| `recall@5` | ContextGraph (this project) | `beta` -- " +
-            "bash (base-system shell only), ripgrep (baseline) lead there, 100.0% against 0.0% " +
+            "bash (base-system shell only), ripgrep (third-party) lead there, 100.0% against 0.0% " +
             "for ContextGraph (this project) |"
         section shouldContain "| `MRR` | ContextGraph (this project) | `beta` -- " +
-            "bash (base-system shell only), ripgrep (baseline) lead there, 1.000 against 0.500 " +
+            "bash (base-system shell only), ripgrep (third-party) lead there, 1.000 against 0.500 " +
             "for ContextGraph (this project) |"
     }
 
@@ -415,7 +415,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         // Counted, not asserted: one of the two questions differs, and it differs past rank 5.
         subsection shouldContain "1 of 2 question(s) produce ranked lists that are not equal"
         subsection shouldContain "**every** question's first-5 prefix is identical"
-        subsection shouldContain "never returns fewer files than the ripgrep (baseline) side, and at most 1 more"
+        subsection shouldContain "never returns fewer files than the ripgrep (third-party) side, and at most 1 more"
         // The strongest available conclusion, printed only because the lists support it.
         subsection shouldContain "**All of it lives below the ranks that are scored.**"
         subsection shouldContain "Reciprocal rank -- the one metric here that is *not* capped at `k`"
@@ -580,7 +580,7 @@ class RetrievalReportGeneratorTest : FunSpec({
 
         subsection shouldContain "**Scoring each side against its own ceiling, rather than against " +
             "a flat k=10, reorders them**: CodeGraph (third-party) 100.0%, " +
-            "ContextGraph (this project) 75.0%, ripgrep (baseline) 25.0%."
+            "ContextGraph (this project) 75.0%, ripgrep (third-party) 25.0%."
         subsection shouldContain "neither is presented as the real one"
         subsection.contains("leaves them in the same order") shouldBe false
         subsection.contains("explains part of the spread and not the result") shouldBe false
@@ -678,7 +678,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         val section = RetrievalReportGenerator.generate(pooledLeadRun())
 
         section shouldContain "| Question | Category | Gold files | ContextGraph (this project) | " +
-            "CodeGraph (third-party) | bash (base-system shell only) | ripgrep (baseline) | Verdict |"
+            "CodeGraph (third-party) | bash (base-system shell only) | ripgrep (third-party) | Verdict |"
         // Found at rank 1, found at rank 2, and two sides that ran and found nothing anywhere --
         // three states a single averaged score renders identically.
         section shouldContain "| alpha-q1 | GRAPH_HEAVY | 1 | 1.000 (rank 1) | 0.500 (rank 2) | " +
@@ -691,7 +691,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         val section = RetrievalReportGenerator.generate(threeWayRun())
 
         section shouldContain "| kc-q2 | NEGATIVE_CONTROL | 1 | 0.000 (not found) | n/a | n/a | " +
-            "1.000 (rank 1) | ripgrep (baseline) leads |"
+            "1.000 (rank 1) | ripgrep (third-party) leads |"
     }
 
     test("the expected file set is printed for every question, not only its size") {
@@ -722,7 +722,7 @@ class RetrievalReportGeneratorTest : FunSpec({
         val section = RetrievalReportGenerator.generate(pooledLeadRun())
 
         section shouldContain "| beta-q1 | GRAPH_HEAVY | 1 | 0.500 (rank 2) | 0.500 (rank 2) | " +
-            "1.000 (rank 1) | 1.000 (rank 1) | bash (base-system shell only), ripgrep (baseline) " +
+            "1.000 (rank 1) | 1.000 (rank 1) | bash (base-system shell only), ripgrep (third-party) " +
             "tie at rank 1 |"
     }
 })

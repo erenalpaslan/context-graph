@@ -168,7 +168,7 @@ class RetrievalSchemaV2Test : FunSpec({
         // table -- or a table pasted alone into another document -- actually disambiguates on.
         RetrievalSide.CONTEXT_GRAPH.label shouldBe "ContextGraph (this project)"
         RetrievalSide.CODE_GRAPH.label shouldBe "CodeGraph (third-party)"
-        RetrievalSide.RIPGREP.label shouldBe "ripgrep (baseline)"
+        RetrievalSide.RIPGREP.label shouldBe "ripgrep (third-party)"
         RetrievalSide.entries.forEach { (it.label.contains("(") && it.label.contains(")")) shouldBe true }
     }
 })
