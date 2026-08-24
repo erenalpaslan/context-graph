@@ -8,6 +8,14 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.datetime.Instant
 
+/**
+ * The two-sided run the earliest assertions here were written against: no CodeGraph side and no bash
+ * side, so the report has to render both as absent rather than as zero.
+ *
+ * Neither question encodes a win for this project. `gin-q1` scores the two present sides identically;
+ * `gin-q8` is a negative control, where the graph side finding nothing and text search finding
+ * everything is the category doing exactly what it was defined to do.
+ */
 private fun fixtureRun(): RetrievalRun {
     val results = listOf(
         RetrievalRunResult(
@@ -492,6 +500,92 @@ class RetrievalReportGeneratorTest : FunSpec({
         section.contains("### The two text-search columns") shouldBe false
     }
 
+    // ---------------- how long each side's ranked list is, and what that alone allows
+
+    test("the ranked-list shapes are published per side, every figure read off the run's own lists") {
+        val subsection = listLengthSubsection(RetrievalReportGenerator.generate(listLengthRun()))
+
+        subsection shouldContain "| Side | Median files returned | Longest | Returned 5 files or fewer | " +
+            "Gold-cited file at ranks 6-10 |"
+        subsection shouldContain "| ContextGraph (this project) | 8 | 12 | 0 of 3 | 1 of 3 |"
+        subsection shouldContain "| CodeGraph (third-party) | 3 | 4 | 3 of 3 | 0 of 3 |"
+        subsection shouldContain "| bash (base-system shell only) | 14 | 20 | 1 of 3 | 1 of 3 |"
+        // The shortest side is identified by comparing medians, not by being named in the source.
+        subsection shouldContain "**The shortest lists are CodeGraph (third-party)'s** -- a median of 3 " +
+            "against bash (base-system shell only)'s 14"
+        subsection shouldContain "caps precision@10 at 30.0% before retrieval quality is considered at all"
+    }
+
+    test("a side whose recall does not move between the two k values is told apart from a truncated one") {
+        // The two look identical in the table and mean opposite things: "its list ran out" versus
+        // "there was nothing further down to find". The ranked lists are asked directly, so only
+        // the side that genuinely has no gold file in the band is named.
+        val subsection = listLengthSubsection(RetrievalReportGenerator.generate(listLengthRun()))
+
+        subsection shouldContain "recall@5 and recall@10 read the same figure for CodeGraph (third-party) (50.0%)"
+        subsection shouldContain "not one question in this pool places a gold-cited file at ranks 6-10 for that side"
+        subsection shouldContain "precision@10 is precision@5 scaled by exactly 5/10"
+        // ...and the sides that do put gold files in that band are named as the ones whose recall moves.
+        subsection shouldContain "ContextGraph (this project) on 1 of 3, bash (base-system shell only) on 1 of 3"
+    }
+
+    test("the ceiling half ships with the length half, and never after the tables it qualifies") {
+        // The disclosure alone reads as an excuse manufactured on some side's behalf; the ceiling
+        // alone answers a question nobody was asked. Neither is honest without the other, so the
+        // one thing worth pinning is that they cannot come apart.
+        val section = RetrievalReportGenerator.generate(listLengthRun())
+        val subsection = listLengthSubsection(section)
+
+        val lengths = subsection.indexOf("| Side | Median files returned |")
+        val ceiling = subsection.indexOf("| Side | Highest precision@10 its lists allowed |")
+        (lengths >= 0) shouldBe true
+        (ceiling > lengths) shouldBe true
+        (section.indexOf("### How long each side's ranked list is") < section.indexOf("### Headline")) shouldBe true
+    }
+
+    test("each side's own ceiling is published beside what it actually scored") {
+        val subsection = listLengthSubsection(RetrievalReportGenerator.generate(listLengthRun()))
+
+        subsection shouldContain "| ContextGraph (this project) | 13.3% | 10.0% | 75.0% |"
+        subsection shouldContain "| CodeGraph (third-party) | 13.3% | 6.7% | 50.0% |"
+        subsection shouldContain "| bash (base-system shell only) | 13.3% | 6.7% | 50.0% |"
+        // Spans are computed from the values as printed, so subtracting the figures above gives
+        // the same answer the sentence does.
+        subsection shouldContain "The ceilings span 0.0 percentage points, from 13.3% to 13.3%; " +
+            "the measured figures span 3.3 percentage points, from 6.7% to 10.0%"
+        subsection shouldContain "**Scoring each side against its own ceiling, rather than against " +
+            "a flat k=10, leaves them in the same order.**"
+        subsection shouldContain "50.0% of its own ceiling, the lowest share of any side here"
+        subsection shouldContain "explains part of the spread and not the result"
+    }
+
+    test("a run where normalising by the ceiling reorders the sides prints the reordering instead") {
+        // The conclusion is gated on the data, not on which side it flatters: here this project's
+        // side leads the measured row and is beaten once each side is scored against what its own
+        // lists allowed, and the same generator says so.
+        val subsection = listLengthSubsection(RetrievalReportGenerator.generate(ceilingReorderRun()))
+
+        subsection shouldContain "**Scoring each side against its own ceiling, rather than against " +
+            "a flat k=10, reorders them**: CodeGraph (third-party) 100.0%, " +
+            "ContextGraph (this project) 75.0%, ripgrep (baseline) 25.0%."
+        subsection shouldContain "neither is presented as the real one"
+        subsection.contains("leaves them in the same order") shouldBe false
+        subsection.contains("explains part of the spread and not the result") shouldBe false
+    }
+
+    test("neither graph tool is named bare anywhere in the length subsection either") {
+        val offending = listOf(listLengthRun(), ceilingReorderRun())
+            .map { RetrievalReportGenerator.generate(it) }
+            .flatMap { listLengthSubsection(it).lines() }
+            .filter { it.trimStart().startsWith("|") }
+            .filter { line ->
+                Regex("ContextGraph(?! \\(this project\\))").containsMatchIn(line) ||
+                    Regex("CodeGraph(?! \\(third-party\\))").containsMatchIn(line)
+            }
+
+        offending shouldBe emptyList()
+    }
+
     // ------------------------------------------- the "Skipped" section, either way
 
     test("a run that skipped nothing prints the Skipped section anyway, saying so") {
@@ -548,9 +642,162 @@ class RetrievalReportGeneratorTest : FunSpec({
     }
 })
 
-/** Just the subsection reconciling the two text-search columns, so an assertion cannot drift into a neighbour. */
+/**
+ * Just the subsection reconciling the two text-search columns, so an assertion cannot drift into a
+ * neighbour. Bounded by the *next* `###` heading rather than by a named one: a section added
+ * between this one and the headline would otherwise be silently swallowed into every assertion
+ * below, including the `shouldBe false` ones, which fail open.
+ */
 private fun baselineSubsection(section: String): String =
-    section.substringAfter("### The two text-search columns").substringBefore("### Headline")
+    section.substringAfter("### The two text-search columns").substringBefore("\n### ")
+
+/** Just the subsection about ranked-list length and the ceiling it imposes, bounded the same way. */
+private fun listLengthSubsection(section: String): String =
+    section.substringAfter("### How long each side's ranked list is").substringBefore("\n### ")
+
+/** The `k` values the length fixtures use: two of them, so there is a band between them to inspect. */
+private val LENGTH_KS = listOf(5, 10)
+
+/**
+ * One side's measurement, scored from its own ranked list by the **real** metrics rather than by
+ * hand. A fixture whose precision@k was typed in could state a figure its own list contradicts, and
+ * the section under test reads both -- the lists for the shapes, the aggregates for the scores -- so
+ * that contradiction would be invisible in exactly the place it mattered.
+ */
+private fun scoredSide(ranked: List<String>, expected: List<String>): SideResult {
+    val set = expected.toSet()
+    return SideResult(
+        rankedFiles = ranked,
+        precisionAtK = LENGTH_KS.associateWith { RetrievalMetrics.precisionAtK(ranked, set, it) },
+        recallAtK = LENGTH_KS.associateWith { RetrievalMetrics.recallAtK(ranked, set, it) },
+        reciprocalRank = RetrievalMetrics.reciprocalRank(ranked, set)
+    )
+}
+
+/** [count] distinct non-gold paths, so a list's length is stated by the call rather than typed out. */
+private fun filler(tag: String, count: Int): List<String> = (1..count).map { "$tag/Filler$it.kt" }
+
+/**
+ * Four sides returning ranked lists of deliberately different lengths, with one short-list side that
+ * places no gold file between the two `k` values and three that do.
+ *
+ * No side is arranged to win: the short-list side is beaten on precision@10 *and* reaches the
+ * smallest share of its own ceiling, which is the shape the real measurement has and the one the
+ * section's conclusion is gated on. [ceilingReorderRun] is the same generator driven to the opposite
+ * conclusion, where this project's side is the one that loses under normalisation.
+ */
+private fun listLengthRun(): RetrievalRun {
+    fun question(
+        id: String,
+        expected: List<String>,
+        contextGraph: List<String>,
+        codeGraph: List<String>,
+        textSearch: List<String>
+    ) = RetrievalRunResult(
+        questionId = id,
+        repoId = "repo",
+        category = QuestionCategory.GRAPH_HEAVY,
+        expectedFiles = expected,
+        ripgrepQueryTokens = listOf("resolve"),
+        contextGraph = scoredSide(contextGraph, expected),
+        ripgrep = scoredSide(textSearch, expected),
+        codeGraph = scoredSide(codeGraph, expected),
+        bash = scoredSide(textSearch, expected)
+    )
+
+    val results = listOf(
+        question(
+            "q1", listOf("g1", "g2"),
+            contextGraph = listOf("g1") + filler("cgA", 4) + listOf("g2") + filler("cgB", 2),
+            codeGraph = listOf("g1") + filler("cdA", 1),
+            textSearch = filler("tA", 7) + listOf("g2") + filler("tB", 6)
+        ),
+        question(
+            "q2", listOf("h1"),
+            contextGraph = filler("cgC", 2) + listOf("h1") + filler("cgD", 9),
+            codeGraph = filler("cdB", 3),
+            textSearch = filler("tC", 1) + listOf("h1") + filler("tD", 18)
+        ),
+        question(
+            "q3", listOf("k1"),
+            contextGraph = filler("cgE", 6),
+            codeGraph = listOf("k1") + filler("cdC", 3),
+            textSearch = filler("tE", 4)
+        )
+    )
+    return RetrievalRun(
+        runId = "retrieval-list-length-fixture",
+        generatedAt = Instant.parse("2026-08-24T00:00:00Z"),
+        kValues = LENGTH_KS,
+        results = results,
+        summary = RetrievalStats.summarize(results, LENGTH_KS)
+    )
+}
+
+/**
+ * A run where scoring each side against its own ceiling **changes** the order the measured row puts
+ * them in -- and changes it against this project, which leads the measured precision@10 and comes
+ * second once list length is normalised out. The conclusion the section prints is gated on the data
+ * rather than on who it favours, and this is the fixture that proves it is.
+ */
+private fun ceilingReorderRun(): RetrievalRun {
+    fun question(
+        id: String,
+        expected: List<String>,
+        contextGraph: List<String>,
+        codeGraph: List<String>,
+        ripgrep: List<String>
+    ) = RetrievalRunResult(
+        questionId = id,
+        repoId = "repo",
+        category = QuestionCategory.GRAPH_HEAVY,
+        expectedFiles = expected,
+        ripgrepQueryTokens = listOf("resolve"),
+        contextGraph = scoredSide(contextGraph, expected),
+        ripgrep = scoredSide(ripgrep, expected),
+        codeGraph = scoredSide(codeGraph, expected)
+    )
+
+    val results = listOf(
+        question(
+            "q1", listOf("g1", "g2"),
+            contextGraph = listOf("g1", "g2") + filler("rA", 10),
+            codeGraph = listOf("g1"),
+            ripgrep = listOf("g1") + filler("rB", 9)
+        ),
+        question(
+            "q2", listOf("h1", "h2"),
+            contextGraph = listOf("h1") + filler("rC", 11),
+            codeGraph = listOf("h1"),
+            ripgrep = filler("rD", 5)
+        )
+    )
+    return RetrievalRun(
+        runId = "retrieval-ceiling-reorder-fixture",
+        generatedAt = Instant.parse("2026-08-24T00:00:00Z"),
+        kValues = LENGTH_KS,
+        results = results,
+        summary = RetrievalStats.summarize(results, LENGTH_KS)
+    )
+}
+
+/**
+ * The two graph sides for a fixture that is not about either of them: identical, mid-range, and
+ * shared by reference so they cannot drift apart.
+ *
+ * **A test fixture is precisely where a thumb on the scale would hide if there were one**, and a
+ * reader scanning a diff cannot tell filler somebody typed without thinking from the shape an
+ * author wanted to see. The fixtures below that reached for `1.0` on this project's side and `0.0`
+ * on the third party's were the former, and it changed no published number -- but the burden is on
+ * this file to make that distinction unnecessary rather than to ask for the benefit of the doubt.
+ *
+ * So: where a fixture needs the graph columns populated without making any claim about them, it
+ * uses this for both. Neither a perfect score nor a zero, so nothing here can be read as a result;
+ * where a fixture genuinely *is* about an asymmetry between two sides, it says so in a comment and
+ * spells the values out at the point of use.
+ */
+private val NEUTRAL_GRAPH_SIDE =
+    SideResult(listOf("placeholder/One.kt", "placeholder/Two.kt"), mapOf(5 to 0.1), mapOf(5 to 0.5), 0.5)
 
 /**
  * A run whose two text-search sides return different ranked lists that agree on everything the
@@ -612,7 +859,14 @@ private fun textPair(
     SideResult(bashFiles, mapOf(5 to 0.2), mapOf(5 to 1.0), bashReciprocalRank) to
         SideResult(ripgrepFiles, mapOf(5 to 0.2), mapOf(5 to 1.0), ripgrepReciprocalRank)
 
-/** A single-repo run built from [pairs], one question each, for exercising the baseline subsection. */
+/**
+ * A single-repo run built from [pairs], one question each, for exercising the baseline subsection.
+ *
+ * The two graph sides are irrelevant to every assertion these fixtures carry -- that subsection
+ * reads only the two text-search columns -- so both get [NEUTRAL_GRAPH_SIDE] and neither makes a
+ * claim. They used to read `1.0` for this project and `0.0` for the third party, which measured
+ * nothing and looked like everything.
+ */
 private fun baselineRun(
     pairs: List<Pair<SideResult, SideResult>>,
     expectedFiles: List<String> = listOf("a")
@@ -624,9 +878,9 @@ private fun baselineRun(
             category = QuestionCategory.GRAPH_HEAVY,
             expectedFiles = expectedFiles,
             ripgrepQueryTokens = listOf("resolve"),
-            contextGraph = SideResult(listOf("a"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0),
+            contextGraph = NEUTRAL_GRAPH_SIDE,
             ripgrep = ripgrep,
-            codeGraph = SideResult(emptyList(), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0),
+            codeGraph = NEUTRAL_GRAPH_SIDE,
             bash = bash
         )
     }
@@ -645,6 +899,12 @@ private val NO_DECLARATIONS = mapOf("Document" to 847, "Concept" to 206, "CodeFi
 /** The same repo once a grammar exists for its language. */
 private val WITH_DECLARATIONS = mapOf("CodeFile" to 128, "Function" to 412, "Method" to 604, "Class" to 192)
 
+/**
+ * The CodeGraph side here is [NEUTRAL_GRAPH_SIDE] and says nothing: no assertion in this file reads
+ * it, and the fixture it belongs to is about an *extraction* gap on this project's own side (below)
+ * plus a plain-`grep` win on the negative control. It previously returned a non-gold file and
+ * scored zero on everything, which is a loss no test was measuring.
+ */
 private fun fourSidedResult(
     questionId: String,
     repoId: String,
@@ -660,11 +920,19 @@ private fun fourSidedResult(
     ripgrepQueryTokens = listOf("ServeHTTP"),
     contextGraph = contextGraph,
     ripgrep = ripgrep,
-    codeGraph = SideResult(listOf("$repoId/B.go"), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0),
+    codeGraph = NEUTRAL_GRAPH_SIDE,
     bash = bash
 )
 
-/** A run with all four sides measured, and one repo whose indexer parsed none of its language. */
+/**
+ * A run with all four sides measured, and one repo whose indexer parsed none of its language.
+ *
+ * This project's own side scores zero on both questions, deliberately and with a comment because it
+ * is an encoded loss: that is the *point* of the fixture. It is the shape AC-15 exists for -- an
+ * index holding every gold-cited file and not one declaration -- and the report must print it as an
+ * extractor's floor rather than as a retrieval verdict. The bash side outright beats every other
+ * side on the negative control, which is the second thing the fixture is for.
+ */
 private fun fourWayRun(ginExtraction: Map<String, Int>? = NO_DECLARATIONS): RetrievalRun {
     val found = SideResult(listOf("gin/A.go"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0)
     val foundNothing = SideResult(emptyList(), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0)
@@ -723,6 +991,11 @@ private fun reusedIndexRun(): RetrievalRun = fourWayRun().let { run ->
  *
  * `beta-q9` is a negative control, present so the shares are demonstrably computed over the
  * headline pool rather than over every question the run scored.
+ *
+ * The asymmetry between this project's side and the two text-search sides is therefore the fixture's
+ * whole subject and is spelled out above. The CodeGraph side is *not* part of that subject: it takes
+ * [NEUTRAL_GRAPH_SIDE], which is enough to keep it out of every pooled and per-repo lead this file
+ * asserts on without encoding a loss the test never measures.
  */
 private fun pooledLeadRun(): RetrievalRun {
     fun result(
@@ -739,7 +1012,7 @@ private fun pooledLeadRun(): RetrievalRun {
         ripgrepQueryTokens = listOf("resolve"),
         contextGraph = contextGraph,
         ripgrep = textSearch,
-        codeGraph = SideResult(emptyList(), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0),
+        codeGraph = NEUTRAL_GRAPH_SIDE,
         bash = textSearch
     )
 
@@ -763,7 +1036,15 @@ private fun pooledLeadRun(): RetrievalRun {
     )
 }
 
-/** A run with all three sides measured, plus coverage and ingest cost, as a real three-way run has. */
+/**
+ * A run with all three sides measured, plus coverage and ingest cost, as a real three-way run has.
+ *
+ * `kc-q1` scores all three sides identically -- the subject there is that a third column exists and
+ * carries its qualifier, not that anybody wins. `kc-q2` is the one encoded asymmetry, and it is
+ * encoded on *this project's* side: a negative control is by definition a question where plain text
+ * search is expected to beat a graph, so the graph finding nothing there is the category behaving as
+ * designed rather than a fixture leaning either way.
+ */
 private fun threeWayRun(): RetrievalRun {
     val results = listOf(
         RetrievalRunResult(

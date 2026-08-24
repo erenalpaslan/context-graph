@@ -23,9 +23,16 @@ private val foundNothing = SideResult(
     reciprocalRank = 0.0
 )
 
+/**
+ * As in [RetrievalSchemaV2Test]: the four values differ **only so that a side fed from the wrong
+ * field is detectable**, they are identity tags rather than a ranking, and no assertion here depends
+ * on their order. All four sit mid-range -- none at `1.0`, none at `0.0` -- because a fixture that
+ * put this project at a perfect score and a comparator at zero would look like an intended result to
+ * anyone reading the diff, whatever the test was actually about.
+ */
 private fun fourSided(
     id: String,
-    bash: SideResult? = scored(0.2),
+    bash: SideResult? = scored(0.3),
     category: QuestionCategory = QuestionCategory.GRAPH_HEAVY,
     repoId: String = "keycloak"
 ) = RetrievalRunResult(
@@ -34,9 +41,9 @@ private fun fourSided(
     category = category,
     expectedFiles = listOf("src/A.kt"),
     ripgrepQueryTokens = listOf("ServeHTTP"),
-    contextGraph = scored(1.0),
-    ripgrep = scored(0.25),
-    codeGraph = scored(0.5),
+    contextGraph = scored(0.4),
+    ripgrep = scored(0.5),
+    codeGraph = scored(0.6),
     bash = bash
 )
 
@@ -80,7 +87,7 @@ class RetrievalSchemaV3Test : FunSpec({
 
         decoded shouldBe original
         decoded.schemaVersion shouldBe 3
-        decoded.results[0].bash shouldBe scored(0.2)
+        decoded.results[0].bash shouldBe scored(0.3)
         decoded.results[1].bash shouldBe foundNothing
         decoded.results[2].bash shouldBe null
         decoded.summary!!.headline.bash shouldNotBe null

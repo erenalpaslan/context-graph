@@ -142,6 +142,36 @@ Reciprocal rank is the one metric here that is *not* capped at `k`, and it is th
 
 **And that is the finding, not a footnote to one.** At k=5 and k=10 on this corpus, the engineering inside `rg` -- its ignore-file awareness, its parallel walk, its tuned matcher -- buys nothing a stock `grep` does not already reach. The floor a developer gets with **nothing installed** is not lower than the floor `rg` sets, so the margins the two index-building sides show over bash (base-system shell only) below are margins over a baseline that was not starved to produce them. That is the whole reason the fourth side was added. *Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir sayıdır.*
 
+### How long each side's ranked list is
+
+**precision@10 divides by 10, not by however many files a side returned.** `RetrievalMetrics` counts the unfilled slots as misses -- the standard IR definition, applied identically to every side -- so a side that returns fewer than 10 files carries a cap on that row which no amount of retrieval quality can lift. The sides do not return lists of remotely similar length, so that rule does not fall on them equally.
+
+Over the 29 headline question(s), which is the pool the headline table below is computed from:
+
+| Side | Median files returned | Longest | Returned 5 files or fewer | Gold-cited file at ranks 6-10 |
+|---|---|---|---|---|
+| ContextGraph (this project) | 11 | 35 | 2 of 29 | 6 of 29 |
+| CodeGraph (third-party) | 4 | 8 | 20 of 29 | 0 of 29 |
+| bash (base-system shell only) | 72 | 992 | 6 of 29 | 6 of 29 |
+| ripgrep (baseline) | 64 | 988 | 6 of 29 | 6 of 29 |
+
+**The shortest lists are CodeGraph (third-party)'s** -- a median of 4 against bash (base-system shell only)'s 72, and 20 of its 29 question(s) return 5 file(s) or fewer. A list that length caps precision@10 at 40.0% before retrieval quality is considered at all.
+
+**One consequence sits in the headline table and looks like something it is not.** recall@5 and recall@10 read the same figure for CodeGraph (third-party) (28.0%). That is not the ranked list running out before rank 10: not one question in this pool places a gold-cited file at ranks 6-10 for that side at all, so raising `k` finds nothing that was not already found. precision@10 is precision@5 scaled by exactly 5/10 for the same reason -- the same hit count over a `k` that is larger -- which makes those two rows arithmetic rather than a second measurement.
+
+The sides whose recall does move between those two rows are the ones that put gold-cited files in that band: ContextGraph (this project) on 6 of 29, bash (base-system shell only) on 6 of 29, ripgrep (baseline) on 6 of 29.
+
+**And here is the half that stops the paragraph above from being an excuse.** A short list caps precision@10, so the question a reader needs answered is how much of the measured spread that cap accounts for -- and it is computable exactly. For one question the cap is the smallest of (files returned, 10, gold-cited files), over 10: the score that side would have got if every file it returned had been a gold one. Averaged over the pool, it is the highest precision@10 its own lists left available to it.
+
+| Side | Highest precision@10 its lists allowed | Measured precision@10 | Share of its own ceiling reached |
+|---|---|---|---|
+| ContextGraph (this project) | 29.7% | 12.4% | 41.9% |
+| CodeGraph (third-party) | 26.6% | 6.2% | 23.4% |
+| bash (base-system shell only) | 25.5% | 8.3% | 32.4% |
+| ripgrep (baseline) | 25.5% | 8.3% | 32.4% |
+
+The ceilings span 4.2 percentage points, from 25.5% to 29.7%; the measured figures span 6.2 percentage points, from 6.2% to 12.4%. **Scoring each side against its own ceiling, rather than against a flat k=10, leaves them in the same order.** The side with the shortest lists is also the one furthest below what those lists allowed -- 23.4% of its own ceiling, the lowest share of any side here. List length therefore explains part of the spread and not the result: the asymmetry above is real, is published, and does not account for the difference the tables show.
+
 ### Headline (GRAPH_HEAVY + NEUTRAL)
 
 Negative-control questions are excluded here on purpose (AC-26) -- see "Negative Controls" below.

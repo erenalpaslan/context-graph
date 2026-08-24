@@ -33,6 +33,7 @@ object RetrievalReportGenerator {
         renderCoverage(run)
         renderSkipped(run)
         renderBaselineAgreement(run)
+        renderListLengths(run)
         renderHeadline(run)
         renderCategoryBreakdown(run)
         renderRepoBreakdown(run)
@@ -626,12 +627,9 @@ object RetrievalReportGenerator {
 
     /** Each side present in [aggregate], with how many questions it actually measured. */
     private fun measuredCounts(aggregate: RetrievalAggregate): List<Pair<RetrievalSide, Int>> =
-        listOfNotNull(
-            RetrievalSide.CONTEXT_GRAPH to aggregate.contextGraph.measuredCount,
-            aggregate.codeGraph?.let { RetrievalSide.CODE_GRAPH to it.measuredCount },
-            aggregate.bash?.let { RetrievalSide.BASH to it.measuredCount },
-            RetrievalSide.RIPGREP to aggregate.ripgrep.measuredCount
-        )
+        RetrievalSide.entries.mapNotNull { side ->
+            aggregate.sideAggregate(side)?.let { side to it.measuredCount }
+        }
 
     // ------------------------------------------- the two text-search columns
 
@@ -956,6 +954,299 @@ object RetrievalReportGenerator {
             }
     }
 
+    // ------------------------------------------------- ranked-list lengths
+
+    /**
+     * One side's ranked-list shape over the headline pool, and what that shape alone permits.
+     *
+     * [ceiling] is the highest mean precision@k_max this side's own lists left available: for one
+     * question, `min(files returned, k, gold-cited files) / k` -- the score it would have got had
+     * every file it returned been a gold one -- averaged over the questions it measured.
+     */
+    private class LengthProfile(
+        val side: RetrievalSide,
+        val measured: Int,
+        val median: Double,
+        val longest: Int,
+        val shortListCount: Int,
+        val goldInBandCount: Int,
+        val ceiling: Double,
+        val precisionAtFirstK: Double,
+        val precisionAtLastK: Double,
+        val recallAtFirstK: Double,
+        val recallAtLastK: Double
+    ) {
+        /** How much of what its own lists allowed this side actually reached; null if they allowed nothing. */
+        val shareOfCeiling: Double? = if (ceiling > 0.0) precisionAtLastK / ceiling else null
+    }
+
+    /**
+     * How many files each side actually returns, and what that alone permits -- the asymmetry the
+     * headline table's precision rows sit on top of, printed before them rather than left in the
+     * result document for a reader to derive. (The owner of this repository had to derive it by
+     * hand from the JSON, which is the reason this section exists.)
+     *
+     * **The two halves of this section ship together or not at all, and there is deliberately no
+     * early return between them.** The first half discloses that the sides return lists of wildly
+     * different lengths and that precision@k charges a short list for its empty slots. Published
+     * alone, that reads either as an excuse manufactured on some side's behalf or as an admission
+     * that the comparison was rigged, and a reader has no way to tell which. The second half is the
+     * arithmetic that settles it: the ceiling each side's own lists impose, and how far below that
+     * ceiling each one actually landed. Neither half is honest without the other.
+     *
+     * **Every figure and every claim is computed from the run's ranked lists and its own
+     * aggregates** -- no side, repo, count or verdict is written as a literal here, the same
+     * discipline [renderExtractionDisclosure], [renderPooledMeanCaveat] and
+     * [renderBaselineAgreement] are held to. The conclusion in particular is gated on the data
+     * supporting it: a run in which normalising by the ceiling reorders the sides prints that
+     * reordering instead.
+     */
+    private fun StringBuilder.renderListLengths(run: RetrievalRun) {
+        val profiles = lengthProfiles(run)
+        if (profiles.size < 2) return
+        val firstK = run.kValues.min()
+        val lastK = run.kValues.max()
+        val pool = run.summary?.headline?.questionCount ?: return
+        val hasBand = lastK > firstK
+
+        appendLine("### How long each side's ranked list is")
+        appendLine()
+        appendLine(
+            "**precision@$lastK divides by $lastK, not by however many files a side returned.** " +
+                "`RetrievalMetrics` counts the unfilled slots as misses -- the standard IR " +
+                "definition, applied identically to every side -- so a side that returns fewer " +
+                "than $lastK files carries a cap on that row which no amount of retrieval quality " +
+                "can lift. The sides do not return lists of remotely similar length, so that rule " +
+                "does not fall on them equally."
+        )
+        appendLine()
+        appendLine("Over the $pool headline question(s), which is the pool the headline table below is computed from:")
+        appendLine()
+        appendLine(
+            "| Side | Median files returned | Longest | Returned $firstK files or fewer |" +
+                if (hasBand) " Gold-cited file at ranks ${firstK + 1}-$lastK |" else ""
+        )
+        appendLine("|---|---|---|---|" + if (hasBand) "---|" else "")
+        profiles.forEach { p ->
+            appendLine(
+                "| ${p.side.label} | ${fmtFileCount(p.median)} | ${p.longest} | " +
+                    "${p.shortListCount} of ${p.measured} |" +
+                    if (hasBand) " ${p.goldInBandCount} of ${p.measured} |" else ""
+            )
+        }
+        appendLine()
+        renderShortestLists(profiles, firstK, lastK)
+        if (hasBand) renderBandConsequence(profiles, firstK, lastK)
+        renderLengthCeiling(profiles, lastK)
+    }
+
+    /** Which side's lists are shortest, and what that alone costs it on the deepest `k`. */
+    private fun StringBuilder.renderShortestLists(profiles: List<LengthProfile>, firstK: Int, lastK: Int) {
+        val shortest = profiles.minByOrNull { it.median } ?: return
+        val longest = profiles.maxByOrNull { it.median } ?: return
+        if (shortest.side == longest.side) return
+        val cap = if (shortest.median < lastK) {
+            " A list that length caps precision@$lastK at " +
+                "${fmtPercent(shortest.median / lastK)} before retrieval quality is considered at all."
+        } else {
+            ""
+        }
+        appendLine(
+            "**The shortest lists are ${shortest.side.label}'s** -- a median of " +
+                "${fmtFileCount(shortest.median)} against ${longest.side.label}'s " +
+                "${fmtFileCount(longest.median)}, and ${shortest.shortListCount} of its " +
+                "${shortest.measured} question(s) return $firstK file(s) or fewer.$cap"
+        )
+        appendLine()
+    }
+
+    /**
+     * What a side finds -- or does not find -- between the two `k` values, which is the difference
+     * between "its list ran out" and "there was nothing further down to find". Those two look
+     * identical in the tables and mean opposite things, so the ranked lists are asked directly.
+     */
+    private fun StringBuilder.renderBandConsequence(profiles: List<LengthProfile>, firstK: Int, lastK: Int) {
+        val flat = profiles.filter {
+            it.goldInBandCount == 0 && rounded(it.recallAtFirstK) == rounded(it.recallAtLastK)
+        }
+        if (flat.isEmpty()) return
+        val named = flat.joinToString(", ") { "${it.side.label} (${fmtPercent(it.recallAtFirstK)})" }
+        val halved = flat.filter {
+            it.precisionAtFirstK > 0.0 &&
+                Math.abs(it.precisionAtLastK - it.precisionAtFirstK * firstK / lastK) < 1e-9
+        }
+        val arithmetic = if (halved.size != flat.size) {
+            ""
+        } else {
+            " precision@$lastK is precision@$firstK scaled by exactly $firstK/$lastK for the same " +
+                "reason -- the same hit count over a `k` that is larger -- which makes those two " +
+                "rows arithmetic rather than a second measurement."
+        }
+        appendLine(
+            "**One consequence sits in the headline table and looks like something it is not.** " +
+                "recall@$firstK and recall@$lastK read the same figure for $named. That is not " +
+                "the ranked list running out before rank $lastK: not one question in this pool " +
+                "places a gold-cited file at ranks ${firstK + 1}-$lastK for " +
+                (if (flat.size == 1) "that side" else "those sides") +
+                " at all, so raising `k` finds nothing that was not already found.$arithmetic"
+        )
+        appendLine()
+        val moving = profiles.filter { it.goldInBandCount > 0 && rounded(it.recallAtLastK) > rounded(it.recallAtFirstK) }
+        if (moving.isNotEmpty()) {
+            appendLine(
+                "The sides whose recall does move between those two rows are the ones that put " +
+                    "gold-cited files in that band: " +
+                    moving.joinToString(", ") { "${it.side.label} on ${it.goldInBandCount} of ${it.measured}" } +
+                    "."
+            )
+            appendLine()
+        }
+    }
+
+    /**
+     * The half that keeps the half above from being an excuse: how high each side's own lists let
+     * it score, how high it actually scored, and whether normalising by the first changes the order
+     * of the second. The conclusion is printed only in the form the data supports.
+     */
+    private fun StringBuilder.renderLengthCeiling(profiles: List<LengthProfile>, lastK: Int) {
+        appendLine(
+            "**And here is the half that stops the paragraph above from being an excuse.** A short " +
+                "list caps precision@$lastK, so the question a reader needs answered is how much " +
+                "of the measured spread that cap accounts for -- and it is computable exactly. For " +
+                "one question the cap is the smallest of (files returned, $lastK, gold-cited " +
+                "files), over $lastK: the score that side would have got if every file it returned " +
+                "had been a gold one. Averaged over the pool, it is the highest precision@$lastK " +
+                "its own lists left available to it."
+        )
+        appendLine()
+        appendLine(
+            "| Side | Highest precision@$lastK its lists allowed | Measured precision@$lastK | " +
+                "Share of its own ceiling reached |"
+        )
+        appendLine("|---|---|---|---|")
+        profiles.forEach { p ->
+            appendLine(
+                "| ${p.side.label} | ${fmtPercent(p.ceiling)} | ${fmtPercent(p.precisionAtLastK)} | " +
+                    "${p.shareOfCeiling?.let { fmtPercent(it) } ?: "n/a"} |"
+            )
+        }
+        appendLine()
+        val ceilingHi = profiles.maxOf { it.ceiling }
+        val ceilingLo = profiles.minOf { it.ceiling }
+        val measuredHi = profiles.maxOf { it.precisionAtLastK }
+        val measuredLo = profiles.minOf { it.precisionAtLastK }
+        appendLine(
+            "The ceilings span ${fmtPoints(ceilingHi, ceilingLo)} percentage points, from " +
+                "${fmtPercent(ceilingLo)} to ${fmtPercent(ceilingHi)}; the measured figures span " +
+                "${fmtPoints(measuredHi, measuredLo)} percentage points, from " +
+                "${fmtPercent(measuredLo)} to ${fmtPercent(measuredHi)}. " +
+                describeCeilingNormalisation(profiles, lastK)
+        )
+        appendLine()
+    }
+
+    /** Whether scoring each side against its own ceiling reorders the sides, said either way. */
+    private fun describeCeilingNormalisation(profiles: List<LengthProfile>, lastK: Int): String {
+        val rankedRaw = rankOrder(profiles) { it.precisionAtLastK }
+        val rankedShare = rankOrder(profiles) { it.shareOfCeiling ?: 0.0 }
+        if (rankedRaw != rankedShare) {
+            val order = profiles.sortedWith(
+                compareBy({ rankedShare.getValue(it.side) }, { it.side.ordinal })
+            ).joinToString(", ") { "${it.side.label} ${it.shareOfCeiling?.let(::fmtPercent) ?: "n/a"}" }
+            return "**Scoring each side against its own ceiling, rather than against a flat " +
+                "k=$lastK, reorders them**: $order. Both orders are printed and neither is " +
+                "presented as the real one -- list length is doing enough of the work here that " +
+                "the measured row should not be read on its own."
+        }
+        val shortest = profiles.minByOrNull { it.median }
+        val worstShare = profiles.filter { it.shareOfCeiling != null }
+            .minByOrNull { rounded(it.shareOfCeiling!!) }
+        val furthest = if (shortest != null && worstShare != null && shortest.side == worstShare.side) {
+            " The side with the shortest lists is also the one furthest below what those lists " +
+                "allowed -- ${fmtPercent(worstShare.shareOfCeiling!!)} of its own ceiling, the " +
+                "lowest share of any side here."
+        } else {
+            ""
+        }
+        return "**Scoring each side against its own ceiling, rather than against a flat k=$lastK, " +
+            "leaves them in the same order.**$furthest List length therefore explains part of the " +
+            "spread and not the result: the asymmetry above is real, is published, and does not " +
+            "account for the difference the tables show."
+    }
+
+    /**
+     * Each side's rank on [value], ranking on the value **as printed** so a claim here can never
+     * contradict a figure a reader checks it against, and giving tied sides the same rank -- two
+     * sides the tables render identically must not be reported as one leading the other.
+     */
+    private fun rankOrder(
+        profiles: List<LengthProfile>,
+        value: (LengthProfile) -> Double
+    ): Map<RetrievalSide, Int> {
+        val distinct = profiles.map { rounded(value(it)) }.distinct().sortedDescending()
+        return profiles.associate { it.side to distinct.indexOf(rounded(value(it))) }
+    }
+
+    /**
+     * One [LengthProfile] per side that measured something, in the order the tables print the
+     * sides. Lengths are de-duplicated first, exactly as [RetrievalMetrics] de-duplicates before
+     * scoring -- a profile counted over raw lists would describe a list no metric ever saw.
+     */
+    private fun lengthProfiles(run: RetrievalRun): List<LengthProfile> {
+        val headline = run.summary?.headline ?: return emptyList()
+        val firstK = run.kValues.minOrNull() ?: return emptyList()
+        val lastK = run.kValues.maxOrNull() ?: return emptyList()
+        val pool = run.results.filter { it.category != QuestionCategory.NEGATIVE_CONTROL }
+        if (pool.isEmpty()) return emptyList()
+        return RetrievalSide.entries.mapNotNull { side ->
+            val aggregate = headline.sideAggregate(side)?.takeIf { it.measuredCount > 0 }
+                ?: return@mapNotNull null
+            val measured = pool.mapNotNull { result ->
+                result.sideResult(side)?.let { result.expectedFiles.toSet() to it.rankedFiles.distinct() }
+            }
+            if (measured.isEmpty()) return@mapNotNull null
+            val lengths = measured.map { it.second.size }.sorted()
+            LengthProfile(
+                side = side,
+                measured = lengths.size,
+                median = median(lengths),
+                longest = lengths.last(),
+                shortListCount = lengths.count { it <= firstK },
+                goldInBandCount = measured.count { (expected, ranked) ->
+                    ranked.drop(firstK).take(lastK - firstK).any { it in expected }
+                },
+                ceiling = measured.map { (expected, ranked) ->
+                    minOf(ranked.size, lastK, expected.size).toDouble() / lastK
+                }.average(),
+                precisionAtFirstK = aggregate.meanPrecisionAtK[firstK] ?: 0.0,
+                precisionAtLastK = aggregate.meanPrecisionAtK[lastK] ?: 0.0,
+                recallAtFirstK = aggregate.meanRecallAtK[firstK] ?: 0.0,
+                recallAtLastK = aggregate.meanRecallAtK[lastK] ?: 0.0
+            )
+        }
+    }
+
+    private fun median(sorted: List<Int>): Double {
+        val mid = sorted.size / 2
+        return if (sorted.size % 2 == 1) sorted[mid].toDouble() else (sorted[mid - 1] + sorted[mid]) / 2.0
+    }
+
+    /** One side's per-question measurement, reached from the side rather than through a `when` at each call site. */
+    private fun RetrievalRunResult.sideResult(side: RetrievalSide): SideResult? = when (side) {
+        RetrievalSide.CONTEXT_GRAPH -> contextGraph
+        RetrievalSide.CODE_GRAPH -> codeGraph
+        RetrievalSide.BASH -> bash
+        RetrievalSide.RIPGREP -> ripgrep
+    }
+
+    /** One side's aggregate, or null when that side was not in the run at all (never a zeroed stand-in). */
+    private fun RetrievalAggregate.sideAggregate(side: RetrievalSide): SideAggregate? = when (side) {
+        RetrievalSide.CONTEXT_GRAPH -> contextGraph
+        RetrievalSide.CODE_GRAPH -> codeGraph
+        RetrievalSide.BASH -> bash
+        RetrievalSide.RIPGREP -> ripgrep
+    }
+
     // -------------------------------------------------------------- headline
 
     private fun StringBuilder.renderHeadline(run: RetrievalRun) {
@@ -1097,16 +1388,10 @@ object RetrievalReportGenerator {
      * as `n/a` in the tables, and a comparison against `n/a` would be a comparison against nothing.
      */
     private fun measuredSides(aggregate: RetrievalAggregate, metric: HeadlineMetric): List<SideScore> =
-        listOfNotNull(
-            aggregate.contextGraph.takeIf { it.measuredCount > 0 }
-                ?.let { SideScore(RetrievalSide.CONTEXT_GRAPH, metric.extract(it)) },
-            aggregate.codeGraph?.takeIf { it.measuredCount > 0 }
-                ?.let { SideScore(RetrievalSide.CODE_GRAPH, metric.extract(it)) },
-            aggregate.bash?.takeIf { it.measuredCount > 0 }
-                ?.let { SideScore(RetrievalSide.BASH, metric.extract(it)) },
-            aggregate.ripgrep.takeIf { it.measuredCount > 0 }
-                ?.let { SideScore(RetrievalSide.RIPGREP, metric.extract(it)) }
-        )
+        RetrievalSide.entries.mapNotNull { side ->
+            aggregate.sideAggregate(side)?.takeIf { it.measuredCount > 0 }
+                ?.let { SideScore(side, metric.extract(it)) }
+        }
 
     private fun leadingSides(aggregate: RetrievalAggregate, metric: HeadlineMetric): List<SideScore> {
         val sides = measuredSides(aggregate, metric)
@@ -1333,6 +1618,21 @@ object RetrievalReportGenerator {
         if (value == null) "n/a" else String.format(Locale.ROOT, "%.1f%%", value * 100.0)
 
     private fun fmtScore(value: Double): String = String.format(Locale.ROOT, "%.3f", value)
+
+    /**
+     * The distance between two percentages, in percentage points, computed from the values **as
+     * printed** rather than from the underlying doubles. A span derived from the raw values can
+     * differ from the one a reader gets by subtracting the two figures above it in the same
+     * paragraph, and a document that visibly disagrees with its own arithmetic is worth less than
+     * one that omits the span.
+     */
+    private fun fmtPoints(hi: Double, lo: Double): String =
+        String.format(Locale.ROOT, "%.1f", (rounded(hi) - rounded(lo)) * 100.0)
+
+    /** A count of files that may be a midpoint: `11`, not `11.0`, but `11.5` when it really is one. */
+    private fun fmtFileCount(value: Double): String =
+        if (value == Math.rint(value)) value.toLong().toString()
+        else String.format(Locale.ROOT, "%.1f", value)
 
     private fun fmtDuration(millis: Long?): String = when {
         millis == null -> "n/a"

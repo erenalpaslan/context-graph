@@ -18,10 +18,21 @@ private fun side(rr: Double, p: Double = rr, r: Double = rr) = SideResult(
     reciprocalRank = rr
 )
 
+/**
+ * The per-side defaults differ from each other **only so that a crossed field is detectable** -- a
+ * round-trip that fed one side's aggregate from another's would pass against identical values. They
+ * are identity tags, not a ranking, and nothing in this spec asserts their order: it is about
+ * absence never collapsing into zero, which is a property of the schema and not of any tool.
+ *
+ * They deliberately sit in a mid-range band, none of them `1.0` and none of them `0.0`. The tags
+ * used to read 1.0 for this project, 0.5 for the third-party tool and 0.25 for the baseline -- a
+ * clean descending podium with this project on top, which measured nothing and is exactly the shape
+ * a reader is right to stop on when they find it in a fixture.
+ */
 private fun result(
     id: String,
-    contextGraph: SideResult? = side(1.0),
-    codeGraph: SideResult? = side(0.5),
+    contextGraph: SideResult? = side(0.4),
+    codeGraph: SideResult? = side(0.6),
     category: QuestionCategory = QuestionCategory.GRAPH_HEAVY
 ) = RetrievalRunResult(
     questionId = id,
@@ -30,7 +41,7 @@ private fun result(
     expectedFiles = listOf("src/A.kt"),
     ripgrepQueryTokens = listOf("A"),
     contextGraph = contextGraph,
-    ripgrep = side(0.25),
+    ripgrep = side(0.5),
     codeGraph = codeGraph
 )
 
