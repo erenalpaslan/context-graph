@@ -1,5 +1,7 @@
 package io.contextgraph.benchmark.retrieval
 
+import io.contextgraph.benchmark.retrieval.RetrievalFormats.fmtBytes
+import io.contextgraph.benchmark.retrieval.RetrievalFormats.fmtDuration
 import io.contextgraph.benchmark.runner.GraphTool
 import java.util.Locale
 
@@ -596,21 +598,4 @@ object PublishedSummaries {
 
     private fun fmtRatio(numerator: Long, denominator: Long): String =
         String.format(Locale.ROOT, "%.2f×", numerator.toDouble() / denominator.toDouble())
-
-    /** The same rendering the full report uses, including its "not a duration" sentinel at zero. */
-    private fun fmtDuration(millis: Long?): String = when {
-        millis == null -> "n/a"
-        millis == 0L -> "reused existing index"
-        millis < 1_000 -> "${millis}ms"
-        millis < 60_000 -> String.format(Locale.ROOT, "%.1fs", millis / 1000.0)
-        else -> String.format(Locale.ROOT, "%dm %ds", millis / 60_000, (millis % 60_000) / 1000)
-    }
-
-    private fun fmtBytes(bytes: Long?): String = when {
-        bytes == null -> "_size unknown_"
-        bytes >= 1_000_000_000 -> String.format(Locale.ROOT, "%.2f GB", bytes / 1_000_000_000.0)
-        bytes >= 1_000_000 -> String.format(Locale.ROOT, "%.1f MB", bytes / 1_000_000.0)
-        bytes >= 1_000 -> String.format(Locale.ROOT, "%.1f kB", bytes / 1_000.0)
-        else -> "$bytes B"
-    }
 }

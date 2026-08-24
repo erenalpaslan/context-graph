@@ -1,6 +1,8 @@
 package io.contextgraph.benchmark.retrieval
 
 import io.contextgraph.benchmark.model.QuestionCategory
+import io.contextgraph.benchmark.retrieval.RetrievalFormats.fmtBytes
+import io.contextgraph.benchmark.retrieval.RetrievalFormats.fmtDuration
 import java.util.Locale
 
 /**
@@ -1800,20 +1802,4 @@ object RetrievalReportGenerator {
     private fun fmtFileCount(value: Double): String =
         if (value == Math.rint(value)) value.toLong().toString()
         else String.format(Locale.ROOT, "%.1f", value)
-
-    private fun fmtDuration(millis: Long?): String = when {
-        millis == null -> "n/a"
-        millis == 0L -> "reused existing index"
-        millis < 1_000 -> "${millis}ms"
-        millis < 60_000 -> String.format(Locale.ROOT, "%.1fs", millis / 1000.0)
-        else -> String.format(Locale.ROOT, "%dm %ds", millis / 60_000, (millis % 60_000) / 1000)
-    }
-
-    private fun fmtBytes(bytes: Long?): String = when {
-        bytes == null -> "_size unknown_"
-        bytes >= 1_000_000_000 -> String.format(Locale.ROOT, "%.2f GB", bytes / 1_000_000_000.0)
-        bytes >= 1_000_000 -> String.format(Locale.ROOT, "%.1f MB", bytes / 1_000_000.0)
-        bytes >= 1_000 -> String.format(Locale.ROOT, "%.1f kB", bytes / 1_000.0)
-        else -> "$bytes B"
-    }
 }
