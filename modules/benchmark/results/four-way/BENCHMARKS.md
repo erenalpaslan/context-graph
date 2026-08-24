@@ -2,7 +2,11 @@
 
 ## Retrieval Axis (LLM-free, deterministic)
 
-**A separate axis from the agent A/B results above -- do not sum, average, or otherwise mix the two.** The agent axis measures whether a code-graph tool makes a *Claude agent* cheaper/faster/more accurate and requires `ANTHROPIC_API_KEY`. This axis answers a narrower question with no model call anywhere in the loop: asked the same question, which *files* does each tool put in front of you? Deterministic: no LLM call, the same corpus and question set always produce the same numbers (proven by the determinism tests in `RetrievalBenchmarkRunnerTest`, `RipgrepQueryDeriverTest`, `RipgrepBaselineRunnerTest` and `BashBaselineRunnerTest`).
+**A separate axis from the agent A/B results above -- do not sum, average, or otherwise mix the two.** The agent axis measures whether a code-graph tool makes a *Claude agent* cheaper/faster/more accurate and requires `ANTHROPIC_API_KEY`. This axis answers a narrower question with no model call anywhere in the loop: asked the same question, which *files* does each tool put in front of you? Deterministic: there is no LLM call anywhere in the loop, and the same corpus and question set produce the same numbers.
+
+**Two claims sit behind that word, and they are proven separately.** That each side is a pure function of its inputs is proven by the determinism tests in `RetrievalBenchmarkRunnerTest`, `RipgrepQueryDeriverTest`, `RipgrepBaselineRunnerTest` and `BashBaselineRunnerTest` -- every one of which holds a single index fixed and re-runs against it. That the ContextGraph (this project) side does not *additionally* depend on how its index happened to be built is a different claim, which those tests do not reach, and it is proven by `SearchCutIsBuildIndependentTest` and `ContextBundlerRankingTest` -- which feed identical content in different orders and require identical output. It was false until this run: both the search cut and the ranking broke score ties in SQLite row order, which is insertion order, which differs between builds because ingest extracts concurrently. Two builds of `gin` proven identical in content returned different answers, moving that repo's measured MRR between 0.656 and 0.719.
+
+**What no test here proves is that re-indexing a pinned checkout always yields identical graph content.** Across three independent builds of `gin` it did -- same node, edge and artifact counts, same per-type census, and matching checksums over labels, ids, type/label pairs, artifacts, edges and provenance -- and the two runs behind the numbers below, one against each of two of those builds, agreed on every question, every metric and every ranked list. That is evidence for the claim, gathered by measurement rather than by assertion; it is not a guarantee, and it is stated here as the former.
 
 Four sides are compared, and they are named this way everywhere below:
 
@@ -17,7 +21,7 @@ Four sides are compared, and they are named this way everywhere below:
 
 So is a result favouring bash. The fourth side exists because the third one is not the floor: `rg` is a separate install that brings its own `.gitignore` awareness, binary skipping and ranking to the fight, so beating it is not the same as beating *nothing*. **bash (base-system shell only)** is what a developer with a stock shell and no installs gets, and it is the honest thing an index has to earn its cost against. Where it wins, that is the finding — printed, not explained away. *Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir sayıdır.*
 
-_Generated from retrieval result `retrieval-1787568863031` (schema v3) at 2026-08-24T10:54:23.031605Z. Regenerate by re-running the retrieval measurement; this section is not hand-edited._
+_Generated from retrieval result `retrieval-1787588263358` (schema v3) at 2026-08-24T16:17:43.358982Z. Regenerate by re-running the retrieval measurement; this section is not hand-edited._
 
 ### Methodology
 
@@ -85,12 +89,10 @@ What it cost to build each tool's index, so query-time results are read next to 
 | `calcom` | ContextGraph (this project) | 1m 38s | 268.6 MB |
 | `excalidraw` | CodeGraph (third-party) | 17.8s | 36.5 MB |
 | `excalidraw` | ContextGraph (this project) | 22.9s | 32.7 MB |
-| `gin` | CodeGraph (third-party) | reused existing index | 7.9 MB |
-| `gin` | ContextGraph (this project) | 2.7s | 8.2 MB |
+| `gin` | CodeGraph (third-party) | 899ms | 7.9 MB |
+| `gin` | ContextGraph (this project) | 2.2s | 8.1 MB |
 | `keycloak` | CodeGraph (third-party) | 1m 53s | 811.6 MB |
 | `keycloak` | ContextGraph (this project) | 4m 14s | 1.58 GB |
-
-A row reading _reused existing index_ is one whose index this run found already built and did not rebuild -- the working copy is pinned at a SHA and verified never to change, so an index that exists for it cannot be stale. **That is a statement about this run, not a claim that the index was free.** Whatever it cost belongs to the earlier run that built it and is reported in that run's own result document; it is deliberately not carried forward into this one. A duration written into a result that did not measure it is exactly the figure nobody can later check, and this axis prints the sentinel rather than becoming that.
 
 ### Gold-file coverage
 
@@ -150,7 +152,7 @@ Over the 29 headline question(s), which is the pool the headline table below is 
 
 | Side | Median files returned | Longest | Returned 5 files or fewer | Gold-cited file at ranks 6-10 |
 |---|---|---|---|---|
-| ContextGraph (this project) | 11 | 35 | 2 of 29 | 6 of 29 |
+| ContextGraph (this project) | 12 | 35 | 2 of 29 | 6 of 29 |
 | CodeGraph (third-party) | 4 | 8 | 20 of 29 | 0 of 29 |
 | bash (base-system shell only) | 72 | 992 | 6 of 29 | 6 of 29 |
 | ripgrep (third-party) | 64 | 988 | 6 of 29 | 6 of 29 |
@@ -184,7 +186,7 @@ n=29 question(s). Measured: ContextGraph (this project) 29/29; CodeGraph (third-
 | precision@10 | 12.4% | 6.2% | 8.3% | 8.3% |
 | recall@5 | 38.7% | 28.0% | 27.0% | 27.0% |
 | recall@10 | 46.0% | 28.0% | 35.1% | 35.1% |
-| MRR | 0.485 | 0.326 | 0.218 | 0.218 |
+| MRR | 0.502 | 0.326 | 0.218 | 0.218 |
 
 **That table is a pooled mean over 29 question(s) drawn from 4 repo(s). It is not a verdict, and it is not a per-repo result.** The repos contribute unequal shares of the pool -- `calcom` 7 of 29 (24.1%), `excalidraw` 8 of 29 (27.6%), `gin` 7 of 29 (24.1%), `keycloak` 7 of 29 (24.1%) -- so one repo's column moving moves every pooled row with it, in rough proportion to that share, whether or not anything changed on any other repo. A row where one side leads here is a lead **on this pool**; whether it is also a lead on each repo in it is a separate question, and this is the answer to it:
 
@@ -196,7 +198,7 @@ _Each figure below is this pool sliced by repo -- the same questions, the same m
 | `precision@10` | ContextGraph (this project) | _leads on every repo measured_ |
 | `recall@5` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 81.0% against 72.6% for ContextGraph (this project); `keycloak` -- bash (base-system shell only), ripgrep (third-party) lead there, 28.6% against 12.1% for ContextGraph (this project) |
 | `recall@10` | ContextGraph (this project) | `keycloak` -- bash (base-system shell only), ripgrep (third-party) lead there, 38.1% against 19.8% for ContextGraph (this project) |
-| `MRR` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 0.857 against 0.714 for ContextGraph (this project) |
+| `MRR` | ContextGraph (this project) | `gin` -- CodeGraph (third-party) leads there, 0.857 against 0.786 for ContextGraph (this project) |
 
 ### By Category
 
@@ -210,7 +212,7 @@ n=20 question(s). Measured: ContextGraph (this project) 20/20; CodeGraph (third-
 | precision@10 | 13.0% | 7.0% | 10.0% | 10.0% |
 | recall@5 | 30.3% | 24.6% | 19.1% | 19.1% |
 | recall@10 | 39.9% | 24.6% | 30.9% | 30.9% |
-| MRR | 0.453 | 0.335 | 0.254 | 0.254 |
+| MRR | 0.478 | 0.335 | 0.254 | 0.254 |
 
 #### NEUTRAL
 
@@ -272,7 +274,7 @@ n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-par
 | precision@10 | 20.0% | 16.3% | 17.5% | 17.5% |
 | recall@5 | 76.0% | 83.3% | 63.5% | 63.5% |
 | recall@10 | 92.7% | 83.3% | 82.3% | 82.3% |
-| MRR | 0.656 | 0.813 | 0.352 | 0.352 |
+| MRR | 0.719 | 0.813 | 0.352 | 0.352 |
 
 #### `keycloak`
 
@@ -290,7 +292,7 @@ n=8 question(s). Measured: ContextGraph (this project) 8/8; CodeGraph (third-par
 
 Every section above this one is a mean. This one is the run itself: all 33 question(s) it scored, one row each, grouped by repo and ordered by question id -- negative controls included, where the sections above hold them apart. It is here so that a repo's aggregate can be traced to the questions that produced it, and so that one catastrophic miss is distinguishable from a uniformly mediocre spread, which no mean can tell you.
 
-**Each cell is that side's reciprocal rank for the question, then the rank at which it first returned a gold-cited file.** The score is the per-question figure the MRR rows above are the mean of, so a row can be traced to its table; the rank is what the mean erases. "Found it at rank 1", "found it at rank 9" and "never found it at all" are three different results, and every capped metric here renders the last two identically whenever the hit sits past `k`. precision@k and recall@k are deliberately **not** printed per question: at 4 sides and 2 `k` value(s) they are 16 further columns, and a table nobody can read is not a disclosure. They are in this run's own result document (`retrieval-1787568863031.json`), per question, per side, for every reader who wants them.
+**Each cell is that side's reciprocal rank for the question, then the rank at which it first returned a gold-cited file.** The score is the per-question figure the MRR rows above are the mean of, so a row can be traced to its table; the rank is what the mean erases. "Found it at rank 1", "found it at rank 9" and "never found it at all" are three different results, and every capped metric here renders the last two identically whenever the hit sits past `k`. precision@k and recall@k are deliberately **not** printed per question: at 4 sides and 2 `k` value(s) they are 16 further columns, and a table nobody can read is not a disclosure. They are in this run's own result document (`retrieval-1787588263358.json`), per question, per side, for every reader who wants them.
 
 `n/a` means that side has **no measurement** for that question -- excluded from every mean above, never folded in as 0.0. `0.000 (not found)` means the opposite: that side ran, and nothing anywhere in its ranked list was a gold-cited file. The two are different claims and are printed differently.
 
@@ -355,7 +357,7 @@ Expected files -- the gold-fact-derived set each row above was scored against:
 | gin-q1 | GRAPH_HEAVY | 3 | 0.500 (rank 2) | 1.000 (rank 1) | 0.250 (rank 4) | 0.250 (rank 4) | CodeGraph (third-party) leads |
 | gin-q2 | GRAPH_HEAVY | 2 | 0.500 (rank 2) | 1.000 (rank 1) | 0.333 (rank 3) | 0.333 (rank 3) | CodeGraph (third-party) leads |
 | gin-q3 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 1.000 (rank 1) | 0.333 (rank 3) | 0.333 (rank 3) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
-| gin-q4 | GRAPH_HEAVY | 4 | 0.500 (rank 2) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | ContextGraph (this project) leads |
+| gin-q4 | GRAPH_HEAVY | 4 | 1.000 (rank 1) | 0.000 (not found) | 0.200 (rank 5) | 0.200 (rank 5) | ContextGraph (this project) leads |
 | gin-q5 | GRAPH_HEAVY | 3 | 1.000 (rank 1) | 1.000 (rank 1) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |
 | gin-q6 | NEUTRAL | 1 | 0.500 (rank 2) | 1.000 (rank 1) | 0.200 (rank 5) | 0.200 (rank 5) | CodeGraph (third-party) leads |
 | gin-q7 | NEUTRAL | 1 | 1.000 (rank 1) | 1.000 (rank 1) | 0.500 (rank 2) | 0.500 (rank 2) | ContextGraph (this project), CodeGraph (third-party) tie at rank 1 |

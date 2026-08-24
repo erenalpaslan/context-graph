@@ -78,9 +78,43 @@ object RetrievalReportGenerator {
                 "a *Claude agent* cheaper/faster/more accurate and requires `ANTHROPIC_API_KEY`. " +
                 "This axis answers a narrower question with no model call anywhere in the loop: " +
                 "asked the same question, which *files* does each tool put in front of you? " +
-                "Deterministic: no LLM call, the same corpus and question set always produce the " +
-                "same numbers (proven by the determinism tests in `RetrievalBenchmarkRunnerTest`, " +
-                "`RipgrepQueryDeriverTest`, `RipgrepBaselineRunnerTest` and `BashBaselineRunnerTest`)."
+                "Deterministic: there is no LLM call anywhere in the loop, and the same corpus and " +
+                "question set produce the same numbers."
+        )
+        appendLine()
+        // This paragraph exists because the single sentence above it used to carry the whole claim
+        // and cite only the first half of the evidence for it. The cited tests all hold one index
+        // fixed, which makes them proof that each side is a pure function of its inputs and no
+        // proof at all that the ContextGraph side is independent of how its index was built --
+        // which is what "the same corpus always produces the same numbers" actually asserts. The
+        // second half was false when it was first published. Both halves are now named separately,
+        // with what remains unproven named too.
+        appendLine(
+            "**Two claims sit behind that word, and they are proven separately.** That each side " +
+                "is a pure function of its inputs is proven by the determinism tests in " +
+                "`RetrievalBenchmarkRunnerTest`, `RipgrepQueryDeriverTest`, " +
+                "`RipgrepBaselineRunnerTest` and `BashBaselineRunnerTest` -- every one of which " +
+                "holds a single index fixed and re-runs against it. That the " +
+                "${RetrievalSide.CONTEXT_GRAPH.label} side does not *additionally* depend on how " +
+                "its index happened to be built is a different claim, which those tests do not " +
+                "reach, and it is proven by `SearchCutIsBuildIndependentTest` and " +
+                "`ContextBundlerRankingTest` -- which feed identical content in different orders " +
+                "and require identical output. It was false until this run: both the search cut " +
+                "and the ranking broke score ties in SQLite row order, which is insertion order, " +
+                "which differs between builds because ingest extracts concurrently. Two builds of " +
+                "`gin` proven identical in content returned different answers, moving that repo's " +
+                "measured MRR between 0.656 and 0.719."
+        )
+        appendLine()
+        appendLine(
+            "**What no test here proves is that re-indexing a pinned checkout always yields " +
+                "identical graph content.** Across three independent builds of `gin` it did -- " +
+                "same node, edge and artifact counts, same per-type census, and matching checksums " +
+                "over labels, ids, type/label pairs, artifacts, edges and provenance -- and the " +
+                "two runs behind the numbers below, one against each of two of those builds, " +
+                "agreed on every question, every metric and every ranked list. That is evidence " +
+                "for the claim, gathered by measurement rather than by assertion; it is not a " +
+                "guarantee, and it is stated here as the former."
         )
         appendLine()
         appendLine("Four sides are compared, and they are named this way everywhere below:")

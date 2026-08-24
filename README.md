@@ -125,7 +125,7 @@ described has been superseded, not because it stopped mattering.
 | `calcom` (8) | recall@10 | **33.8%** | 3.1% | 7.5% | 7.5% |
 | `excalidraw` (9) | MRR | **0.556** | 0.244 | 0.140 | 0.140 |
 | `excalidraw` (9) | recall@10 | **42.6%** | 22.2% | 14.8% | 14.8% |
-| `gin` (8) | MRR | 0.656 | **0.813** | 0.352 | 0.352 |
+| `gin` (8) | MRR | 0.719 | **0.813** | 0.352 | 0.352 |
 | `gin` (8) | recall@10 | **92.7%** | 83.3% | 82.3% | 82.3% |
 | `keycloak` (8) | MRR | **0.264** | 0.056 | 0.223 | 0.223 |
 | `keycloak` (8) | recall@10 | 17.3% | 8.8% | **39.6%** | **39.6%** |
@@ -135,7 +135,7 @@ column in that row**, whoever it is.
 
 **ContextGraph (this project) does not lead every row, and the rows it loses are in the
 table above rather than only in the full report:** on `gin` CodeGraph (third-party) leads on
-MRR, 0.813 against 0.656; on `keycloak` bash (base-system shell only) and ripgrep
+MRR, 0.813 against 0.719; on `keycloak` bash (base-system shell only) and ripgrep
 (third-party) lead on recall@10, 39.6% against 17.3%. Plain `grep` pays nothing for an index
 and still retrieves more than this project's index does on `keycloak`.
 
@@ -149,7 +149,7 @@ are different pools and do not average into each other:
 | precision@10 | **12.4%** | 6.2% | 8.3% | 8.3% |
 | recall@5 | **38.7%** | 28.0% | 27.0% | 27.0% |
 | recall@10 | **46.0%** | 28.0% | 35.1% | 35.1% |
-| MRR | **0.485** | 0.326 | 0.218 | 0.218 |
+| MRR | **0.502** | 0.326 | 0.218 | 0.218 |
 
 This project's own progression on `excalidraw`'s nine questions is like-for-like across
 three published runs: **0.133** MRR before ranking became a function of the query, **0.482**
@@ -178,23 +178,21 @@ construction.
 |---|---|---|
 | `calcom` | 1m 38s, 268.6 MB | 1m 25s, 306.7 MB |
 | `excalidraw` | 22.9s, 32.7 MB | 17.8s, 36.5 MB |
-| `gin` | 2.7s, 8.2 MB | reused existing index, 7.9 MB |
+| `gin` | 2.2s, 8.1 MB | 899ms, 7.9 MB |
 | `keycloak` | 4m 14s, 1.58 GB | 1m 53s, 811.6 MB |
 
 **Building the index costs this project more than it costs CodeGraph (third-party).** On
 every repo where both indexes were built in this run it is slower, by 1.15× on `calcom`,
-1.29× on `excalidraw`, 2.24× on `keycloak`. The claim this replaces — that ingest was
-*roughly an order of magnitude* slower than the third-party tool's — rested on an earlier
-run's figures and no longer holds; the widest gap measured here is `keycloak`, at 4m 14s
-against 1m 53s. Not every row is a comparison: `gin`'s CodeGraph (third-party) index was
-already built when this run found it and was not rebuilt, so its cost belongs to the run
-that paid it and is deliberately not carried forward. On `keycloak`, the largest index here,
-it also occupies 1.95× the disk (1.58 GB against 811.6 MB). Both text-search sides have no
-ingest step at all and pay nothing before the first query — which is the number every row
-above is being compared against. Earlier work on ingest cost
-([`docs/ingest-cost.md`](docs/ingest-cost.md)) took Keycloak from 142m 55.6s to 8m 16.4s,
-17.3×, by batching SQLite writes; the figure in the table is this run's own measurement on
-its own corpus and machine, not a further speedup claimed on top of it.
+1.29× on `excalidraw`, 2.40× on `gin`, 2.24× on `keycloak`. The claim this replaces — that
+ingest was *roughly an order of magnitude* slower than the third-party tool's — rested on an
+earlier run's figures and no longer holds; the widest gap measured here is `gin`, at 2.2s
+against 899ms. On `keycloak`, the largest index here, it also occupies 1.95× the disk (1.58
+GB against 811.6 MB). Both text-search sides have no ingest step at all and pay nothing
+before the first query — which is the number every row above is being compared against.
+Earlier work on ingest cost ([`docs/ingest-cost.md`](docs/ingest-cost.md)) took Keycloak
+from 142m 55.6s to 8m 16.4s, 17.3×, by batching SQLite writes; the figure in the table is
+this run's own measurement on its own corpus and machine, not a further speedup claimed on
+top of it.
 
 **What these numbers do not say.** 33 questions over four repositories is a much larger
 claim than the single repository this section used to report, and it is still not a proof:
