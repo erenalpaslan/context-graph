@@ -94,10 +94,37 @@ object BashProcess {
                 "'${command.joinToString(" ")}' exceeded its $DEFAULT_TIMEOUT budget and was killed."
             )
         }
-        stdoutReader.join(5_000)
-        stderrReader.join(5_000)
+        requireDrainThreadsFinished(command, listOf(stdoutReader, stderrReader))
 
         BashCommandResult(process.exitValue(), stdout.toString(), stderr.toString())
+    }
+
+    /**
+     * Waits up to [joinMillis] for each of [readers] to finish, then throws if any is still alive.
+     *
+     * By the time this runs the process itself has already exited, so a reader thread still
+     * draining its pipe past a generous budget means its `forEachLine` loop never reached EOF --
+     * and reading the `stdout`/`stderr` `StringBuilder`s while a thread might still be appending
+     * to them would hand back a partial result wearing the shape of a complete one, which is
+     * exactly the "broken invocation indistinguishable from a true zero" corruption this object's
+     * own KDoc forbids. Previously `join(5_000)`'s implicit outcome -- whether the thread actually
+     * finished -- was discarded and [SYSTEM] read the builders regardless.
+     *
+     * [joinMillis] is a parameter, not a hardcoded literal in [SYSTEM], so a test can force the
+     * "still alive" branch deterministically with a slow fake [Thread] and a tiny budget rather
+     * than waiting out the real 5s one.
+     */
+    internal fun requireDrainThreadsFinished(command: List<String>, readers: List<Thread>, joinMillis: Long = 5_000) {
+        readers.forEach { it.join(joinMillis) }
+        val stillAlive = readers.filter { it.isAlive }
+        if (stillAlive.isNotEmpty()) {
+            throw BashCommandExecutionException(
+                "'${command.joinToString(" ")}' exited, but ${stillAlive.size} of its " +
+                    "${readers.size} output-draining thread(s) had not finished within " +
+                    "${joinMillis}ms of that -- the captured stdout/stderr cannot be trusted as " +
+                    "complete, so no answer is returned rather than a partial one."
+            )
+        }
     }
 
     /**
