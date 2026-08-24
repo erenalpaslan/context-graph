@@ -97,24 +97,27 @@ object RetrievalReportGenerator {
                 "holds a single index fixed and re-runs against it. That the " +
                 "${RetrievalSide.CONTEXT_GRAPH.label} side does not *additionally* depend on how " +
                 "its index happened to be built is a different claim, which those tests do not " +
-                "reach, and it is proven by `SearchCutIsBuildIndependentTest` and " +
-                "`ContextBundlerRankingTest` -- which feed identical content in different orders " +
-                "and require identical output. It was false until this run: both the search cut " +
-                "and the ranking broke score ties in SQLite row order, which is insertion order, " +
-                "which differs between builds because ingest extracts concurrently. Two builds of " +
-                "`gin` proven identical in content returned different answers, moving that repo's " +
-                "measured MRR between 0.656 and 0.719."
+                "reach. It was false until this run: the search cut and the ranking both broke " +
+                "score ties in SQLite row order, which is insertion order, which differs between " +
+                "builds because ingest extracts concurrently. Two builds of `gin` proven identical " +
+                "in content returned different answers, moving that repo's measured MRR between " +
+                "0.656 and 0.719. `SearchCutIsBuildIndependentTest` and " +
+                "`ContextBundlerRankingTest` now pin every site that was found to be broken, by " +
+                "feeding identical content in different orders and requiring identical output."
         )
         appendLine()
+        // Deliberately narrower than the paragraph above. "Every site that was found" is what
+        // tests can be pointed at; "no site anywhere" is not, and this axis has already published
+        // one determinism claim that generalised past its evidence. Naming the two known holes is
+        // what stops this from being a second one.
         appendLine(
-            "**What no test here proves is that re-indexing a pinned checkout always yields " +
-                "identical graph content.** Across three independent builds of `gin` it did -- " +
-                "same node, edge and artifact counts, same per-type census, and matching checksums " +
-                "over labels, ids, type/label pairs, artifacts, edges and provenance -- and the " +
-                "two runs behind the numbers below, one against each of two of those builds, " +
-                "agreed on every question, every metric and every ranked list. That is evidence " +
-                "for the claim, gathered by measurement rather than by assertion; it is not a " +
-                "guarantee, and it is stated here as the former."
+            "**That is a claim about the sites that were found, not a proof that none remains.** " +
+                "Two are known and unclosed. Re-indexing a pinned checkout is not *proven* to " +
+                "yield identical graph content -- it did across three independent builds of " +
+                "`gin`, which is measurement, not a guarantee. And ingest itself is concurrent, so " +
+                "a rebuild's content is only as reproducible as the extractors are. Read the " +
+                "numbers below as reproducible against a fixed corpus, which is what they are, " +
+                "and not as a proof about every future build."
         )
         appendLine()
         appendLine("Four sides are compared, and they are named this way everywhere below:")

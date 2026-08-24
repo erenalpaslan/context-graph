@@ -1,7 +1,7 @@
 {
     "schemaVersion": 3,
-    "runId": "retrieval-1787588263358",
-    "generatedAt": "2026-08-24T16:17:43.358982Z",
+    "runId": "retrieval-1787589820180",
+    "generatedAt": "2026-08-24T16:43:40.181355Z",
     "kValues": [
         5,
         10
@@ -94,6 +94,7 @@
             "contextGraph": {
                 "rankedFiles": [
                     "packages/excalidraw/CHANGELOG.md",
+                    "packages/excalidraw/fonts/Xiaolai/Xiaolai-Regular-23f228f3999c01983860012330e4be08.woff2",
                     "dev-docs/docs/@excalidraw/excalidraw/installation.mdx",
                     "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/codebase/parser/parser.mdx",
                     "dev-docs/docs/introduction/get-started.mdx",
@@ -102,8 +103,11 @@
                     "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
                     "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
                     "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md",
-                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/api.mdx",
-                    "packages/excalidraw/locales/README.md"
+                    "scripts/woff2/assets/NotoEmoji-Regular.ttf",
+                    "scripts/woff2/assets/LiberationSans-Regular.ttf",
+                    "packages/excalidraw/locales/README.md",
+                    "dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx",
+                    "dev-docs/docs/@excalidraw/mermaid-to-excalidraw/api.mdx"
                 ],
                 "precisionAtK": {
                     "5": 0.0,
@@ -1246,7 +1250,9 @@
                     "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
                     "dev-docs/docs/@excalidraw/excalidraw/api/utils/export.mdx",
                     "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
-                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md"
+                    "dev-docs/docs/@excalidraw/excalidraw/api/utils/utils-intro.md",
+                    "packages/excalidraw/locales/README.md",
+                    "dev-docs/docs/@excalidraw/excalidraw/installation.mdx"
                 ],
                 "precisionAtK": {
                     "5": 0.0,
@@ -11102,8 +11108,8 @@
                     "docs/platform/quickstart.mdx",
                     "PERMISSIONS.md",
                     "docs/self-hosting/installation.mdx",
-                    "packages/features/ee/organizations/README.md",
-                    "README.md"
+                    "docs/platform/introduction.mdx",
+                    "packages/features/ee/organizations/README.md"
                 ],
                 "precisionAtK": {
                     "5": 0.2,

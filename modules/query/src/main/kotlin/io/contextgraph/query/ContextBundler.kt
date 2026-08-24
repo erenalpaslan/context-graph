@@ -61,7 +61,8 @@ class ContextBundler(
         // across unlinked candidates, so exact ties are routine, not exotic. A stable sort leaves
         // tied nodes in the order `nodes` arrived in -- SQLite row order again -- and `take` below
         // then cuts on that accident, which decides not merely the order of what survives but what
-        // survives. Sorting on the node id costs a map lookup per comparison and removes the class.
+        // survives. The id comparison runs only when the scores are equal, so the cost of removing
+        // the whole class is a string compare on exactly the ties it exists to break.
         val rankedNodes = nodes
             .sortedWith(compareByDescending<GraphNode> { scores[it.id] ?: 0.0 }.thenBy { it.id.value })
             .take(maxNodes)
@@ -81,9 +82,24 @@ class ContextBundler(
          * autoincrement id would also give a total order, and it would be exactly the insertion
          * order that varies between builds -- a tie-break that reproduces the bug it is meant to
          * close.
+         *
+         * `extractedAt` is left out for that same reason and is the one field here it would be a
+         * mistake to add: it is a wall-clock stamp, so two rows separated only by it would sort by
+         * which build wrote them. Every *other* field is compared, including `page` and `textSpan`,
+         * which no repository in the benchmark corpus currently needs -- no row in any of the four
+         * ties on the rest and differs on those -- but a paginated source such as a PDF is exactly
+         * where two rows would otherwise agree on path and lines and separate only by page.
+         * Rows identical in all of these are identical in everything a caller reads.
          */
-        private val PROVENANCE_ORDER: Comparator<Provenance> =
-            compareBy({ it.path }, { it.lineStart ?: -1 }, { it.lineEnd ?: -1 }, { it.artifactId.value }, { it.extractor })
+        private val PROVENANCE_ORDER: Comparator<Provenance> = compareBy(
+            { it.path },
+            { it.lineStart ?: -1 },
+            { it.lineEnd ?: -1 },
+            { it.page ?: -1 },
+            { it.artifactId.value },
+            { it.extractor },
+            { it.textSpan ?: "" }
+        )
 
         /**
          * Nodes kept per bundle before the PageRank ranking starts discarding. Named rather than

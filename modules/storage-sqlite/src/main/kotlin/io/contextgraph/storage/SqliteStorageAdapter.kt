@@ -377,7 +377,11 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 val typeStrings = types.map { NodeType.stringify(it) }
                 q = q.andWhere { NodesTable.type inList typeStrings }
             }
-            return@transaction q.limit(limit).map { it.toGraphNode() }
+            // Ordered for the same reason the FTS branch below is: `limit` decides which rows a
+            // caller sees, and without an ORDER BY that is SQLite row order, which differs between
+            // index builds. There is no relevance score to rank by on a blank query, so id is the
+            // whole order rather than a tie-break on one.
+            return@transaction q.orderBy(NodesTable.id).limit(limit).map { it.toGraphNode() }
         }
 
         val terms = ftsTerms(query)
@@ -419,14 +423,32 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 // gold-cited `binding/json.go`, the other did not, moving that question's
                 // reciprocal rank between 0.5 and 1.0 and the repo's MRR between 0.656 and 0.719.
                 // Ordering by id ascending after rank is arbitrary but intrinsic, matching the
-                // `ORDER BY n.id` tie-break getAllNodes already ships for the same reason.
+                // `ORDER BY n.id` tie-break `segmentCandidates` below already ships for the same
+                // reason.
                 //
-                // It is not free: a second sort key costs FTS5 its top-N shortcut, measured at
-                // 48.8 ms -> 61.4 ms (median of 7) for one seed query against keycloak's 234,154-
-                // node index, the largest in the benchmark corpus. That is the price of a number
-                // anyone can reproduce, paid once per buildContext call, and it is written down
-                // here rather than discovered later by someone profiling this query.
-                exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${matchExpr.replace("'", "''")}' ORDER BY rank, id LIMIT $limit") { rs ->
+                // `GROUP BY id` is not decoration, and leaving it out was a bug on every database
+                // that has ever been reindexed. `nodes_fts` is FTS5 with `id UNINDEXED`, so it has
+                // no unique index for `INSERT OR REPLACE` to target and accumulates a row per
+                // write instead of replacing one -- V6__name_segment_vocab.sql says so outright.
+                // Duplicates are not rare and not only a reindex artefact: a freshly built gin
+                // index holds 3821 rows for 3750 ids, and `render/render.go#_` appears 16 times.
+                // Ordering by rank alone scattered a node's copies across docid order, so a page
+                // of `limit` usually held `limit` distinct ids by luck. Ordering by id groups
+                // every copy together, which without this turns that luck into a page of one node
+                // repeated: measured at 1 distinct id across all 10 seed slots for a query
+                // matching that node, on all three builds of gin.
+                //
+                // `min(rank)` rather than bare `rank` because the aggregate has to name which
+                // row's score represents the group. The copies are byte-identical so their scores
+                // are too, which makes the choice moot today and explicit against the day a
+                // partial write makes it not.
+                //
+                // None of this is free: a second sort key costs FTS5 its top-N shortcut, measured
+                // at 48.8 ms -> 61.4 ms (median of 7) for one seed query against keycloak's
+                // 234,154-node index, the largest in the benchmark corpus. That is the price of a
+                // number anyone can reproduce, paid once per buildContext call, and it is written
+                // down here rather than discovered later by someone profiling this query.
+                exec("SELECT id FROM nodes_fts WHERE nodes_fts MATCH '${matchExpr.replace("'", "''")}' GROUP BY id ORDER BY min(rank), id LIMIT $limit") { rs ->
                     val ids = mutableListOf<String>()
                     while (rs.next()) ids.add(rs.getString("id"))
                     ids
@@ -470,7 +492,11 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 val typeStrings = types.map { NodeType.stringify(it) }
                 q = q.andWhere { NodesTable.type inList typeStrings }
             }
-            q.limit(limit).map { it.toGraphNode() }
+            // Ordered for the same reason as the two branches above. This one is the easiest to
+            // overlook because it only runs when FTS5's MATCH threw, which is rare -- and rare is
+            // exactly where a result nobody can reproduce would sit unnoticed. LIKE offers no
+            // relevance score to rank by, so id is the whole order.
+            q.orderBy(NodesTable.id).limit(limit).map { it.toGraphNode() }
         } else {
             emptyList()
         }
