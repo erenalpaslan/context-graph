@@ -27,7 +27,7 @@ host beyond `github.com`, and none needs a sandbox policy change.**
 | `Could not initialize native services` → `Failed to load native library 'libnative-platform.dylib'`, from a `FileNotFoundException` on `…/libnative-platform.dylib.lock (Operation not permitted)` | Gradle writes lock files and native scratch into `GRADLE_USER_HOME`, and `~/.gradle` is not writable here. Reads are fine; only writes are denied. | Point `GRADLE_USER_HOME` at a writable scratch directory. |
 | Dependency resolution fails under `--offline` | The scratch `GRADLE_USER_HOME` from the previous row starts empty, so no dependency is cached *in it*. | `GRADLE_RO_DEP_CACHE=$HOME/.gradle/caches` lets Gradle **read** the host's existing ~749 MB dependency cache without writing to it — this is what makes `--offline` resolve, so Maven Central is never contacted. |
 | `./gradlew` → `Could not find or load main class org.gradle.wrapper.GradleWrapperMain` | `gradle/wrapper/gradle-wrapper.jar` is **untracked**: `.gitignore`'s `*.jar` (line 11) is the *last* matching pattern and so beats the `!gradle/wrapper/gradle-wrapper.jar` negation on line 4. Git applies the last match, so no clone and no worktree ever receives the jar. Confirm with `git check-ignore -v gradle/wrapper/gradle-wrapper.jar`. | Invoke the already-unpacked Gradle distribution directly instead of the wrapper. It is the exact version `gradle-wrapper.properties` pins, so this is the same Gradle the wrapper would have fetched. |
-| `compileTreeSitterGrammars` fails fetching from `codeload.github.com` | `:modules:benchmark` → `ingest` → `extractors` → `tree-sitter`, and `tree-sitter`'s `processResources` depends on `compileTreeSitterGrammars`, which downloads nine pinned grammars as codeload tarballs. `codeload.github.com` is a different host from `github.com` and is not reachable here. | Seed the grammar cache by copying `modules/tree-sitter/build/tree-sitter-src/` (and `tree-sitter-download/`) from an existing checkout — see below. |
+| `compileTreeSitterGrammars` fails fetching from `codeload.github.com` | `:modules:benchmark` → `ingest` → `extractors` → `tree-sitter`, and `tree-sitter`'s `processResources` depends on `compileTreeSitterGrammars`, which downloads eight codeload tarballs covering all nine pinned grammar specs. `codeload.github.com` is a different host from `github.com` and is not reachable here. | Seed the grammar cache by copying `modules/tree-sitter/build/tree-sitter-src/` (and `tree-sitter-download/`) from an existing checkout — see below. |
 | `Kotest > initializationError` with `FileSystemException: /var/folders/…/T/…: Operation not permitted` | Gradle forks a **separate JVM per test task**, whose `java.io.tmpdir` defaults to the macOS per-user temp dir that the sandbox denies. `-Dorg.gradle.jvmargs` configures the Gradle process, **not** its test workers, so it never reaches them. Setting `TMPDIR` does not help either: macOS JVMs read `_CS_DARWIN_USER_TEMP_DIR` and ignore `TMPDIR`. | Set `java.io.tmpdir` on the `Test` task itself — see the init script below. |
 | `:modules:cli:test` → 7 failures in `FreshnessTest`/`DescribeModulesCommandTest`, each a bare `expected:<0> but was:<1>` | **Not fixable from here, and not a regression — expect these seven.** Both classes fork a *second* JVM (`ProcessBuilder`, running `MainKt` on the test classpath) because only a real process boundary proves a file was or wasn't written. The row above fixes the test *worker*, but a system property is not inherited across `ProcessBuilder`, so the grandchild is back on the denied temp dir — and `sqlite-jdbc` unpacks its native library there before any query runs. The real error is hidden inside the subprocess's captured output: `org.sqlite.NativeLibraryNotFoundException … os.arch=aarch64`. Every cli test that does *not* fork, and every forked test that stays read-only (`ReadOnlyCommandsDoNotCreateBaselineTest`), passes. | Confirm rather than chase: `JAVA_OPTS=-Djava.io.tmpdir=$SCRATCH/clitmp modules/cli/build/install/cli/bin/cli refresh` in a scratch project exits 0. A real fix means passing `-Djava.io.tmpdir` down in `runCli`, which is a product change, not an environment one. |
 
@@ -151,16 +151,16 @@ Two messages during a successful build are **benign and are not failures**:
 
 Verified on 2026-08-24, after the four-way retrieval work landed:
 `:modules:benchmark:build` → BUILD SUCCESSFUL, and `:modules:benchmark:test` →
-472 tests, of which 471 pass, 0 fail, and 1 is skipped by design
-(`LiveSmokeOrchestrationTest`, see AC-22 below). A fully warm rebuild takes
-under one second.
+0 failures, exactly 1 skipped by design (`LiveSmokeOrchestrationTest`, see
+AC-22 below), and every other test passes. A fully warm rebuild takes under
+one second.
 
-**That count is a snapshot, not a contract.** It rises whenever anyone adds a
-test: this line read 426 from the day it was written until the slices that
-followed had added forty-odd more, and nothing failed in the meantime to say
-so. If it disagrees with what you just ran, the run is right. What is worth
-holding this file to is the rest of the sentence — 0 failing, and exactly one
-skip, which is a deliberate one.
+**This file does not print a test count.** It printed 426, then 472, and by
+the time either number was read here it was already wrong — the total rises
+whenever anyone adds a test, and any figure written down is a snapshot, not a
+contract. Run `./gradlew :modules:benchmark:test` and read its own summary
+line for the current total. What this file holds itself to is the rest of
+the sentence: 0 failing, and exactly one skip, which is a deliberate one.
 
 ## Package map
 
