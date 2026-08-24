@@ -323,8 +323,11 @@ private class GoSymbolExtractor(private val request: SymbolExtractionRequest) {
             ?.namedChildren
             ?.firstOrNull { it.type == "parameter_declaration" }
         val receiverType = simpleTypeName(receiver?.childByFieldName("type")?.textIn(request.sourceText))
-            ?: return
-        val scopeChain = listOf(receiverType)
+        // A method whose receiver cannot be reduced to a type -- an error-recovered file can carry
+        // a method_declaration with a real name but a MISSING/ERROR receiver -- still gets emitted,
+        // scoped to the file exactly as a package-level function is: this class's own contract
+        // (docs above) is that a malformed declaration costs only itself, not that it vanishes.
+        val scopeChain = listOfNotNull(receiverType)
 
         val methodNode = declarationNode(
             astNode = node,
@@ -334,14 +337,15 @@ private class GoSymbolExtractor(private val request: SymbolExtractionRequest) {
             fqnNameChain = scopeChain + simpleName,
             extraProps = buildMap {
                 put("kind", JsonPrimitive("method"))
-                put("receiver", JsonPrimitive(receiverType))
+                receiverType?.let { put("receiver", JsonPrimitive(it)) }
                 returnTypeOf(node)?.let { put("returns", JsonPrimitive(it)) }
             }
         )
         nodes.add(methodNode)
-        // The receiver's type, when this file declares it -- otherwise the file, since the type
-        // lives in another file of the same package and this walker has no ID for it.
-        val parentId = if (receiverType in declaredTypes) {
+        // The receiver's type, when this file declares it -- otherwise the file, either because
+        // the type lives in another file of the same package (this walker has no ID for it) or
+        // because the receiver itself could not be reduced to a type at all.
+        val parentId = if (receiverType != null && receiverType in declaredTypes) {
             DeclarationSiteId.of(request.repoRelativePath, scopeChain)
         } else {
             fileId

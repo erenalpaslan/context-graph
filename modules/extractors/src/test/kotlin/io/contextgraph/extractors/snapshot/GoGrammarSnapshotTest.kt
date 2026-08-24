@@ -164,6 +164,21 @@ class GoGrammarSnapshotTest : FunSpec({
         extracted.nodes.any { it.id.value == "server/engine.go#Engine" } shouldBe true
     }
 
+    test("a method whose receiver cannot be reduced to a type is emitted at file scope, not dropped (H3)") {
+        val extracted = GoldenSnapshotHarness.extractFixture(fixtureRoot)
+        val contains = extracted.edges.filter { it.type == EdgeType.Contains }.associateBy { it.target.value }
+
+        // `func (1) BrokenReceiver()` -- the receiver is not reducible to any type. The method
+        // still gets a node, scoped to the file exactly like a package-level function: no
+        // receiver segment in its ID, no "receiver" property, and a Contains edge from the file
+        // rather than from any type node (there is none to hang off).
+        val broken = extracted.nodes.first { it.id.value == "broken/broken.go#BrokenReceiver()" }
+        broken.type shouldBe NodeType.Method
+        (broken.properties["kind"] as JsonPrimitive).content shouldBe "method"
+        broken.properties.containsKey("receiver") shouldBe false
+        contains.getValue("broken/broken.go#BrokenReceiver()").source.value shouldBe "broken/broken.go"
+    }
+
     test("every declaration node carries a non-blank fqn") {
         val extracted = GoldenSnapshotHarness.extractFixture(fixtureRoot)
         requireFqnOnDeclarations(extracted.nodes)

@@ -281,6 +281,24 @@
             ]
         },
         {
+            "id": "broken/broken.go#BrokenReceiver()",
+            "type": "Method",
+            "label": "BrokenReceiver",
+            "confidence": 0.98,
+            "properties": {
+                "fqn": "broken.BrokenReceiver",
+                "kind": "method"
+            },
+            "provenance": [
+                {
+                    "path": "broken/broken.go",
+                    "lineStart": 18,
+                    "lineEnd": 20,
+                    "extractor": "tree-sitter"
+                }
+            ]
+        },
+        {
             "id": "broken/broken.go#Fine()",
             "type": "Function",
             "label": "Fine",
@@ -1037,6 +1055,13 @@
             "id": "contains:binding/binding.go#jsonBinding:binding/binding.go#jsonBinding.Name()",
             "source": "binding/binding.go#jsonBinding",
             "target": "binding/binding.go#jsonBinding.Name()",
+            "type": "contains",
+            "confidence": 0.98
+        },
+        {
+            "id": "contains:broken/broken.go:broken/broken.go#BrokenReceiver()",
+            "source": "broken/broken.go",
+            "target": "broken/broken.go#BrokenReceiver()",
             "type": "contains",
             "confidence": 0.98
         },
