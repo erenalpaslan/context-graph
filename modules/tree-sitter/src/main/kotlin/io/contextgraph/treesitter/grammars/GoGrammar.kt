@@ -207,9 +207,16 @@ private class GoSymbolExtractor(private val request: SymbolExtractionRequest) {
         nodes.add(typeNode)
         addContains(fileId, typeNode.id)
 
-        when (kind) {
-            "struct" -> extractStructFields(underlying!!, simpleName, typeNode.id)
-            "interface" -> extractInterfaceMethods(underlying!!, simpleName, typeNode.id)
+        // Dispatch off `underlying` itself (the nullable node `kind` above was derived from),
+        // not off `kind`: a smart-cast inside `underlying != null` lets the compiler prove
+        // `extractStructFields`/`extractInterfaceMethods` never receive a null receiver, instead
+        // of restating the same invariant with a `!!` that only a reader tracing `kind`'s
+        // derivation back up can verify.
+        if (underlying != null) {
+            when (underlying.type) {
+                "struct_type" -> extractStructFields(underlying, simpleName, typeNode.id)
+                "interface_type" -> extractInterfaceMethods(underlying, simpleName, typeNode.id)
+            }
         }
     }
 
