@@ -1,0 +1,79 @@
+name: Setup ContextGraph
+description: Installs the ContextGraph CLI and puts `contextgraph` on PATH for later steps.
+
+# A composite action rather than only a reusable workflow, because the common case is a
+# project that wants to run `contextgraph` as one step *inside* a job it already has -- after
+# its tests, next to its linters -- not to hand a whole job over to someone else's workflow.
+#
+# The jar comes from Maven Central, which needs no authentication, no `docker login` and no
+# secret in the consuming repository. That matters when this is rolled out across many
+# private repositories: anything requiring a credential would need that credential
+# provisioned in every one of them.
+
+inputs:
+  version:
+    description: >-
+      ContextGraph version to install, e.g. 0.2.0. Defaults to the ref this action was
+      called with, so `uses: erenalpaslan/context-graph/action@v0.2.0` installs 0.2.0.
+    required: false
+    default: ""
+  java-version:
+    description: JDK version used to run the CLI.
+    required: false
+    default: "17"
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve the version to install
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION="${{ inputs.version }}"
+        if [ -z "$VERSION" ]; then
+          # `github.action_ref` is the ref this action was pinned at by the caller. For the
+          # intended usage (`@v0.2.0`) that is exactly the version, which keeps the pin and
+          # the installed binary from ever drifting apart.
+          REF="${{ github.action_ref }}"
+          case "$REF" in
+            v[0-9]*) VERSION="${REF#v}" ;;
+            *)
+              echo "::error::Cannot infer a version from ref '$REF'. Pin the action at a" \
+                   "version tag (uses: erenalpaslan/context-graph/action@v0.2.0) or pass" \
+                   "the 'version' input explicitly."
+              exit 1
+              ;;
+          esac
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    - name: Install the ContextGraph CLI
+      shell: bash
+      env:
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: |
+        set -euo pipefail
+        JAR="$RUNNER_TEMP/contextgraph-$VERSION.jar"
+        URL="https://repo1.maven.org/maven2/io/github/erenalpaslan/contextgraph-cli/$VERSION/contextgraph-cli-$VERSION-all.jar"
+
+        echo "Downloading $URL"
+        curl -fsSL --retry 3 --retry-delay 2 -o "$JAR" "$URL"
+
+        BIN="$RUNNER_TEMP/contextgraph-bin"
+        mkdir -p "$BIN"
+        cat > "$BIN/contextgraph" <<EOF
+        #!/bin/sh
+        exec java -jar "$JAR" "\$@"
+        EOF
+        chmod +x "$BIN/contextgraph"
+        echo "$BIN" >> "$GITHUB_PATH"
+
+    - name: Verify the CLI runs
+      shell: bash
+      run: contextgraph --help > /dev/null

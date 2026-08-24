@@ -1,0 +1,66 @@
+# Template for the formula published to erenalpaslan/homebrew-contextgraph.
+#
+# release.yml substitutes __URL__, __SHA256__ and __VERSION__ and commits the result to the
+# tap as Formula/contextgraph.rb. Keeping the template here rather than in the tap means the
+# formula's shape is reviewed alongside the code it installs, and the tap holds only
+# generated output.
+#
+# Installing:
+#
+#   brew tap erenalpaslan/contextgraph
+#   brew install contextgraph
+#
+# The bare name works from then on (`brew upgrade contextgraph`). It does not work for the
+# very first install on a clean machine: Homebrew resolves a bare name against homebrew-core
+# and already-installed taps only, and this formula is not in core.
+class Contextgraph < Formula
+  desc "Knowledge graph for code and docs, served to agents over MCP"
+  homepage "https://github.com/erenalpaslan/context-graph"
+  url "__URL__"
+  sha256 "__SHA256__"
+  version "__VERSION__"
+  license "MIT"
+
+  # The jar ships tree-sitter grammars for macos/aarch64 and linux/x64 only.
+  # NativeGrammarLoader resolves the library by the *running* machine's os/arch, so on an
+  # Intel Mac it would find nothing and throw UnsatisfiedLinkError at first parse -- long
+  # after install, with a message that says nothing about architecture. Refusing here turns
+  # that into a comprehensible failure at the moment of installation.
+  #
+  # Scoped to macOS: Linuxbrew on x64 is a platform the jar genuinely supports, and an
+  # unscoped arm64 requirement would reject it.
+  on_macos do
+    depends_on arch: :arm64
+  end
+  depends_on "openjdk@17"
+
+  def install
+    # Named for the URL's basename, which is how Homebrew stages a non-archive download --
+    # the artifact is `contextgraph-cli-<version>-all.jar`, not `contextgraph-<version>-...`.
+    libexec.install "contextgraph-cli-__VERSION__-all.jar" => "contextgraph.jar"
+
+    # Pinned to the formula's own JDK rather than whatever `java` happens to be on PATH:
+    # this is a tool installed by people who may have no system JDK at all (the iOS and web
+    # developers it is meant for, in particular), and it must not break when an unrelated
+    # project switches their JAVA_HOME.
+    (bin/"contextgraph").write <<~SH
+      #!/bin/bash
+      exec "#{Formula["openjdk@17"].opt_bin}/java" -jar "#{libexec}/contextgraph.jar" "$@"
+    SH
+    chmod 0755, bin/"contextgraph"
+  end
+
+  test do
+    # Exercises the whole stack the way a user's first command does: JVM starts, the shaded
+    # jar's main class resolves, Clikt renders help.
+    assert_match "ContextGraph", shell_output("#{bin}/contextgraph --help")
+
+    # And the part most likely to be broken by a bad build: a grammar native actually loading
+    # out of the jar. `index` parses this Kotlin file through tree-sitter, which means
+    # NativeGrammarLoader has to find, extract and dlopen libcontextgraph_ts_kotlin.dylib.
+    (testpath/"Sample.kt").write("class Sample { fun greet() = \"hi\" }")
+    system bin/"contextgraph", "init"
+    system bin/"contextgraph", "index", "."
+    assert_predicate testpath/".contextgraph/graph.local.db", :exist?
+  end
+end

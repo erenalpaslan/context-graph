@@ -22,7 +22,7 @@ TARGET="${1:-$REPO_ROOT}"
 echo "==> Building the contextgraph CLI (./gradlew :modules:cli:installDist)" >&2
 ./gradlew :modules:cli:installDist -q
 
-BIN="$REPO_ROOT/modules/cli/build/install/cli/bin/cli"
+BIN="$REPO_ROOT/modules/cli/build/install/contextgraph/bin/contextgraph"
 if [ ! -x "$BIN" ]; then
     echo '{"status":"error","message":"contextgraph CLI binary not found after installDist"}'
     exit 1

@@ -1,0 +1,112 @@
+# Reusable workflow: reindexes the calling repository and leaves the graph as a job artifact.
+#
+# Deliberately stops there. What happens to the graph afterwards -- committed to the repo so
+# `git checkout develop` has it ready, uploaded to a release, or simply discarded -- is the
+# calling repository's policy, and so is when to run this at all (on merge, nightly, on
+# demand). Encoding either here would force every consumer onto one team's rhythm; this
+# workflow owns only the part that is genuinely the same everywhere, which is indexing
+# correctly.
+#
+# Usage from a consumer repository:
+#
+#   jobs:
+#     graph:
+#       uses: erenalpaslan/context-graph/.github/workflows/reindex.yml@v0.2.0
+#       with:
+#         contextgraph-version: "0.2.0"
+#     publish:
+#       needs: graph
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: actions/download-artifact@v4
+#           with: { name: "${{ needs.graph.outputs.artifact-name }}" }
+#         - ...whatever this repository does with it
+name: reindex
+
+on:
+  workflow_call:
+    inputs:
+      contextgraph-version:
+        description: >-
+          ContextGraph version to run. Defaults to the version pinned in this workflow's
+          `uses:` line below, which a `uses:` cannot derive from the ref it was called at.
+          Pass it explicitly to run a different CLI version than the pinned one.
+        required: false
+        type: string
+        default: ""
+      ref:
+        description: Git ref to index. Defaults to the ref that triggered the caller.
+        required: false
+        type: string
+        default: ""
+      artifact-name:
+        description: Name of the uploaded artifact holding the graph.
+        required: false
+        type: string
+        default: contextgraph-graph
+      artifact-retention-days:
+        required: false
+        type: number
+        default: 7
+    outputs:
+      artifacts:
+        description: Number of source artifacts indexed.
+        value: ${{ jobs.reindex.outputs.artifacts }}
+      nodes:
+        description: Number of graph nodes written.
+        value: ${{ jobs.reindex.outputs.nodes }}
+      edges:
+        description: Number of graph edges written.
+        value: ${{ jobs.reindex.outputs.edges }}
+      artifact-name:
+        description: Name the graph was uploaded under, for a downstream job to download.
+        value: ${{ jobs.reindex.outputs.artifact-name }}
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    # The graph is single-writer by construction (ReindexPrimitive takes both an in-JVM lock
+    # and a cross-process one), but two overlapping runs would still race to publish
+    # artifacts describing different commits. The newer commit is the one worth having.
+    concurrency:
+      group: contextgraph-reindex-${{ github.workflow }}-${{ inputs.ref || github.ref }}
+      cancel-in-progress: true
+    outputs:
+      artifacts: ${{ steps.reindex.outputs.artifacts }}
+      nodes: ${{ steps.reindex.outputs.nodes }}
+      edges: ${{ steps.reindex.outputs.edges }}
+      artifact-name: ${{ inputs.artifact-name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: erenalpaslan/context-graph/action@v0.2.0
+        with:
+          version: ${{ inputs.contextgraph-version }}
+
+      - name: Reindex
+        id: reindex
+        # From the repository root, always: the CLI resolves both `.contextgraph/config.json`
+        # and the project root relative to the working directory, not from the path argument.
+        # `ci-reindex` is also the only command that writes the committed baseline, refuses to
+        # run with a TTY attached, and forces LiteLLM off -- so this needs no API credentials.
+        #
+        # No status check on the result: `ci-reindex` prints failures to stderr and exits
+        # non-zero, so `set -e` has already killed this step by then and the captured value can
+        # only ever be a successful run.
+        run: |
+          set -euo pipefail
+          result=$(contextgraph ci-reindex .)
+          echo "$result"
+
+          for key in artifacts nodes edges; do
+            echo "$key=$(echo "$result" | jq -r ".$key")" >> "$GITHUB_OUTPUT"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: .contextgraph/graph.db
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact-retention-days }}

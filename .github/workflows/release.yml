@@ -1,0 +1,272 @@
+# Cuts a release from a git tag: builds a fat jar that carries the tree-sitter natives for
+# BOTH supported platforms, proves the jar actually runs on each of them, publishes it to
+# Maven Central, attaches it to a GitHub Release, and bumps the Homebrew formula in the tap.
+#
+# The multi-job shape is not incidental. `modules/tree-sitter/build.gradle.kts` compiles each
+# grammar from C source for the platform the build is running on and nothing else, and
+# `NativeGrammarLoader` looks the compiled library up at runtime under /lib/<os>/<arch>/. A
+# jar built on one runner therefore only works on that runner's platform. Compiling on macOS,
+# shipping the result to the Linux job as an artifact, and assembling there is what makes one
+# downloadable file serve both a GitHub Actions runner and a developer's Mac -- and running
+# the finished jar on both is the only thing that actually proves it.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  # Lets a failed release be retried against the same tag without moving it.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.2.0)"
+        required: true
+
+concurrency:
+  # Keyed on the tag rather than github.ref, so a workflow_dispatch retry cannot run
+  # concurrently with the tag-push run that it is retrying.
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  macos-natives:
+    name: Compile macOS arm64 grammar natives
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: gradle/actions/wrapper-validation@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Compile grammars for macos/aarch64
+        run: ./gradlew :modules:tree-sitter:compileTreeSitterGrammars --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: natives-macos-aarch64
+          path: modules/tree-sitter/build/generated/tree-sitter-natives/lib/macos
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    name: Build and verify the dual-platform jar
+    needs: macos-natives
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: gradle/actions/wrapper-validation@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Resolve the version from the tag
+        id: version
+        env:
+          RAW_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "version=${RAW_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=${RAW_TAG}" >> "$GITHUB_OUTPUT"
+
+      # Dropped into the second resources source directory rather than into
+      # compileTreeSitterGrammars' declared output directory: Gradle's stale-output cleanup
+      # may delete foreign files it finds in a task's outputs. See PrebuiltNativesResourceTest.
+      - uses: actions/download-artifact@v4
+        with:
+          name: natives-macos-aarch64
+          path: modules/tree-sitter/prebuilt-natives/lib/macos
+
+      - name: An untested jar must never reach Central, where releases are permanent
+        run: ./gradlew test --no-daemon
+
+      - name: Build the fat jar
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./gradlew :modules:cli:shadowJar -Pversion="$VERSION" --no-daemon
+
+      - name: Fail unless the jar carries every grammar for both platforms
+        # The failure this guards against is silent: a jar missing one platform's natives
+        # builds fine, passes tests on the runner that built it, and only throws
+        # UnsatisfiedLinkError later, on a user's machine. The expected count comes from the
+        # build rather than a literal, so adding a grammar cannot leave this check stale.
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          expected=$(./gradlew -q :modules:tree-sitter:printGrammarCount --no-daemon | tail -1)
+          jar="modules/cli/build/libs/contextgraph-cli-${VERSION}-all.jar"
+          for platform in macos/aarch64 linux/x64; do
+            count=$(unzip -l "$jar" | grep -c "lib/${platform}/libcontextgraph_ts_" || true)
+            echo "${platform}: ${count} of ${expected} grammar libraries"
+            if [ "$count" -ne "$expected" ]; then
+              echo "::error::expected ${expected} grammar natives for ${platform}, found ${count}"
+              exit 1
+            fi
+          done
+
+      - name: Prove the jar runs on linux/x64
+        # Counting zip entries says the files are present; only running the thing proves they
+        # load. `ci-reindex` parses real sources through tree-sitter, so this fails if a native
+        # is corrupt, built for the wrong ABI, or unextractable.
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          jar="$PWD/modules/cli/build/libs/contextgraph-cli-${VERSION}-all.jar"
+          cd test-fixtures/kotlin-project
+          result=$(CONTEXTGRAPH_CI=true java -jar "$jar" ci-reindex .)
+          echo "$result"
+          test "$(echo "$result" | jq -r '.status')" = "ok"
+          test "$(echo "$result" | jq -r '.nodes')" -gt 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contextgraph-cli-jar
+          path: modules/cli/build/libs/contextgraph-cli-${{ steps.version.outputs.version }}-all.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  smoke-macos:
+    name: Prove the jar runs on macOS arm64
+    needs: build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: contextgraph-cli-jar
+          path: dist
+
+      - name: Index a fixture with the released jar
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          jar="$PWD/dist/contextgraph-cli-${VERSION}-all.jar"
+          cd test-fixtures/kotlin-project
+          result=$(CONTEXTGRAPH_CI=true java -jar "$jar" ci-reindex .)
+          echo "$result"
+          test "$(echo "$result" | jq -r '.status')" = "ok"
+          test "$(echo "$result" | jq -r '.nodes')" -gt 0
+
+  publish:
+    name: Publish and release
+    needs: [build, smoke-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: natives-macos-aarch64
+          path: modules/tree-sitter/prebuilt-natives/lib/macos
+
+      # The exact jar both smoke jobs ran. What a user installs via brew is then literally the
+      # artifact that was proven to work, not a same-source rebuild of it.
+      - uses: actions/download-artifact@v4
+        with:
+          name: contextgraph-cli-jar
+          path: dist
+
+      - name: Refuse to start without the signing key
+        # Signing is skipped when `signingInMemoryKey` is absent, so a misnamed or unset
+        # secret would otherwise upload unsigned artifacts and only fail at Central's
+        # validation, after the GitHub Release and possibly the formula bump had happened.
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_KEY" || { echo "::error::SIGNING_KEY secret is empty"; exit 1; }
+          test -n "$CENTRAL_USERNAME" || { echo "::error::CENTRAL_USERNAME secret is empty"; exit 1; }
+
+      - name: Publish to Maven Central
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./gradlew :modules:cli:publishToMavenCentral -Pversion="$VERSION" --no-daemon
+
+      # The formula points at this asset rather than at Central because Central's CDN sync is
+      # not instantaneous: bumping the formula to a repo1.maven.org URL that is still 404
+      # would break `brew install` for everyone during the gap.
+      - name: Attach the jar to a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          jar="dist/contextgraph-cli-${VERSION}-all.jar"
+          # `create` fails if the release already exists, which is exactly the state a retry
+          # of a half-finished release starts from.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" "$jar" --clobber
+
+      - name: Bump the Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}
+          TAG: ${{ needs.build.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          jar="dist/contextgraph-cli-${VERSION}-all.jar"
+          sha=$(shasum -a 256 "$jar" | cut -d' ' -f1)
+          url="https://github.com/${REPO}/releases/download/${TAG}/contextgraph-cli-${VERSION}-all.jar"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/erenalpaslan/homebrew-contextgraph.git" tap
+          mkdir -p tap/Formula
+          sed -e "s|__URL__|${url}|" \
+              -e "s|__SHA256__|${sha}|" \
+              -e "s|__VERSION__|${VERSION}|" \
+              packaging/homebrew/contextgraph.rb.template > tap/Formula/contextgraph.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/contextgraph.rb
+          if git diff --cached --quiet; then
+            echo "Formula already at ${VERSION}; nothing to commit."
+          else
+            git commit -m "contextgraph ${VERSION}"
+            git push
+          fi

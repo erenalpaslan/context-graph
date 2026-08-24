@@ -39,6 +39,7 @@ Requires Java 17+.
 ./gradlew :modules:cli:run --args="report"
 ./gradlew :modules:cli:run --args="describe-modules"       # LLM module descriptions + embeddings
 ./gradlew :modules:cli:run --args="serve-mcp"
+./gradlew :modules:cli:run --args="mcp bind"    # print this project's .mcp.json block
 ./gradlew :modules:cli:run --args="export graph.json"
 ./gradlew :modules:cli:run --args="config set litellm.enabled true"
 ```
@@ -51,6 +52,13 @@ keeps the committed baseline single-writer.
 For a launcher without Gradle startup per command:
 `./gradlew :modules:cli:installDist` puts a `contextgraph` binary in
 `modules/cli/build/install/contextgraph/bin/`.
+
+Released builds are a single self-contained jar instead — `./gradlew :modules:cli:shadowJar`
+produces `modules/cli/build/libs/contextgraph-cli-<version>-all.jar`, carrying every
+dependency and the tree-sitter natives for **both** macOS arm64 and Linux x64. That one file
+is what `brew install contextgraph` and the composite action each fetch. Because
+`compileTreeSitterGrammars` only ever builds host-platform natives, assembling it takes two
+runners — see `.github/workflows/release.yml` and `modules/tree-sitter/prebuilt-natives/`.
 
 ## Architecture
 
