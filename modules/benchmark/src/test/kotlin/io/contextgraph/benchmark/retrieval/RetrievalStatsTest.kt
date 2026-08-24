@@ -18,6 +18,10 @@ class RetrievalStatsTest : FunSpec({
     val tolerance = 0.0001
 
     test("MRR is the mean of per-question reciprocal ranks, separately per side") {
+        // The two sides carry different reciprocal ranks so that the two means below are different
+        // numbers: a fixture scoring both sides alike would pass even if one side's mean were
+        // computed from the other's field. Which side holds which value carries no meaning, and
+        // the assertions are pure arithmetic over whatever is written here.
         val results = listOf(
             RetrievalRunResult(
                 "q1", "repo", QuestionCategory.GRAPH_HEAVY, listOf("a.kt"), listOf("Foo"),

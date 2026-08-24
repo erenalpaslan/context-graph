@@ -25,8 +25,8 @@ import kotlin.io.path.readText
  * [io.contextgraph.treesitter.LanguageSupport.extract] -- every language slice (02, then
  * 04-08) shares this one extractor; only the per-language `extract()` differs.
  *
- * A file whose extension no grammar covers -- including `.go` and `.rs`, dropped along
- * with the regex extractor in slice 18 -- produces a file node with no symbols and no
+ * A file whose extension no grammar covers -- `.rs`, and every non-code text file that
+ * still reaches this extractor -- produces a file node with no symbols and no
  * diagnostic (AC-4 in the spec): [LanguageRegistry.resolve] returning `null` is the
  * ordinary "nothing to do here" case, not a failure. It still gets a file node -- the
  * caller has no other source of one for a [NodeType.CodeFile]/[NodeType.TestFile]

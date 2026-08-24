@@ -146,13 +146,75 @@ class FileDiscovery(private val config: ContextGraphConfig) {
      * [sensitiveExtensions] (`.pem`, `.key`, `.p12`) still apply to every file unconditionally,
      * and they are what actually catches secrets. Secrets *inside* a source file are a different
      * problem than this filename heuristic was ever solving.
+     *
+     * [isServiceLoaderRegistration] is the same exemption reached by the same argument, for files
+     * that are source code in every sense except carrying an extension. It was found the same way
+     * too: Keycloak's
+     * `META-INF/services/org.keycloak.credential.hash.PasswordHashProviderFactory` was dropped at
+     * discovery while its sibling `…services/org.keycloak.authentication.AuthenticatorFactory` was
+     * indexed, so whether a service registration reached the graph depended on how the interface it
+     * names happens to be spelled.
+     *
+     * That dependency is narrowed, not eliminated, by [extensionLooksReal]: a services entry whose
+     * FQN happens to *end* in a word from [sensitiveExtensions] -- `java.security.Key`,
+     * `some.pkg.Cert` -- still reaches [ext] the same way `server.pem` does, because
+     * `substringAfterLast(".")` cannot tell a Java simple name from a real extension. What still
+     * separates them is case: a real extension is conventionally lowercase where it sits in the
+     * file's own (non-lowered) name, and a Java type's simple name is conventionally capitalised.
+     * [extensionLooksReal] checks that, on the file's own casing, before trusting [ext] inside
+     * `META-INF/services/`. The one spelling this does NOT fix: an interface named in defiance of
+     * that convention -- all lower-case, e.g. a hypothetical `some.pkg.cert` -- still reads as a
+     * real extension and is still dropped. That residual is real; it is also now conditioned on
+     * violating Java's own naming convention rather than on containing any word in
+     * [sensitiveExtensions], which is what made the original bug (whole files silently missing
+     * because of what their *interface* was named) possible in the first place.
      */
     private fun isSensitive(path: Path): Boolean {
-        val name = path.fileName?.toString()?.lowercase() ?: return false
+        val rawName = path.fileName?.toString() ?: return false
+        val name = rawName.lowercase()
         if (name in sensitiveNames) return true
         val ext = name.substringAfterLast(".", "")
-        if (ext in sensitiveExtensions) return true
+        val isServiceEntry = isServiceLoaderRegistration(path)
+        if (ext in sensitiveExtensions && (!isServiceEntry || extensionLooksReal(rawName))) return true
         if (ext in ArtifactTypeDetector.codeExtensions) return false
+        if (isServiceEntry) return false
         return sensitivePatterns.any { it.matches(name) }
+    }
+
+    /**
+     * Whether [rawName]'s own (case-preserving) text after its last dot is itself already
+     * lowercase -- true for a real extension (`server.pem` -> `pem`), false for the Java simple
+     * name a `META-INF/services/` provider-configuration file is named after (`java.security.Key`
+     * -> `Key`, capitalised by Java's own type-naming convention). Only meaningful for a services
+     * entry; see the exemption reasoning on [isSensitive].
+     */
+    private fun extensionLooksReal(rawName: String): Boolean {
+        val rawExt = rawName.substringAfterLast(".", "")
+        return rawExt.isNotEmpty() && rawExt == rawExt.lowercase()
+    }
+
+    /**
+     * Whether [path] is a Java ServiceLoader provider-configuration file — an entry directly inside
+     * a `META-INF/services/` directory.
+     *
+     * Such a file is *named after the fully-qualified interface it registers implementations for*,
+     * by the JAR File Specification. Its name therefore describes a Java type, never its own
+     * contents, and words like "password" or "credential" in it carry no more secrecy signal than
+     * they do in `Argon2PasswordHashProvider.java` — which the [sensitivePatterns] rule already
+     * exempts for exactly this reason. It also has no extension in any useful sense:
+     * `substringAfterLast(".")` on a dotted class name yields the simple name
+     * (`passwordhashproviderfactory`), which matches no extension list, so without this check the
+     * file falls through to the name-substring rule that the extension exemption exists to keep it
+     * away from.
+     *
+     * Deliberately checked *after* [sensitiveExtensions], not before: this exempts a file from the
+     * name-substring heuristic only. A real credential parked under `META-INF/services/` still
+     * carries a credential extension and is still excluded, so nothing here widens what gets
+     * ingested beyond registration files.
+     */
+    private fun isServiceLoaderRegistration(path: Path): Boolean {
+        val servicesDir = path.parent ?: return false
+        if (servicesDir.fileName?.toString() != "services") return false
+        return servicesDir.parent?.fileName?.toString() == "META-INF"
     }
 }

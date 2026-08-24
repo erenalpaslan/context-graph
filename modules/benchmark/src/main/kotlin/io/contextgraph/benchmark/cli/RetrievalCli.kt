@@ -7,8 +7,10 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import io.contextgraph.benchmark.corpus.CorpusCatalog
 import io.contextgraph.benchmark.questions.QuestionSetLoader
+import io.contextgraph.benchmark.retrieval.BashProcess
 import io.contextgraph.benchmark.retrieval.RetrievalBenchmarkRunner
 import io.contextgraph.benchmark.retrieval.RetrievalReportGenerator
+import io.contextgraph.benchmark.retrieval.RetrievalRun
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
@@ -30,11 +32,14 @@ class RetrievalCommand(
     private val explicitRepoRoot: Path?
 ) : CliktCommand(name = "retrieval") {
     override fun help(context: Context) =
-        "Measure ContextGraph (this project), CodeGraph (third-party) and ripgrep (baseline) " +
-            "against each other over the same question set, LLM-free and deterministic. Every " +
-            "side gets the same raw question text and is scored against the same gold-derived " +
-            "expected files with the same metrics. Requires an already-prepared corpus (see " +
-            "prepareCorpus), `rg` on PATH, and — for the CodeGraph side — `codegraph` on PATH."
+        "Measure four sides against each other over the same question set, LLM-free and " +
+            "deterministic: ContextGraph (this project), CodeGraph (third-party), bash " +
+            "(base-system shell only, no third-party tools) and ripgrep (third-party, retained " +
+            "for comparison). Every side gets the same raw question text and is scored against " +
+            "the same gold-derived expected files with the same metrics. Requires an " +
+            "already-prepared corpus (see prepareCorpus), `rg` on PATH, and — for the CodeGraph " +
+            "side — `codegraph` on PATH. The bash side needs nothing installed, which is the " +
+            "point of it."
 
     private val corpusRootArg by option(
         "--corpus-root",
@@ -61,8 +66,16 @@ class RetrievalCommand(
         "--codegraph-path",
         help = "Path to the CodeGraph binary (default: 'codegraph', resolved via PATH). A repo " +
             "whose codegraph working copy is missing or unindexed is skipped on that side alone, " +
-            "with the reason recorded — the other two sides are still measured."
+            "with the reason recorded — the other three sides are still measured."
     ).default("codegraph")
+
+    private val grepPath by option(
+        "--grep-path",
+        help = "Path to the grep binary for the bash side (default: " +
+            "${BashProcess.BASE_SYSTEM_GREP}, an absolute path, deliberately NOT resolved via " +
+            "PATH — a PATH lookup can pick up a Homebrew or nix GNU grep, which would silently " +
+            "turn this side back into a third-party measurement)."
+    ).default(BashProcess.BASE_SYSTEM_GREP)
 
     private val kValuesArg by option(
         "--k-values",
@@ -70,7 +83,20 @@ class RetrievalCommand(
             "RetrievalBenchmarkRunner.DEFAULT_K_VALUES for why)."
     )
 
+    private val fromResult by option(
+        "--from-result",
+        help = "Rewrite BENCHMARKS.md from an existing retrieval result JSON and exit, without " +
+            "re-running the measurement. No corpus, no `rg`, no `codegraph`, and no number " +
+            "changes: the report is re-rendered from what that file already records. The report " +
+            "is written next to the result document, NOT under --output-dir. A relative path " +
+            "resolves against the repository root, the same rule --corpus-root follows."
+    )
+
     override fun run() {
+        fromResult?.let {
+            regenerateFrom(it)
+            return
+        }
         val corpusRoot = RepoRoot.resolveCorpusRoot(corpusRootArg, startDir, explicitRepoRoot)
         val questionsDir = questionsDirArg?.let { Path.of(it) }
             ?: RepoRoot.find(startDir, explicitRepoRoot).resolve("modules/benchmark/questions")
@@ -88,6 +114,7 @@ class RetrievalCommand(
             kValues = kValues,
             rgPath = rgPath,
             codegraphPath = codegraphPath,
+            grepPath = grepPath,
             progress = { echo(it) }
         )
         val run = runner.run()
@@ -106,6 +133,42 @@ class RetrievalCommand(
             echo("Skipped ${run.skippedRepos.size} repo(s): ${run.skippedRepos.joinToString(", ") { "${it.repoId} (${it.reason})" }}")
         }
         echo("Scored ${run.results.size} question(s) across ${run.results.map { it.repoId }.distinct().size} repo(s).")
+    }
+
+    /**
+     * Re-renders a published report from the result document it was published from -- the supported
+     * way to roll a generator change forward into `BENCHMARKS.md` (AC-11).
+     *
+     * Without it, the report claims in its own header to be generated rather than hand-edited, and
+     * the only way to make good on that claim after changing the generator is throwaway code that
+     * is not in the repository. `PublishedReportIsGeneratedTest` can already *detect* the drift; this
+     * is what fixes it, using the same [RetrievalReportGenerator.generate]/[RetrievalReportGenerator.upsert]
+     * pair [run] does, so a regeneration and a measurement can never produce different renderings.
+     *
+     * **The report is written beside the result document, never under `--output-dir`.** That option
+     * resolves against the caller's working directory -- `modules/benchmark` for the Gradle task,
+     * not the repository root -- and has already silently written a report into
+     * `modules/benchmark/modules/benchmark/results/`. A result document and the report rendered from
+     * it belong in the same directory anyway, so deriving one path from the other removes the
+     * question rather than answering it. The result document itself is only ever read.
+     */
+    private fun regenerateFrom(resultArg: String) {
+        val given = Path.of(resultArg)
+        val resultPath = if (given.isAbsolute) {
+            given.normalize()
+        } else {
+            RepoRoot.find(startDir, explicitRepoRoot).resolve(given).normalize()
+        }
+        val run = RetrievalRun.readFrom(resultPath)
+
+        val reportPath = resultPath.resolveSibling("BENCHMARKS.md")
+        val existing = if (Files.exists(reportPath)) reportPath.readText() else ""
+        reportPath.writeText(RetrievalReportGenerator.upsert(existing, RetrievalReportGenerator.generate(run)))
+
+        echo(
+            "Regenerated ${reportPath.absolutePathString()} from " +
+                "${resultPath.absolutePathString()} — no measurement was run and no number changed."
+        )
     }
 }
 

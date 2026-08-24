@@ -15,6 +15,7 @@ class LanguageRegistryTest : FunSpec({
         "swift" to "swift",
         "m" to "objc",
         "h" to "objc",
+        "go" to "go",
     )
 
     for ((ext, expectedId) in expectedByExtension) {

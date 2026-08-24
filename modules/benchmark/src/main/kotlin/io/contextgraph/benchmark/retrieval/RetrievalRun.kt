@@ -55,14 +55,23 @@ data class RetrievalRun(
 
     companion object {
         /**
-         * 2 since the axis grew a third comparator. Every field added in that change --
+         * 3 since the axis grew a fourth comparator: the base-system bash baseline.
+         *
+         * **What a reader can conclude from seeing 3 rather than 2: a v3 document is the output
+         * of a four-sided run, so a `bash` field that is null in it means that side was not
+         * measured for that question, whereas in a v2 document the field is absent everywhere
+         * because the side did not yet exist.** That is the whole reason the number moves. Every
+         * field added in this change -- [RetrievalRunResult.bash] and [RetrievalAggregate.bash]
+         * -- is nullable with a default, exactly as the third comparator's fields were, so every
+         * archived v1 and v2 result still decodes unchanged; without the version bump a reader
+         * would have to inspect all 33 questions to tell "no bash side in this run" from "the
+         * bash side happened to be unmeasured on the ones I looked at".
+         *
+         * The same reasoning moved it to 2 for the third comparator, whose fields --
          * [RetrievalRunResult.codeGraph], [RetrievalAggregate.codeGraph], [goldFileCoverage],
-         * [ingestCosts] -- is nullable or defaulted, so the four archived v1 results still
-         * decode; the version moves anyway, because a reader needs to be able to tell a
-         * two-sided result from a three-sided one without inspecting every question for a field
-         * that might merely have been null that day.
+         * [ingestCosts] -- are likewise still nullable or defaulted and still decode.
          */
-        const val SCHEMA_VERSION = 2
+        const val SCHEMA_VERSION = 3
 
         private val json = Json {
             prettyPrint = true

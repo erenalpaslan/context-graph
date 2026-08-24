@@ -38,14 +38,27 @@ object GoldFileCoverageCalculator {
         return listOf(
             contextGraphCoverage(repoId, cited, contextGraphWorkingCopy),
             codeGraphCoverage(repoId, cited, codeGraph),
-            // ripgrep searches the working tree directly, so every file that exists on disk is
-            // reachable to it. That is why its side is never gated, and saying so explicitly is
-            // what stops "100%" reading as a suspiciously perfect measurement.
+            // Both text-search baselines search the working tree directly, so every file that
+            // exists on disk is reachable to them. That is why neither side is ever gated, and
+            // saying so explicitly is what stops "100%" reading as a suspiciously perfect
+            // measurement. The bash row must be written rather than omitted for the same reason
+            // ripgrep's is: an absent row renders as NOT_DETERMINABLE, and "we could not tell"
+            // is a false statement about a side that reads the tree.
+            GoldFileCoverage(repoId, RetrievalSide.BASH, cited.size, cited.size, CoverageBasis.READS_WORKING_TREE),
             GoldFileCoverage(repoId, RetrievalSide.RIPGREP, cited.size, cited.size, CoverageBasis.READS_WORKING_TREE)
         )
     }
 
-    /** The same question the integrity gate asks, asked of the graph rather than of the filesystem. */
+    /**
+     * The same question the integrity gate asks, asked of the graph rather than of the filesystem
+     * -- plus the one the gate does not ask at all: *what did the indexer actually extract?*
+     *
+     * Both come off the same open index, in the same pass, because they are only useful together.
+     * "22 of 22 gold-cited files present" and "zero declarations in the whole graph" is a coherent
+     * pair of facts about a repo whose language has no registered grammar, and reporting the first
+     * without the second is how an extraction gap gets published as a retrieval score. See
+     * [GoldFileCoverage.extractedNodeCounts].
+     */
     private fun contextGraphCoverage(repoId: String, cited: List<String>, workingCopy: Path): GoldFileCoverage {
         if (cited.isEmpty()) {
             return GoldFileCoverage(repoId, RetrievalSide.CONTEXT_GRAPH, 0, 0, CoverageBasis.INDEX_QUERY)
@@ -57,7 +70,14 @@ object GoldFileCoverageCalculator {
             val storage = SqliteStorageAdapter(GraphDb.forRead(workingCopy))
             try {
                 val present = cited.count { storage.getArtifact(ArtifactId(it)) != null }
-                GoldFileCoverage(repoId, RetrievalSide.CONTEXT_GRAPH, cited.size, present, CoverageBasis.INDEX_QUERY)
+                GoldFileCoverage(
+                    repoId,
+                    RetrievalSide.CONTEXT_GRAPH,
+                    cited.size,
+                    present,
+                    CoverageBasis.INDEX_QUERY,
+                    extractedNodeCounts = storage.countNodesByType()
+                )
             } finally {
                 storage.close()
             }

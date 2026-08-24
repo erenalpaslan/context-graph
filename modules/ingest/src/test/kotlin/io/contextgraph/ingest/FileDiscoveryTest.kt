@@ -122,6 +122,53 @@ class FileDiscoveryTest : FunSpec({
         )
     }
 
+    test("META-INF/services provider-configuration files are indexed whatever interface they name") {
+        val root = tempRepo()
+        val services = root.resolve("services/src/main/resources/META-INF/services")
+        services.createDirectories()
+        // Real Keycloak resources. A ServiceLoader provider-configuration file is NAMED after the
+        // fully-qualified interface it registers implementations for, so its name routinely
+        // contains words like "password" or "credential" that describe a Java type, never the
+        // file's contents. It also has no extension: `substringAfterLast(".")` on
+        // `org.keycloak.credential.hash.PasswordHashProviderFactory` yields
+        // "passwordhashproviderfactory", which is not a code extension, so the name-substring rule
+        // used to drop the file at discovery -- while its sibling AuthenticatorFactory, whose name
+        // happens to contain no trigger word, was indexed. That asymmetry is the bug: whether a
+        // service registration reaches the graph depended on the spelling of the interface.
+        services.resolve("org.keycloak.credential.hash.PasswordHashProviderFactory")
+            .writeText("org.keycloak.credential.hash.Pbkdf2PasswordHashProviderFactory")
+        services.resolve("org.keycloak.authentication.AuthenticatorFactory")
+            .writeText("org.keycloak.authentication.authenticators.browser.UsernamePasswordFormFactory")
+
+        val found = discoverRelativePaths(root)
+
+        found shouldContainExactlyInAnyOrder listOf(
+            "services/src/main/resources/META-INF/services/org.keycloak.credential.hash.PasswordHashProviderFactory",
+            "services/src/main/resources/META-INF/services/org.keycloak.authentication.AuthenticatorFactory"
+        )
+    }
+
+    test("META-INF/services registrations are indexed even when the interface's simple name collides with a credential extension") {
+        val root = tempRepo()
+        val services = root.resolve("META-INF/services")
+        services.createDirectories()
+        // Real JDK/std-lib-shaped interfaces. Each one's simple name -- the text
+        // `substringAfterLast(".")` reads off the FQN filename -- happens to spell a word in
+        // `sensitiveExtensions` once lower-cased ("Key" -> "key", "Cert" -> "cert"). Before this
+        // fix, that spelling coincidence alone dropped the file, exactly as
+        // `PasswordHashProviderFactory` once did for the unrelated reason pinned above -- the same
+        // bug, narrowed to a different set of interface names rather than eliminated.
+        services.resolve("java.security.Key").writeText("com.example.MyKeyImpl")
+        services.resolve("org.example.spi.Cert").writeText("com.example.MyCertImpl")
+
+        val found = discoverRelativePaths(root)
+
+        found shouldContainExactlyInAnyOrder listOf(
+            "META-INF/services/java.security.Key",
+            "META-INF/services/org.example.spi.Cert"
+        )
+    }
+
     test("actual credential files are still excluded, whatever the exemption above allows") {
         val root = tempRepo()
         root.resolve(".env").writeText("API_KEY=live")
@@ -129,6 +176,11 @@ class FileDiscoveryTest : FunSpec({
         root.resolve("tls.key").writeText("-----BEGIN PRIVATE KEY-----")
         // Not source code, so the name-substring rule still applies to it.
         root.resolve("passwords.txt").writeText("hunter2")
+        // The META-INF/services exemption is about the name-substring rule only: a real credential
+        // parked in that directory still carries a credential extension, and that rule is checked
+        // first and unconditionally, so the exemption opens no hole.
+        root.resolve("META-INF/services").createDirectories()
+        root.resolve("META-INF/services/server.pem").writeText("-----BEGIN PRIVATE KEY-----")
         root.resolve("Main.kt").writeText("fun main() {}")
 
         val found = discoverRelativePaths(root)

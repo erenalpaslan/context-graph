@@ -2,6 +2,10 @@ plugins {
     application
 }
 
+// Name must match PublishedSummariesAreGeneratedTest's — duplicated as a literal because this
+// build script cannot import a runtime class.
+val PUBLISH_SUMMARIES_UPDATE_PROPERTY = "contextgraph.publishedSummaries.update"
+
 application {
     mainClass.set("io.contextgraph.benchmark.cli.MainKt")
 }
@@ -75,6 +79,17 @@ tasks.register<JavaExec>("runRetrieval") {
         ?.split(" ")
         ?.filter { it.isNotBlank() }
         ?: emptyList()
+}
+
+// AC-21: README.md's Benchmarks section and the site's introduction paragraph are rendered from
+// the committed retrieval result, and PublishedSummariesAreGeneratedTest fails if either drifts
+// from it. Regenerating them is that same test run with this flag, so the escape hatch and the
+// check are one code path rather than two that could disagree:
+//   gradle :modules:benchmark:test -Dcontextgraph.publishedSummaries.update=true
+// Gradle's own -D reaches the daemon, not the forked test JVM, so it is forwarded explicitly.
+tasks.withType<Test> {
+    System.getProperty(PUBLISH_SUMMARIES_UPDATE_PROPERTY)
+        ?.let { systemProperty(PUBLISH_SUMMARIES_UPDATE_PROPERTY, it) }
 }
 
 // NOTE for slices 02-06: this file is shared territory. Front-loaded below

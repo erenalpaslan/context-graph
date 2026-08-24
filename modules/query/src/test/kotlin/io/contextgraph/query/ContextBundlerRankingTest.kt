@@ -1,12 +1,15 @@
 package io.contextgraph.query
 
+import io.contextgraph.core.ArtifactId
 import io.contextgraph.core.GraphNode
 import io.contextgraph.core.NodeId
 import io.contextgraph.core.NodeType
+import io.contextgraph.core.Provenance
 import io.contextgraph.storage.SqliteStorageAdapter
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
+import kotlinx.datetime.Instant
 
 /**
  * The ordering contract of [ContextBundler.bundle], pinned from both sides: what a query is
@@ -88,5 +91,81 @@ class ContextBundlerRankingTest : FunSpec({
         val second = bundler.bundle(nodes, relevance = relevance).nodes.map { it.id.value }
 
         first shouldBe second
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Ties.
+    //
+    // The test directly above passes on a bundler with no tie-break at all: it hands `bundle` the
+    // *same list object* twice, so a stable sort preserves the same input order both times and
+    // agrees with itself about an order it never decided. A stable sort preserves an accident when
+    // the input has no order of its own -- and `nodes` has none, being SQLite physical row order,
+    // which differs between index builds because ingest extracts concurrently.
+    //
+    // So each test below feeds the same candidates in two different input orders. That is the
+    // difference between proving the ranking is a function of the candidates and proving only that
+    // it is repeatable when nothing varies.
+    // ---------------------------------------------------------------------------------------
+
+    // Confidence 0.0 makes the tie exact by construction rather than by arithmetic luck: the graph
+    // term is `pageRank * confidence`, so every candidate scores exactly 0.0 whatever PageRank
+    // returns, and no epsilon between two vertices can quietly do the tie-break's job for it.
+    fun tied(id: String) = unlinked(id, 0.0)
+
+    test("candidates tied on score rank by node id, not by the order they arrived in") {
+        val nodes = listOf(tied("charlie"), tied("alpha"), tied("bravo"))
+
+        val forwards = bundler.bundle(nodes).nodes.map { it.id.value }
+        val backwards = bundler.bundle(nodes.reversed()).nodes.map { it.id.value }
+
+        forwards shouldBe listOf("alpha", "bravo", "charlie")
+        backwards shouldBe forwards
+    }
+
+    test("which tied candidates survive the cut does not depend on the order they arrived in") {
+        // The sharp edge is not the order of what survives, it is *what survives*. `take` cuts the
+        // sorted list, so with more tied candidates than slots an input-order-dependent sort makes
+        // the surviving set itself an artifact of how SQLite happened to lay the rows out.
+        val nodes = listOf(tied("e"), tied("b"), tied("f"), tied("a"), tied("d"), tied("c"))
+
+        val forwards = bundler.bundle(nodes, maxNodes = 3).nodes.map { it.id.value }
+        val backwards = bundler.bundle(nodes.reversed(), maxNodes = 3).nodes.map { it.id.value }
+
+        forwards shouldBe listOf("a", "b", "c")
+        backwards shouldBe forwards
+    }
+
+    test("a tie is broken the same way whether or not a query did the scoring") {
+        // The `relevance != null` path is the one `search` and `buildContext` take, and it is the
+        // one the published retrieval measurement runs through. An all-inert query leaves every
+        // candidate on the same score, exactly as the expanded-neighbour population does in a real
+        // `buildContext` call.
+        val nodes = listOf(tied("zulu"), tied("mike"), tied("alfa"))
+        val relevance = QueryRelevance.of("entirely unrelated wording", seedsInRankOrder = emptyList())
+
+        val forwards = bundler.bundle(nodes, relevance = relevance).nodes.map { it.id.value }
+        val backwards = bundler.bundle(nodes.reversed(), relevance = relevance).nodes.map { it.id.value }
+
+        forwards shouldBe listOf("alfa", "mike", "zulu")
+        backwards shouldBe forwards
+    }
+
+    test("evidence for one node is ordered by what its rows say, not by the order they were written") {
+        // `getProvenanceFor` issues no ORDER BY, so a node's rows come back in row order -- and the
+        // benchmark's ContextGraph side reads its whole ranked file list off `evidence`. Writing
+        // the rows in descending path order is what a build that happened to extract them that way
+        // would leave behind.
+        val node = unlinked("multi-file", 0.9)
+        listOf("src/zebra.kt", "src/mango.kt", "src/apple.kt").forEach { path ->
+            storage.upsertProvenance(
+                node.id.value,
+                "node",
+                Provenance(ArtifactId("artifact-$path"), path, extractor = "test", extractedAt = Instant.fromEpochSeconds(0))
+            )
+        }
+
+        val evidence = bundler.bundle(listOf(node)).evidence.map { it.path }
+
+        evidence shouldBe listOf("src/apple.kt", "src/mango.kt", "src/zebra.kt")
     }
 })

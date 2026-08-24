@@ -49,6 +49,17 @@ class GraphExpander(private val storage: StorageAdapter) {
             }
         }
 
-        return visitedNodes.values.toList() to visitedEdges.values.toList()
+        // Sorted, because the traversal that built these maps is not a stable source of order.
+        // `getEdgesFrom`/`getEdgesTo` issue no ORDER BY, so the frontier is walked in SQLite row
+        // order, which differs between index builds because ingest extracts concurrently -- and
+        // both of these lists escape into places where that matters. The node list is re-ranked
+        // downstream, but the edge list is published as-is, and both are handed to
+        // `GraphAlgorithms.buildJGraphT` and from there to PageRank, whose floating-point
+        // summation is not associative: the same graph fed in two orders can differ in the last
+        // few ulps, and a ranking that breaks exact ties would then break them differently.
+        //
+        // Sorted here, once per expansion, rather than by adding ORDER BY to the two edge lookups,
+        // which the BFS calls once per visited node on a hot path.
+        return visitedNodes.values.sortedBy { it.id.value } to visitedEdges.values.sortedBy { it.id.value }
     }
 }

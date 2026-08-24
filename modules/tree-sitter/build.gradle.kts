@@ -11,10 +11,13 @@ dependencies {
 }
 
 /**
- * One entry per vendored tree-sitter grammar. This list is the single place all seven
- * grammars (eight registry entries: TypeScript and TSX are two grammars from one repo)
- * are declared and version-pinned. Language-specific slices (04-08) must not edit this
- * file — they own exactly one file under `src/main/kotlin/.../grammars/`.
+ * One entry per vendored tree-sitter grammar. This list is the single place all eight
+ * grammars (nine registry entries: TypeScript and TSX are two grammars from one repo)
+ * are declared and version-pinned. A slice implementing extraction for an *already
+ * pinned* language must not edit this file — it owns exactly one file under
+ * `src/main/kotlin/.../grammars/`. Adding a language that is not pinned yet (Go, most
+ * recently) is the one case that touches all three places: this list, one file under
+ * `grammars/`, and one line in `LanguageRegistry`.
  *
  * [repo] + [commit] are fetched from GitHub (codeload tarball) and compiled from source
  * on whichever platform the build runs on (macOS arm64 / Linux x64 are the two CI/dev
@@ -117,6 +120,24 @@ val grammarSpecs = listOf(
         jniClass = "io.contextgraph.treesitter.grammars.TreeSitterObjectiveC",
         hasScanner = false,
         libName = "contextgraph_ts_objc",
+    ),
+    GrammarSpec(
+        id = "go",
+        repo = "tree-sitter/tree-sitter-go",
+        // v0.23.4, not the newer v0.25.0, for the same ABI-14-vs-15 reason as python above.
+        // Confirmed by reading, not by assuming: this commit's checked-in generated
+        // `src/parser.c` opens with `#define LANGUAGE_VERSION 14`, byte-identical in form to
+        // the `14` in the already-working java/python/javascript trees under
+        // `build/tree-sitter-src/`. tree-sitter-go checks its generated parser into the repo,
+        // so the ABI is a property of the pinned commit itself, not of whatever CLI happens
+        // to be installed on the build machine.
+        commit = "3c3775faa968158a8b4ac190a7fda867fd5fb748",
+        languageFn = "tree_sitter_go",
+        jniClass = "io.contextgraph.treesitter.grammars.TreeSitterGo",
+        // Go's grammar is pure LR with no context-sensitive lexing: `src/` at this commit
+        // holds parser.c, grammar.json and node-types.json, and no scanner.c at all.
+        hasScanner = false,
+        libName = "contextgraph_ts_go",
     ),
 )
 

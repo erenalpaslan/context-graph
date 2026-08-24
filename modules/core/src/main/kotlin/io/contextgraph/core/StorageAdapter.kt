@@ -34,6 +34,26 @@ interface StorageAdapter {
     fun getAllEdges(minConfidence: Double = 0.0): List<GraphEdge>
     fun getAllArtifacts(): List<Artifact>
     fun getStats(): GraphStats
+
+    /**
+     * A census of the graph: every [NodeType] present, stringified by [NodeType.stringify], mapped
+     * to how many nodes carry it. A type with no nodes is absent from the map rather than present
+     * with a zero -- the caller knows which types it was looking for, and inventing keys for the
+     * ones that are missing would put the caller's vocabulary into the store's answer.
+     *
+     * [GraphStats.nodeCount] answers "how much is in here"; this answers "what *kind* of thing is
+     * in here", which is a different question and the one that separates an index that read a
+     * repo's files from an index that understood them. A repo in a language no grammar is
+     * registered for still yields file and document nodes -- and not one `Function` -- so the
+     * shape of this map is what tells an extraction gap from a retrieval result.
+     *
+     * The default implementation counts [getAllNodes] in memory, which is correct for any adapter
+     * and cheap for a small one; an adapter over a real database overrides it with a grouped
+     * count, because materialising several million nodes to learn four numbers is not a thing to
+     * do to a caller by default.
+     */
+    fun countNodesByType(): Map<String, Int> =
+        getAllNodes().groupingBy { NodeType.stringify(it.type) }.eachCount()
     fun close()
 
     // --- Symbol table / two-pass resolution (slice 09) ---

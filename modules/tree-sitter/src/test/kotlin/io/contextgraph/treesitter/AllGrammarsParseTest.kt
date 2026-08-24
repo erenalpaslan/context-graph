@@ -6,10 +6,16 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
 /**
- * Proves the parsing substrate every later slice stands on: all seven vendored grammars
- * (eight registry entries) load their compiled native library and parse a trivial
+ * Proves the parsing substrate every later slice stands on: all eight vendored grammars
+ * (nine registry entries) load their compiled native library and parse a trivial
  * snippet with no error node at the root, on whatever platform this test runs on
  * (macOS arm64 or Linux x64 -- see the slice 01 task file).
+ *
+ * This is also the cheapest ABI check there is. ktreesitter 0.24.1's native runtime accepts
+ * tree-sitter ABI 14 and rejects 15; a grammar pinned at a commit that generates 15 fails
+ * here at `Language(...)` construction rather than silently returning empty parses. See the
+ * python and go entries in `build.gradle.kts` for the two commits that were moved back a
+ * minor version for exactly this reason.
  */
 class AllGrammarsParseTest : FunSpec({
 
@@ -22,6 +28,7 @@ class AllGrammarsParseTest : FunSpec({
         "kotlin" to "fun main() { println(\"hi\") }",
         "swift" to "func foo() -> Int { return 1 }",
         "objc" to "@interface Foo : NSObject\n@end\n",
+        "go" to "package main\n\nfunc foo() int { return 1 }\n",
     )
 
     test("every registered language has a trivial snippet fixture") {

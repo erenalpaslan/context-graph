@@ -90,7 +90,7 @@
   <p><code>ArtifactTypeDetector</code> maps file extensions to <code>NodeType</code>. A <code>.kt</code> file becomes <code>CodeFile</code>, a <code>.sql</code> file becomes <code>DatabaseSchema</code>, a <code>.pdf</code> becomes <code>PDF</code>, and so on. The type determines which extractors run.</p>
 
   <h2>3. Parsing and extraction</h2>
-  <p>Source files go to <code>TreeSitterExtractor</code>, which parses them to a tree-sitter AST and walks it for declarations. Grammars ship for Kotlin, Java, TypeScript, TSX, JavaScript, Python, Swift and Objective-C.</p>
+  <p>Source files go to <code>TreeSitterExtractor</code>, which parses them to a tree-sitter AST and walks it for declarations. Grammars ship for Kotlin, Java, TypeScript, TSX, JavaScript, Python, Swift, Objective-C and Go.</p>
   <p>Declarations get <strong>scope-correct identity</strong> rather than a bare name: <code>DeclarationSiteId</code> and <code>Fqn</code> in <code>modules:tree-sitter</code> qualify a symbol by where it is declared, so a <code>close()</code> on one type and a <code>close()</code> on another never collapse into one node. This is the difference between a call graph and a list of coincidences.</p>
   <p><code>IngestPipeline</code> runs extraction with Kotlin coroutines. Each file is processed concurrently on <code>Dispatchers.IO</code> — multiple extractors can run in parallel across many files. Results flow through a <code>Channel</code> to a single consumer that writes to SQLite, avoiding lock contention.</p>
   <p>A file with syntax errors is not discarded: tree-sitter recovers, extraction proceeds over what parsed, and the run reports a parse warning.</p>

@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retrieval benchmark, question by question — ContextGraph</title>
+  <meta name="description" content="Every question of the four-way retrieval measurement, with all four sides' scores, each side's ranked answer, and the gold files it was scored against. Filterable and sortable." />
+  <link rel="stylesheet" href="../shared/style.css" />
+  <style>
+    /* ── Benchmark page ──
+       Everything here is layout for this page only. The palette is the site's own custom
+       properties, so the page cannot drift from the rest of the documentation site. */
+    .bm-page { max-width: 1120px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+
+    .bm-head h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+    }
+
+    .bm-lede { color: var(--muted); font-size: 1rem; line-height: 1.7; max-width: 62ch; }
+
+    .bm-provenance {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-left: 2px solid var(--border);
+      padding-left: 0.85rem;
+      line-height: 1.7;
+    }
+
+    .bm-notes { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 2.5rem 0; grid-template-columns: repeat(2, 1fr); }
+    .bm-note { background: var(--bg); padding: 1.25rem 1.35rem; }
+    .bm-note h2 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
+    .bm-note p { font-size: 0.85rem; color: #c9d1d9; line-height: 1.65; }
+    .bm-note p + p { margin-top: 0.6rem; }
+
+    h2.bm-section { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; margin: 3rem 0 0.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .bm-section-sub { font-size: 0.875rem; color: var(--muted); line-height: 1.7; margin-bottom: 1.5rem; max-width: 72ch; }
+
+    /* Controls */
+    .bm-controls { display: flex; flex-wrap: wrap; gap: 0.85rem 1.1rem; align-items: flex-end; margin-bottom: 1rem; }
+    .ctl { display: flex; flex-direction: column; gap: 5px; }
+    .ctl > span { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+    .ctl select {
+      font: inherit;
+      font-size: 0.85rem;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 10px;
+      min-width: 11rem;
+      max-width: 100%;
+    }
+    .ctl select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .ctl select:disabled { opacity: 0.45; }
+    .ctl-check { flex-direction: row; align-items: center; gap: 8px; font-size: 0.85rem; color: #c9d1d9; padding-bottom: 8px; }
+    .ctl-check input { width: 15px; height: 15px; accent-color: var(--accent); }
+    .btn-reset {
+      font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--text);
+      background: transparent; border: 1px solid var(--border); border-radius: 7px;
+      padding: 7px 14px; cursor: pointer; margin-bottom: 1px;
+    }
+    .btn-reset:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+    .bm-status { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.85rem; }
+    .bm-status strong { color: var(--text); }
+
+    /* Table */
+    .table-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    table.bm { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 0.83rem; }
+    table.bm th, table.bm td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    table.bm thead th { background: var(--surface); position: relative; }
+    table.bm th button {
+      font: inherit; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; display: block; width: 100%;
+    }
+    table.bm th button:hover { color: var(--text); }
+    table.bm th button .arrow { color: var(--accent); }
+    table.bm th .sub { display: block; font-size: 0.68rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: #6c7086; margin-top: 2px; }
+    table.bm tbody tr { cursor: pointer; }
+    table.bm tbody tr:hover { background: var(--surface); }
+    table.bm tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    table.bm tbody tr.selected { background: var(--accent-dim); }
+    table.bm td.qid { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--text); white-space: nowrap; }
+    table.bm td.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--muted); white-space: nowrap; }
+    table.bm td.num { font-variant-numeric: tabular-nums; }
+    .empty-row td { color: var(--muted); padding: 1.5rem 1rem; text-align: center; }
+
+    /* The three states a figure can be in. Distinguished by shape and glyph as well as by
+       colour, so the difference survives a monochrome screen and colour-blind vision. */
+    .v { font-variant-numeric: tabular-nums; }
+    .v-absent { color: #6c7086; font-style: italic; border-bottom: 1px dashed #484f58; cursor: help; }
+    .v-nogold { color: #e8a33d; }
+    .v-nogold::before { content: '○ '; }
+    .v-found::before { content: '● '; color: #79c0a0; }
+
+    .th-static { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+    .bm-legend { font-size: 0.78rem; color: var(--muted); line-height: 1.8; margin-top: 0.75rem; }
+
+    .cat { font-size: 0.68rem; letter-spacing: 0.04em; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+    .flag-missed { display: inline-block; font-size: 0.63rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #e8a33d; border: 1px solid rgba(232,163,61,0.4); border-radius: 4px; padding: 1px 5px; margin-left: 6px; }
+
+    /* Detail panel */
+    .bm-detail { margin-top: 1.5rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 1.5rem; }
+    .bm-detail.is-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 2rem 1.5rem; }
+    .detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; margin-bottom: 0.25rem; }
+    .detail-head h3 { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.05rem; font-weight: 700; }
+    .detail-meta { font-size: 0.8rem; color: var(--muted); }
+    .detail-close { margin-left: auto; font: inherit; font-size: 0.78rem; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+    .detail-close:hover { color: var(--text); border-color: var(--accent); }
+    .bm-detail h4 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 1.5rem 0 0.6rem; }
+    .bm-detail p { font-size: 0.85rem; color: #c9d1d9; line-height: 1.65; }
+
+    ul.gold-list { list-style: none; display: grid; gap: 6px; }
+    ul.gold-list li { font-size: 0.8rem; border: 1px solid var(--border); border-left: 3px solid #79c0a0; border-radius: 6px; padding: 7px 10px; background: var(--bg); overflow-wrap: anywhere; }
+    ul.gold-list .path { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--code-text); }
+    ul.gold-list .found { display: block; margin-top: 3px; color: var(--muted); font-size: 0.75rem; }
+    ul.gold-list li.unfound { border-left-color: #e8a33d; }
+
+    .sides-grid { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .side-block { background: var(--bg); padding: 1rem 1.1rem; min-width: 0; }
+    .side-block h5 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.35rem; overflow-wrap: anywhere; }
+    .side-figures { font-size: 0.75rem; color: var(--muted); line-height: 1.7; margin-bottom: 0.6rem; }
+    .side-figures b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .side-absent { font-size: 0.8rem; color: #6c7086; font-style: italic; line-height: 1.6; }
+
+    ol.ranked { list-style: none; display: grid; gap: 2px; font-size: 0.76rem; }
+    ol.ranked li { display: flex; gap: 8px; padding: 3px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+    ol.ranked .rk { color: #6c7086; font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; flex: none; }
+    ol.ranked .pt { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--muted); min-width: 0; }
+    ol.ranked li.hit { background: rgba(121,192,160,0.11); box-shadow: inset 2px 0 0 #79c0a0; }
+    ol.ranked li.hit .pt { color: #a6e3a1; }
+    ol.ranked li.hit .rk { color: #79c0a0; }
+    ol.ranked li.hit .pt::after { content: ' ✓ gold'; font-family: inherit; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; color: #79c0a0; white-space: nowrap; }
+    ol.ranked li.gap { color: #6c7086; font-style: italic; padding-left: 3.4em; }
+    ol.ranked li.deep { box-shadow: inset 2px 0 0 #79c0a0; background: rgba(121,192,160,0.11); }
+    ol.ranked li.deep .pt { color: #a6e3a1; }
+    ol.ranked li.deep .rk { color: #79c0a0; }
+
+    /* Aggregate tables */
+    .agg-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .agg-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; min-width: 0; }
+    .agg-card h3 { font-size: 0.9rem; font-weight: 700; padding: 0.75rem 1rem 0.2rem; }
+    .agg-card h3 .kind { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-left: 6px; }
+    .agg-card .measured { font-size: 0.72rem; color: var(--muted); padding: 0 1rem 0.75rem; line-height: 1.6; }
+    .agg-card .table-scroll { border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+    table.agg { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.78rem; }
+    table.agg th, table.agg td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    table.agg thead th { background: var(--surface); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+    table.agg td { font-variant-numeric: tabular-nums; }
+    table.agg td.metric { color: var(--muted); white-space: nowrap; }
+    table.agg td.leads { color: var(--text); font-weight: 700; }
+    table.agg td.leads::after { content: ' ◂ leads'; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em; color: var(--accent); }
+    table.agg td.na { color: #6c7086; font-style: italic; }
+
+    .bm-foot { border-top: 1px solid var(--border); margin-top: 3.5rem; padding-top: 2rem; font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
+    .bm-foot a { color: var(--accent); }
+
+    .footer-links { display: flex; gap: 1.5rem; list-style: none; flex-wrap: wrap; }
+    .footer-links a { font-size: 0.85rem; color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--text); }
+    .lp-footer { border-top: 1px solid var(--border); padding: 2rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; max-width: 1120px; margin: 0 auto; }
+    .footer-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; color: var(--text); text-decoration: none; }
+    .footer-copy { font-size: 0.8rem; color: #484f58; }
+
+    @media (max-width: 780px) {
+      .bm-notes { grid-template-columns: 1fr; }
+      .sides-grid { grid-template-columns: 1fr; }
+      .agg-grid { grid-template-columns: 1fr; }
+      .bm-page { padding: 2rem 1rem 3.5rem; }
+      .ctl { flex: 1 1 100%; }
+      .ctl select { min-width: 0; width: 100%; }
+      .bm-detail { padding: 1.1rem; }
+      .lp-footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV — same shape as every other page on this site -->
+<nav class="site-nav">
+  <a class="nav-logo" href="../index.html">
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="4" fill="#7c6aff"/>
+      <circle cx="6" cy="7" r="2.5" fill="#a78bfa"/>
+      <circle cx="22" cy="7" r="2.5" fill="#a78bfa"/>
+      <circle cx="6" cy="21" r="2.5" fill="#a78bfa"/>
+      <circle cx="22" cy="21" r="2.5" fill="#a78bfa"/>
+      <line x1="10" y1="12" x2="7.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+      <line x1="18" y1="12" x2="20.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+      <line x1="10" y1="16" x2="7.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+      <line x1="18" y1="16" x2="20.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+    </svg>
+    ContextGraph
+  </a>
+  <ul class="nav-right">
+    <li><a href="../getting-started/introduction/index.html">Docs</a></li>
+    <li><a href="../reference/mcp-server/index.html">Reference</a></li>
+    <li><a href="index.html" aria-current="page" style="color:var(--text)">Benchmarks</a></li>
+    <li>
+      <a class="nav-gh" href="https://github.com/erenalpaslan/context-graph" target="_blank">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </li>
+  </ul>
+</nav>
+
+<div class="bm-page">
+
+  <header class="bm-head">
+    <div class="section-eyebrow">Retrieval axis · LLM-free, deterministic</div>
+    <h1>Every question, every side.</h1>
+    <p class="bm-lede">
+      Four tools were asked the same questions over the same repositories and scored against the
+      same gold-derived expected files. The report publishes the means. This page publishes the
+      run: every question it scored, what each side answered, and where in that answer the first
+      expected file actually sat. Filter it, sort it, and open a row to check the arithmetic
+      yourself.
+    </p>
+    <p class="bm-provenance">{{PROVENANCE}}</p>
+  </header>
+
+  <noscript>
+    <p class="bm-provenance" style="border-left-color:var(--accent)">
+      This page renders its table with JavaScript from the data block at the bottom of its own
+      source — there is no server and nothing is fetched. With scripting off, the same run is
+      readable as markdown in
+      <a href="https://github.com/erenalpaslan/context-graph/blob/main/modules/benchmark/results/four-way/BENCHMARKS.md" target="_blank">BENCHMARKS.md</a>,
+      and as raw JSON in the result document named above.
+    </p>
+  </noscript>
+
+  <div class="bm-notes">
+    <div class="bm-note">
+      <h2>An absence is not a zero</h2>
+      <p>
+        A side with <em>no measurement</em> for a question reads <span class="v v-absent">n/a</span>
+        and is excluded from every mean on this page — never folded in as 0.000. A side that ran
+        and returned no expected file anywhere is a real zero and says so in different words. The
+        two are different claims and are printed differently, here and in the report.
+      </p>
+    </div>
+    <div class="bm-note">
+      <h2>Losses are as findable as wins</h2>
+      <p>
+        Rows arrive in the run's own order — repository, then question id — and never by score.
+        Every filter and every sort applies to the four sides identically, and no ordering is
+        offered that would surface one side's good rows before another's. A question this project
+        loses looks exactly like one it wins.
+      </p>
+    </div>
+    <div class="bm-note">
+      <h2>Two names, two letters apart</h2>
+      <p>
+        The two graph tools' names differ by two letters, so neither is ever written bare in a
+        column header, a filter or a verdict: each column is labelled in full, with the third-party
+        tool marked as such. A result favouring any side is an outcome of the measurement, not an
+        error in it.
+      </p>
+    </div>
+    <div class="bm-note">
+      <h2>What this does not settle</h2>
+      <p>
+        This measures which <em>files</em> a tool puts in front of you — not what an agent then does
+        with them. The questions and the gold facts they are scored against were written by this
+        project, which is the largest thing to discount for, and each figure is one run rather than
+        a distribution. The
+        <a href="https://github.com/erenalpaslan/context-graph/blob/main/modules/benchmark/results/four-way/BENCHMARKS.md" target="_blank">full report</a>
+        states the methodology, the caveats and every skip.
+      </p>
+    </div>
+  </div>
+
+  <h2 class="bm-section">Question by question</h2>
+  <p class="bm-section-sub">
+    One row per question. The four side columns show whichever metric is selected below; the
+    verdict names every side that reached an expected file first, ties included. Click any row —
+    or focus it and press Enter — to open the gold file set and each side's own ranked answer
+    beneath the table.
+  </p>
+
+  <div class="bm-controls" id="controls"></div>
+  <p class="bm-status" id="status"></p>
+  <div class="table-scroll">
+    <table class="bm">
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <p class="bm-legend">
+    <span class="v v-found">A figure marked like this</span> is a side that reached one of the
+    expected files somewhere in its own answer.
+    <span class="v v-nogold">A figure marked like this</span> is a side that ran and reached none of
+    them — a measured zero, and a real result.
+    <span class="v v-absent">n/a</span> is a side with no measurement for that question at all:
+    excluded from every mean, never counted as zero.
+  </p>
+
+  <div class="bm-detail is-empty" id="detail"></div>
+
+  <h2 class="bm-section">The means those rows add up to</h2>
+  <p class="bm-section-sub">
+    The same aggregates the report publishes, so this page stands on its own. The headline pool
+    excludes the negative-control questions, which are reported separately and never averaged into
+    it; the per-category and per-repository tables slice the whole scored set, negative controls
+    included. Where a column shows <em>n/a</em>, that side is not in this run — again, not a zero.
+  </p>
+  <div id="aggregates"></div>
+
+  <div class="bm-foot">
+    <p>
+      Everything above is rendered in your browser from a JSON block embedded in this page's own
+      source, which is generated from the committed result document named at the top. Nothing is
+      fetched, from anywhere: open this file from a local clone with the network off and it behaves
+      identically. Nothing on this page is typed by hand — a figure that moves in the next
+      measurement moves here by regeneration or not at all.
+    </p>
+  </div>
+</div>
+
+<footer>
+  <div class="lp-footer">
+    <a class="footer-logo" href="../index.html">
+      <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="4" fill="#7c6aff"/>
+        <circle cx="6" cy="7" r="2.5" fill="#a78bfa"/>
+        <circle cx="22" cy="7" r="2.5" fill="#a78bfa"/>
+        <circle cx="6" cy="21" r="2.5" fill="#a78bfa"/>
+        <circle cx="22" cy="21" r="2.5" fill="#a78bfa"/>
+        <line x1="10" y1="12" x2="7.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+        <line x1="18" y1="12" x2="20.5" y2="9" stroke="#7c6aff" stroke-width="1.5"/>
+        <line x1="10" y1="16" x2="7.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+        <line x1="18" y1="16" x2="20.5" y2="19" stroke="#7c6aff" stroke-width="1.5"/>
+      </svg>
+      ContextGraph
+    </a>
+    <ul class="footer-links">
+      <li><a href="../getting-started/introduction/index.html">Docs</a></li>
+      <li><a href="../reference/mcp-server/index.html">Reference</a></li>
+      <li><a href="index.html">Benchmarks</a></li>
+      <li><a href="https://github.com/erenalpaslan/context-graph" target="_blank">GitHub</a></li>
+      <li><a href="https://github.com/erenalpaslan/context-graph/blob/main/LICENSE" target="_blank">MIT License</a></li>
+    </ul>
+    <span class="footer-copy">© 2025 ContextGraph</span>
+  </div>
+</footer>
+
+<script id="run-data" type="application/json">{{DATA}}</script>
+<script>
+/* The whole view: vanilla JS over the embedded data block. No framework, no build step, no
+   network. Every string that names a repository, a side, a metric or a figure comes out of the
+   data; nothing about this run is written here. */
+(function () {
+  'use strict';
+
+  var DATA = JSON.parse(document.getElementById('run-data').textContent);
+  var SIDES = DATA.sides;
+  var METRICS = DATA.metrics;
+  var QUESTIONS = DATA.questions;
+
+  var KIND_TITLES = { pool: 'Pooled', category: 'By category', repo: 'By repository' };
+  var ABSENT_TITLE = 'No measurement for this question — excluded from every mean, never counted as zero.';
+  var COLUMN_LABELS = { id: 'question id', repo: 'repository', category: 'category', gold: 'expected set size' };
+
+  var state = {
+    repo: '',
+    category: '',
+    metric: METRICS.length ? METRICS[0].id : '',
+    side: '',
+    outcome: '',
+    missedOnly: false,
+    sortKey: '',
+    sortDir: '',
+    selected: ''
+  };
+
+  // ---------------------------------------------------------------- helpers
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function metricById(id) {
+    for (var i = 0; i < METRICS.length; i++) if (METRICS[i].id === id) return METRICS[i];
+    return null;
+  }
+
+  function sideById(id) {
+    for (var i = 0; i < SIDES.length; i++) if (SIDES[i].id === id) return SIDES[i];
+    return null;
+  }
+
+  function sideLabel(id) {
+    var side = sideById(id);
+    return side ? side.label : id;
+  }
+
+  function questionById(id) {
+    for (var i = 0; i < QUESTIONS.length; i++) if (QUESTIONS[i].id === id) return QUESTIONS[i];
+    return null;
+  }
+
+  /* The side's figure for the selected metric, or null when that side has no measurement at all.
+     A null here is an absence; a present cell whose `v` is null is a side that ran and reached
+     nothing. The two never collapse into one another. */
+  function cellOf(question, sideId, metricId) {
+    var side = question.sides[sideId];
+    return side ? side.metrics[metricId] : null;
+  }
+
+  function select(label, options, value, onChange) {
+    var node = document.createElement('select');
+    options.forEach(function (option) {
+      var opt = document.createElement('option');
+      opt.value = option[0];
+      opt.textContent = option[1];
+      if (option[0] === value) opt.selected = true;
+      node.appendChild(opt);
+    });
+    node.addEventListener('change', function () { onChange(node.value); });
+    var wrap = el('label', 'ctl');
+    wrap.appendChild(el('span', null, label));
+    wrap.appendChild(node);
+    return { wrap: wrap, node: node };
+  }
+
+  // --------------------------------------------------------------- controls
+
+  var outcomeSelect = null;
+
+  function renderControls() {
+    var root = document.getElementById('controls');
+    root.textContent = '';
+
+    var repos = [['', 'All repositories']];
+    DATA.repos.forEach(function (repo) { repos.push([repo, repo]); });
+    root.appendChild(select('Repository', repos, state.repo, function (v) {
+      state.repo = v; render();
+    }).wrap);
+
+    var categories = [['', 'All categories']];
+    DATA.categories.forEach(function (category) { categories.push([category, category]); });
+    root.appendChild(select('Category', categories, state.category, function (v) {
+      state.category = v; render();
+    }).wrap);
+
+    var metrics = METRICS.map(function (metric) { return [metric.id, metric.label]; });
+    root.appendChild(select('Side columns show', metrics, state.metric, function (v) {
+      state.metric = v;
+      // Sorting by a side column is sorting by that side's figure for the metric on screen, so a
+      // metric change re-sorts rather than leaving the arrow pointing at a figure nobody sees.
+      render();
+    }).wrap);
+
+    var sides = [['', 'Any side']];
+    SIDES.forEach(function (side) { sides.push([side.id, side.label]); });
+    root.appendChild(select('Focus side', sides, state.side, function (v) {
+      state.side = v; render();
+    }).wrap);
+
+    var outcomes = [
+      ['', 'Any outcome'],
+      ['leads', 'Leads the question'],
+      ['trails', 'Measured, but does not lead'],
+      ['nogold', 'Found no expected file'],
+      ['absent', 'No measurement']
+    ];
+    var outcome = select('Outcome for that side', outcomes, state.outcome, function (v) {
+      state.outcome = v; render();
+    });
+    outcome.node.disabled = !state.side;
+    outcomeSelect = outcome.node;
+    root.appendChild(outcome.wrap);
+
+    var check = el('label', 'ctl ctl-check');
+    var box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = state.missedOnly;
+    box.addEventListener('change', function () { state.missedOnly = box.checked; render(); });
+    check.appendChild(box);
+    check.appendChild(el('span', null, 'Only questions no side found'));
+    root.appendChild(check);
+
+    var reset = el('button', 'btn-reset', 'Reset');
+    reset.type = 'button';
+    reset.addEventListener('click', function () {
+      state.repo = ''; state.category = ''; state.side = ''; state.outcome = '';
+      state.missedOnly = false; state.sortKey = ''; state.sortDir = ''; state.selected = '';
+      state.metric = METRICS.length ? METRICS[0].id : '';
+      renderControls();
+      render();
+    });
+    root.appendChild(reset);
+  }
+
+  // ------------------------------------------------------- filter and sort
+
+  function matches(question) {
+    if (state.repo && question.repo !== state.repo) return false;
+    if (state.category && question.category !== state.category) return false;
+    if (state.missedOnly && !question.missedByAll) return false;
+    if (state.side && state.outcome) {
+      var side = question.sides[state.side];
+      var leads = question.leaders.indexOf(state.side) >= 0;
+      if (state.outcome === 'leads' && !leads) return false;
+      if (state.outcome === 'trails' && (leads || !side)) return false;
+      if (state.outcome === 'nogold' && (!side || side.found)) return false;
+      if (state.outcome === 'absent' && side) return false;
+    }
+    return true;
+  }
+
+  function sortValue(question, key) {
+    if (key === 'id') return question.id;
+    if (key === 'repo') return question.repo;
+    if (key === 'category') return question.category;
+    if (key === 'gold') return question.goldCount;
+    var cell = cellOf(question, key, state.metric);
+    return cell ? cell.v : null;
+  }
+
+  /* Rows with no value for the sorted column keep their natural order at the end, whichever
+     direction the sort runs. Sorting them as zeroes would put an unmeasured side's rows wherever
+     zero happens to fall, which is the one thing this page must never do with an absence. */
+  function sortRows(rows) {
+    if (!state.sortKey) return rows;
+    var direction = state.sortDir === 'asc' ? 1 : -1;
+    var decorated = rows.map(function (question, index) {
+      return { q: question, i: index, v: sortValue(question, state.sortKey) };
+    });
+    decorated.sort(function (a, b) {
+      if (a.v === null && b.v === null) return a.i - b.i;
+      if (a.v === null) return 1;
+      if (b.v === null) return -1;
+      if (a.v < b.v) return -direction;
+      if (a.v > b.v) return direction;
+      return a.i - b.i;
+    });
+    return decorated.map(function (d) { return d.q; });
+  }
+
+  function toggleSort(key, naturalDirection) {
+    if (state.sortKey === key) {
+      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortKey = key;
+      state.sortDir = naturalDirection;
+    }
+    render();
+  }
+
+  // ------------------------------------------------------------ the table
+
+  function headerCell(label, sub, key, naturalDirection) {
+    var th = document.createElement('th');
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.appendChild(document.createTextNode(label));
+    if (state.sortKey === key) {
+      var arrow = el('span', 'arrow', state.sortDir === 'asc' ? ' ↑' : ' ↓');
+      button.appendChild(arrow);
+      th.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
+    }
+    if (sub) button.appendChild(el('span', 'sub', sub));
+    button.addEventListener('click', function () { toggleSort(key, naturalDirection); });
+    th.appendChild(button);
+    return th;
+  }
+
+  function renderHead() {
+    var head = document.getElementById('thead');
+    head.textContent = '';
+    var row = document.createElement('tr');
+    row.appendChild(headerCell('Question', null, 'id', 'asc'));
+    row.appendChild(headerCell('Repository', null, 'repo', 'asc'));
+    row.appendChild(headerCell('Category', null, 'category', 'asc'));
+    row.appendChild(headerCell('Gold files', 'expected set size', 'gold', 'desc'));
+    var metric = metricById(state.metric);
+    SIDES.forEach(function (side) {
+      row.appendChild(headerCell(side.label, metric ? metric.label : '', side.id, metric ? metric.dir : 'desc'));
+    });
+    var verdict = document.createElement('th');
+    verdict.appendChild(el('span', 'th-static', 'Verdict'));
+    row.appendChild(verdict);
+    head.appendChild(row);
+  }
+
+  /* Three states, never two. A side with no measurement is absent; a side that ran and reached no
+     expected file is a measured zero; anything else is a side that reached one. The marker is
+     driven by that fact rather than by whether the printed figure happens to be 0, so a genuine
+     0.0% on a side that did find a file deeper down is not mislabelled as a miss. */
+  function valueCell(question, sideId) {
+    var td = el('td', 'num');
+    var side = question.sides[sideId];
+    if (!side) {
+      var absent = el('span', 'v v-absent', 'n/a');
+      absent.title = ABSENT_TITLE;
+      td.appendChild(absent);
+      return td;
+    }
+    var cell = side.metrics[state.metric];
+    td.appendChild(el('span', side.found ? 'v v-found' : 'v v-nogold', cell ? cell.t : 'n/a'));
+    return td;
+  }
+
+  function renderBody(rows) {
+    var body = document.getElementById('tbody');
+    body.textContent = '';
+    if (!rows.length) {
+      var empty = el('tr', 'empty-row');
+      var cell = document.createElement('td');
+      cell.colSpan = 5 + SIDES.length;
+      cell.textContent = 'No question matches these filters.';
+      empty.appendChild(cell);
+      body.appendChild(empty);
+      return;
+    }
+    rows.forEach(function (question) {
+      var tr = el('tr', question.id === state.selected ? 'selected' : null);
+      tr.setAttribute('tabindex', '0');
+      tr.setAttribute('data-id', question.id);
+
+      var id = el('td', 'qid');
+      id.appendChild(document.createTextNode(question.id));
+      if (question.missedByAll) id.appendChild(el('span', 'flag-missed', 'missed by all'));
+      tr.appendChild(id);
+
+      tr.appendChild(el('td', 'mono', question.repo));
+
+      var category = document.createElement('td');
+      category.appendChild(el('span', 'cat', question.category));
+      tr.appendChild(category);
+
+      tr.appendChild(el('td', 'num', question.goldCount));
+
+      SIDES.forEach(function (side) { tr.appendChild(valueCell(question, side.id)); });
+
+      var verdict = el('td', null, question.verdict);
+      if (!question.leaders.length) verdict.className = 'v-nogold';
+      tr.appendChild(verdict);
+
+      body.appendChild(tr);
+    });
+  }
+
+  // ------------------------------------------------------- the detail panel
+
+  function figuresLine(side) {
+    var line = el('p', 'side-figures');
+    METRICS.forEach(function (metric, index) {
+      if (index) line.appendChild(document.createTextNode(' · '));
+      line.appendChild(document.createTextNode(metric.label + ' '));
+      var cell = side.metrics[metric.id];
+      line.appendChild(el('b', null, cell ? cell.t : 'n/a'));
+    });
+    line.appendChild(document.createTextNode(' · returned '));
+    line.appendChild(el('b', null, side.returned));
+    line.appendChild(document.createTextNode(side.returned === 1 ? ' file' : ' files'));
+    return line;
+  }
+
+  function rankedList(side) {
+    var list = el('ol', 'ranked');
+    side.preview.forEach(function (entry) {
+      var item = el('li', entry.g ? 'hit' : null);
+      item.appendChild(el('span', 'rk', '#' + entry.r));
+      item.appendChild(el('span', 'pt', entry.p));
+      list.appendChild(item);
+    });
+    if (side.hidden > 0) {
+      list.appendChild(el('li', 'gap', side.hidden + (side.hidden === 1 ? ' further file not shown' : ' further files not shown')));
+    }
+    if (side.deepGold) {
+      var deep = el('li', 'deep');
+      deep.appendChild(el('span', 'rk', '#' + side.deepGold.r));
+      deep.appendChild(el('span', 'pt', side.deepGold.p));
+      list.appendChild(deep);
+    }
+    return list;
+  }
+
+  function renderDetail() {
+    var panel = document.getElementById('detail');
+    panel.textContent = '';
+    var question = state.selected ? questionById(state.selected) : null;
+    if (!question) {
+      panel.className = 'bm-detail is-empty';
+      panel.appendChild(document.createTextNode('Select a question above to see its expected files and each side’s ranked answer.'));
+      return;
+    }
+    panel.className = 'bm-detail';
+
+    var head = el('div', 'detail-head');
+    head.appendChild(el('h3', null, question.id));
+    head.appendChild(el('span', 'detail-meta', question.repo + ' · ' + question.category + ' · ' + question.verdict));
+    var close = el('button', 'detail-close', 'Close');
+    close.type = 'button';
+    close.addEventListener('click', function () { state.selected = ''; render(); });
+    head.appendChild(close);
+    panel.appendChild(head);
+
+    var tokens = el('p');
+    tokens.appendChild(document.createTextNode('Derived query tokens, given identically to both text-search sides: '));
+    if (question.tokens.length) {
+      question.tokens.forEach(function (token, index) {
+        if (index) tokens.appendChild(document.createTextNode(', '));
+        tokens.appendChild(el('code', null, token));
+      });
+    } else {
+      tokens.appendChild(el('em', null, 'none derivable from this question'));
+    }
+    panel.appendChild(tokens);
+
+    panel.appendChild(el('h4', null, 'Expected files — the gold set this question was scored against'));
+    if (!question.expected.length) {
+      panel.appendChild(el('p', null, 'This question cites no files.'));
+    } else {
+      var list = el('ul', 'gold-list');
+      question.expected.forEach(function (file) {
+        var item = el('li', file.foundBy.length ? null : 'unfound');
+        item.appendChild(el('span', 'path', file.path));
+        var found = el('span', 'found');
+        if (file.foundBy.length) {
+          found.textContent = 'returned by ' + file.foundBy.map(function (hit) {
+            return sideLabel(hit.side) + ' at #' + hit.rank;
+          }).join(', ');
+        } else {
+          found.textContent = 'no side returned this file anywhere in its ranked answer';
+        }
+        item.appendChild(found);
+        list.appendChild(item);
+      });
+      panel.appendChild(list);
+    }
+
+    panel.appendChild(el('h4', null, 'What each side answered, in its own order'));
+    var grid = el('div', 'sides-grid');
+    SIDES.forEach(function (side) {
+      var block = el('div', 'side-block');
+      block.appendChild(el('h5', null, side.label));
+      var measured = question.sides[side.id];
+      if (!measured) {
+        block.appendChild(el('p', 'side-absent', ABSENT_TITLE));
+      } else {
+        block.appendChild(figuresLine(measured));
+        if (!measured.returned) {
+          block.appendChild(el('p', 'side-absent', 'It ran and returned no files at all. That is a measured zero, not an absence.'));
+        } else {
+          block.appendChild(rankedList(measured));
+        }
+      }
+      grid.appendChild(block);
+    });
+    panel.appendChild(grid);
+    panel.appendChild(el(
+      'p',
+      'side-figures',
+      'A row marked ✓ gold is one of the expected files above. Lists are shown to their first ' +
+      DATA.previewDepth + ' entries — twice the deepest k this run scored, so nothing any metric ' +
+      'here looks at can hide below the cut; where the first gold-cited file sits deeper than that, ' +
+      'it is shown at its true rank after the gap.'
+    ));
+  }
+
+  // ----------------------------------------------------------- aggregates
+
+  function aggregateCard(group) {
+    var card = el('div', 'agg-card');
+    var title = el('h3', null, group.title);
+    title.appendChild(el('span', 'kind', KIND_TITLES[group.kind] || group.kind));
+    card.appendChild(title);
+
+    var measured = el('p', 'measured');
+    measured.appendChild(document.createTextNode('n = ' + group.questionCount + ' question(s). Measured: '));
+    SIDES.forEach(function (side, index) {
+      if (index) measured.appendChild(document.createTextNode('; '));
+      var count = group.measured[side.id];
+      measured.appendChild(document.createTextNode(side.label + ' ' + (count === null ? 'not in this run' : count)));
+    });
+    measured.appendChild(document.createTextNode('.'));
+    card.appendChild(measured);
+
+    var scroll = el('div', 'table-scroll');
+    var table = el('table', 'agg');
+    var head = document.createElement('thead');
+    var headRow = document.createElement('tr');
+    headRow.appendChild(el('th', null, 'Metric'));
+    SIDES.forEach(function (side) { headRow.appendChild(el('th', null, side.label)); });
+    head.appendChild(headRow);
+    table.appendChild(head);
+
+    var body = document.createElement('tbody');
+    group.rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      tr.appendChild(el('td', 'metric', row.label));
+      SIDES.forEach(function (side) {
+        var cell = row.cells[side.id];
+        if (!cell) {
+          var absent = el('td', 'na', 'n/a');
+          absent.title = 'This side is not in this run — not a zero.';
+          tr.appendChild(absent);
+        } else {
+          tr.appendChild(el('td', cell.leads ? 'leads' : null, cell.t));
+        }
+      });
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    scroll.appendChild(table);
+    card.appendChild(scroll);
+    return card;
+  }
+
+  function renderAggregates() {
+    var root = document.getElementById('aggregates');
+    root.textContent = '';
+    if (!DATA.aggregates.length) {
+      root.appendChild(el('p', 'bm-section-sub', 'This run carries no summary.'));
+      return;
+    }
+    var grid = el('div', 'agg-grid');
+    DATA.aggregates.forEach(function (group) { grid.appendChild(aggregateCard(group)); });
+    root.appendChild(grid);
+  }
+
+  // --------------------------------------------------------------- render
+
+  function renderStatus(shown) {
+    var status = document.getElementById('status');
+    status.textContent = '';
+    var strong = el('strong', null, shown + ' of ' + QUESTIONS.length);
+    status.appendChild(document.createTextNode('Showing '));
+    status.appendChild(strong);
+    status.appendChild(document.createTextNode(' question(s)'));
+    if (!state.sortKey) {
+      status.appendChild(document.createTextNode(', in the run’s own order — repository, then question id, never by score.'));
+    } else {
+      var metric = metricById(state.metric);
+      var side = sideById(state.sortKey);
+      var column = side
+        ? side.label + '’s ' + (metric ? metric.label : '')
+        : (COLUMN_LABELS[state.sortKey] || state.sortKey);
+      status.appendChild(document.createTextNode(
+        ', sorted ' + (state.sortDir === 'asc' ? 'ascending' : 'descending') + ' by ' + column +
+        '. Rows with no figure for that column stay at the end rather than sorting as zeroes.'
+      ));
+    }
+  }
+
+  function render() {
+    if (outcomeSelect) outcomeSelect.disabled = !state.side;
+    var rows = sortRows(QUESTIONS.filter(matches));
+    renderHead();
+    renderBody(rows);
+    renderStatus(rows.length);
+    renderDetail();
+  }
+
+  document.getElementById('tbody').addEventListener('click', function (event) {
+    var row = event.target.closest ? event.target.closest('tr[data-id]') : null;
+    if (!row) return;
+    var id = row.getAttribute('data-id');
+    state.selected = state.selected === id ? '' : id;
+    render();
+    if (state.selected) document.getElementById('detail').scrollIntoView({ block: 'nearest' });
+  });
+
+  document.getElementById('tbody').addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    var row = event.target.closest ? event.target.closest('tr[data-id]') : null;
+    if (!row) return;
+    event.preventDefault();
+    var id = row.getAttribute('data-id');
+    state.selected = state.selected === id ? '' : id;
+    render();
+    if (state.selected) document.getElementById('detail').scrollIntoView({ block: 'nearest' });
+  });
+
+  renderControls();
+  renderAggregates();
+  render();
+})();
+</script>
+
+</body>
+</html>

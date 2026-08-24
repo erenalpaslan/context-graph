@@ -434,11 +434,43 @@ class SqliteStorageAdapterTest : FunSpec({
             stats.edgeCount shouldBe 1
         }
 
+        test("countNodesByType censuses the graph by type, omitting types with no nodes") {
+            storage.upsertNode(makeNode("N1", "Alpha", NodeType.Function))
+            storage.upsertNode(makeNode("N2", "Beta", NodeType.Function))
+            storage.upsertNode(makeNode("N3", "Gamma", NodeType.Document))
+            storage.upsertNode(makeNode("N4", "Delta", NodeType.Custom("Interface")))
+
+            // A type with no nodes is *absent*, not present with a zero: the caller knows which
+            // types it was looking for, and inventing keys for the missing ones would put the
+            // caller's vocabulary into the store's answer.
+            storage.countNodesByType() shouldBe mapOf(
+                "Function" to 2,
+                "Document" to 1,
+                "Interface" to 1
+            )
+        }
+
+        test("countNodesByType on an index that stored files but parsed none of them reports zero declarations") {
+            // The state this census exists to expose: a repo in a language no grammar is
+            // registered for still gets its files read and stored, so a file-presence check says
+            // 100% while there is not one declaration for a query to match.
+            storage.upsertNode(makeNode("F1", "gin.go", NodeType.CodeFile))
+            storage.upsertNode(makeNode("F2", "routergroup.go", NodeType.CodeFile))
+            storage.upsertNode(makeNode("D1", "README", NodeType.Document))
+
+            val census = storage.countNodesByType()
+
+            census["CodeFile"] shouldBe 2
+            census["Function"].shouldBeNull()
+            census["Method"].shouldBeNull()
+        }
+
         test("empty database has zero counts") {
             val stats = storage.getStats()
             stats.artifactCount shouldBe 0
             stats.nodeCount shouldBe 0
             stats.edgeCount shouldBe 0
+            storage.countNodesByType() shouldBe emptyMap()
         }
     }
 })

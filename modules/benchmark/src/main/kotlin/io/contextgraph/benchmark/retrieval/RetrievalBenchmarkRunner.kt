@@ -15,14 +15,18 @@ import java.nio.file.Path
 
 /**
  * Runs the whole retrieval axis over a set of already-prepared corpus repos: for every question,
- * scores **all three sides** -- ContextGraph, CodeGraph and ripgrep -- against the
+ * scores **all four sides** -- ContextGraph, CodeGraph, bash and ripgrep -- against the
  * [ExpectedFileSet] its own gold facts derive, and returns a [RetrievalRun] with
  * [RetrievalStats.summarize] already folded in.
  *
  * The three fairness invariants live here, in [scoreQuestion], and they are the point of the
  * exercise: every side is handed the same raw `question.text`, scored against the same expected
  * set, with the same metrics, and no side's output is re-ranked, filtered or truncated before
- * scoring. A number obtained by breaking one of them is worse than no number.
+ * scoring. A number obtained by breaking one of them is worse than no number. The fourth side
+ * **extends** those invariants rather than diluting them: [BashBaselineRunner] takes the same raw
+ * `question.text`, derives its tokens from the same [RipgrepQueryDeriver.deriveTokens] the ripgrep
+ * side uses, searches the same WITHOUT working copy, and its ranked list reaches [scoreSide]
+ * exactly as `grep` emitted it.
  *
  * Deliberately does not prepare, clone, or (re-)index anything -- it only *reads*
  * [corpusRoot]`/<repoId>/{with,without,codegraph}`, the layout
@@ -31,12 +35,18 @@ import java.nio.file.Path
  * concurrent process: this runner never opens those paths for writing, so it cannot corrupt or
  * race an in-progress index.
  *
- * **Two kinds of absence, and neither is a zero.** A repo whose ContextGraph index fails
+ * **Three kinds of absence, and none of them is a zero.** A repo whose ContextGraph index fails
  * [IndexIntegrityGate] loses its ContextGraph side; a repo with no CodeGraph index, or a question
- * whose `codegraph explore` call fails, loses that side. Every one is recorded as a
- * [SkippedRepo] with its reason and excluded from that side's average, rather than counted as
- * 0.0 -- which would blame a tool for an infrastructure failure instead of a retrieval one. The
- * ripgrep side is never blocked this way, since it reads the never-indexed working tree directly.
+ * whose `codegraph explore` call fails, loses that side; a question whose `grep` invocation exits
+ * with a real error -- an unreadable file or a bad path, where `rg` would have returned a partial
+ * result -- loses its bash side. Every one is recorded as a [SkippedRepo] with its reason and
+ * excluded from that side's average, rather than counted as 0.0 -- which would blame a tool for an
+ * infrastructure failure instead of a retrieval one.
+ *
+ * Note what the bash side is *never* absent for: an indexing reason. Like the ripgrep side it
+ * reads the never-indexed WITHOUT working tree, so no integrity gate and no missing index can cost
+ * it a measurement; the only way it goes missing is a failed subprocess, and that failure names
+ * itself. A `grep` that ran clean and matched nothing is a real zero and is scored as one.
  *
  * The gate is applied to the ContextGraph side only, and is left exactly as it was. That
  * asymmetry is answered by publishing each tool's gold-file coverage
@@ -49,6 +59,14 @@ class RetrievalBenchmarkRunner(
     private val kValues: List<Int> = DEFAULT_K_VALUES,
     private val rgPath: String = "rg",
     private val codegraphPath: String = "codegraph",
+    /**
+     * Overridable the way [rgPath] and [codegraphPath] are, but with a different *kind* of default:
+     * [BashProcess.BASE_SYSTEM_GREP] is an absolute path, not a name resolved through `PATH`. A
+     * developer's `PATH` may put a Homebrew or `nix` GNU grep first, and measuring that would
+     * silently be measuring an installed third-party tool again -- exactly the flaw this side
+     * exists to remove from the ripgrep baseline.
+     */
+    private val grepPath: String = BashProcess.BASE_SYSTEM_GREP,
     private val progress: (String) -> Unit = {}
 ) {
 
@@ -57,6 +75,7 @@ class RetrievalBenchmarkRunner(
         val skipped = mutableListOf<SkippedRepo>()
         val coverage = mutableListOf<GoldFileCoverage>()
         val baseline = RipgrepBaselineRunner(rgPath)
+        val bashBaseline = BashBaselineRunner(grepPath)
 
         for (repo in catalog) {
             val repoQuestions = questions.filter { it.repoId == repo.id }
@@ -66,7 +85,7 @@ class RetrievalBenchmarkRunner(
             if (!Files.isDirectory(withoutDir)) {
                 skipped += SkippedRepo(
                     repo.id,
-                    "WITHOUT working copy not found at $withoutDir -- corpus not prepared for this repo; skipping all three sides"
+                    "WITHOUT working copy not found at $withoutDir -- corpus not prepared for this repo; skipping all four sides"
                 )
                 continue
             }
@@ -79,8 +98,10 @@ class RetrievalBenchmarkRunner(
 
             try {
                 for (question in repoQuestions) {
-                    progress("${question.id}: scoring ContextGraph, CodeGraph and ripgrep")
-                    results += scoreQuestion(question, withoutDir, queryEngine, codeGraph, baseline, skipped)
+                    progress("${question.id}: scoring ContextGraph, CodeGraph, bash and ripgrep")
+                    results += scoreQuestion(
+                        question, withoutDir, queryEngine, codeGraph, baseline, bashBaseline, skipped
+                    )
                 }
             } finally {
                 queryEngine?.close()
@@ -152,14 +173,35 @@ class RetrievalBenchmarkRunner(
         queryEngine: ClosableQueryEngine?,
         codeGraph: CodeGraphRetrievalRunner?,
         baseline: RipgrepBaselineRunner,
+        bashBaseline: BashBaselineRunner,
         skipped: MutableList<SkippedRepo>
     ): RetrievalRunResult {
         val expected = ExpectedFileSet.of(question)
 
-        // All three sides get `question.text`, unmodified. Nothing is pre-filtered, and nothing is
+        // All four sides get `question.text`, unmodified. Nothing is pre-filtered, and nothing is
         // lifted from the gold facts -- the invariant the whole comparison rests on.
         val ripgrepOutcome = baseline.rankedFiles(question.text, withoutDir)
         val ripgrepSide = scoreSide(ripgrepOutcome.rankedFiles, expected)
+
+        // The same raw question, the same WITHOUT working copy, and -- because both runners call
+        // RipgrepQueryDeriver.deriveTokens and there is no second tokenizer -- the same tokens the
+        // ripgrep side just searched for. The two baselines differ in the tool and in nothing else.
+        val bashSide = try {
+            scoreSide(bashBaseline.rankedFiles(question.text, withoutDir).rankedFiles, expected)
+        } catch (e: BashCommandExecutionException) {
+            // Not a zero, for the same reason a failed `codegraph explore` is not one -- and this
+            // side needs the rule more, not less: `grep` exits 2 on an unreadable file or a bad
+            // path even under `-s`, where `rg` would hand back a partial result, so on a real
+            // 50k-file checkout the bash side can fail where the ripgrep side does not. A thrown
+            // invocation published as 0.0 would read as "a shell alone retrieves nothing", which
+            // is precisely the unearned win this fourth side exists to rule out.
+            skipped += SkippedRepo(
+                question.repoId,
+                "${RetrievalSide.BASH.label} side unmeasured for question ${question.id} (its other sides still " +
+                    "scored): ${e.message}"
+            )
+            null
+        }
 
         val contextGraphSide = queryEngine?.let {
             val ranked = ContextGraphRetrievalRunner(it.queryEngine).rankedFiles(question.text)
@@ -188,10 +230,13 @@ class RetrievalBenchmarkRunner(
             repoId = question.repoId,
             category = question.category,
             expectedFiles = expected.sorted(),
+            // Recorded once for both text-search baselines, which is what makes "they differ in
+            // the tool and in nothing else" checkable from the archived result alone.
             ripgrepQueryTokens = ripgrepOutcome.tokens,
             contextGraph = contextGraphSide,
             ripgrep = ripgrepSide,
-            codeGraph = codeGraphSide
+            codeGraph = codeGraphSide,
+            bash = bashSide
         )
     }
 
