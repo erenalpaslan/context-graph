@@ -1,6 +1,7 @@
 package io.contextgraph.benchmark.retrieval
 
 import io.contextgraph.benchmark.cli.RepoRoot
+import io.kotest.assertions.fail
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -28,8 +29,10 @@ import kotlin.io.path.writeText
  *
  * **To regenerate rather than assert**, run the module's tests with
  * `-Dcontextgraph.publishedSummaries.update=true`. That writes both documents from the committed
- * result and asserts nothing. It is the whole mechanism by which these two blocks are ever edited:
- * a digit typed into either file by hand fails this test on the next build.
+ * result -- and then **fails**, naming what it rewrote, rather than reporting green. A CI job
+ * that inherited this flag by accident must not silently rewrite three committed files and pass;
+ * the intended flow is a human running with the flag, reading which file(s) it rewrote, and
+ * re-running *without* the flag to confirm the write reproduces byte for byte.
  */
 class PublishedSummariesAreGeneratedTest : FunSpec({
 
@@ -65,7 +68,10 @@ class PublishedSummariesAreGeneratedTest : FunSpec({
 
         if (updating) {
             publish(readme, section, PublishedSummaries.README_START, PublishedSummaries.README_END)
-            return@test
+            fail(
+                "wrote README.md's Benchmarks section from the committed result document -- " +
+                    "re-run without -Dcontextgraph.publishedSummaries.update=true to confirm the write reproduces green"
+            )
         }
 
         val published = readme.readText()
@@ -86,7 +92,11 @@ class PublishedSummariesAreGeneratedTest : FunSpec({
 
         if (updating) {
             publish(page, paragraph, PublishedSummaries.SITE_START, PublishedSummaries.SITE_END)
-            return@test
+            fail(
+                "wrote docs/getting-started/introduction/index.html's digest paragraph from the " +
+                    "committed result document -- re-run without -Dcontextgraph.publishedSummaries.update=true " +
+                    "to confirm the write reproduces green"
+            )
         }
 
         val published = page.readText()

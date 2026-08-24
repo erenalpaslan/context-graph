@@ -2,6 +2,7 @@ package io.contextgraph.benchmark.retrieval
 
 import io.contextgraph.benchmark.cli.RepoRoot
 import io.contextgraph.benchmark.model.QuestionCategory
+import io.kotest.assertions.fail
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainAll
@@ -38,7 +39,9 @@ import kotlin.io.path.writeText
  * `-Dcontextgraph.publishedSummaries.update=true` — the same flag that regenerates the README
  * section and the site's introduction paragraph. One flag for every published surface rendered from
  * this result is deliberate: those surfaces describe one run, and regenerating a subset of them is
- * how they come apart.
+ * how they come apart. That flag writes the page and then **fails**, naming what it rewrote,
+ * rather than reporting green -- a CI job that inherited it by accident must not silently rewrite
+ * a committed file and pass. Re-run without the flag to confirm the write reproduces byte for byte.
  */
 class PublishedBenchmarkPageIsGeneratedTest : FunSpec({
 
@@ -84,7 +87,10 @@ class PublishedBenchmarkPageIsGeneratedTest : FunSpec({
         if (updating) {
             Files.createDirectories(page.parent)
             page.writeText(rendered)
-            return@test
+            fail(
+                "wrote ${RetrievalSitePage.PAGE_PATH} from the committed result document -- " +
+                    "re-run without -Dcontextgraph.publishedSummaries.update=true to confirm the write reproduces green"
+            )
         }
 
         val published = page.readText()
