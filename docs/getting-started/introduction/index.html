@@ -17,7 +17,9 @@
 
   <h2>Why it exists</h2>
   <p>Large codebases are hard to navigate — for humans and AI agents alike. Reading every file to answer "what does this module do?" or "what calls this function?" is slow and expensive, and grep answers with text matches rather than with meaning.</p>
-  <p>Most graph tools then hand an agent a list of pointers and let it go read files anyway, which spends the tokens the graph was supposed to save. ContextGraph returns the source itself, ranked against the question that was asked, capped at a token budget. On nine benchmark questions its mean reciprocal rank went from 0.133, when ranking ignored the query, to 0.556 today — against 0.244 for CodeGraph and 0.140 for ripgrep on those same questions. That is one repository in one language, and the comparator figures come from an earlier measurement run; the <a href="https://github.com/erenalpaslan/context-graph#benchmarks" target="_blank">project README</a> spells out what the numbers do and do not establish.</p>
+<!-- benchmarks-digest:start -->
+  <p>Most graph tools then hand an agent a list of pointers and let it go read files anyway, which spends the tokens the graph was supposed to save. ContextGraph returns the source itself, ranked against the question that was asked, capped at a token budget. Across 33 questions over four repositories, all four sides measured in one run, its mean reciprocal rank over the 29 headline questions is 0.485, against 0.326 for CodeGraph (third-party), 0.218 for a stock <code>grep</code> and 0.218 for ripgrep (third-party). It does not win everywhere: on <code>gin</code> CodeGraph (third-party) leads on MRR, 0.813 against 0.656; on <code>keycloak</code> bash (base-system shell only) and ripgrep (third-party) lead on recall@10, 39.6% against 17.3%. The <a href="https://github.com/erenalpaslan/context-graph#benchmarks" target="_blank">project README</a> spells out what the numbers do and do not establish.</p>
+<!-- benchmarks-digest:end -->
 
   <h2>What's in the graph</h2>
   <p>Every indexed file produces <strong>nodes</strong> and <strong>edges</strong>:</p>
