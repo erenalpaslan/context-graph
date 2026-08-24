@@ -3,6 +3,7 @@ package io.contextgraph.benchmark.retrieval
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.string.shouldContain
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * M4: [BashProcess.requireDrainThreadsFinished], the check that used to be a discarded
@@ -12,7 +13,7 @@ import io.kotest.matchers.string.shouldContain
  * [BashProcess.SYSTEM] itself -- that would mean either waiting out a real 5s budget or racing a
  * genuinely flaky pipe. [BashProcess.requireDrainThreadsFinished] is extracted precisely so this
  * does not have to: it is exercised directly against real [Thread] objects standing in for the
- * drain threads, with [joinMillis][BashProcess.requireDrainThreadsFinished] shrunk to a few
+ * drain threads, with [joinBudget][BashProcess.requireDrainThreadsFinished] shrunk to a few
  * milliseconds so "still alive after the join budget" is forced rather than awaited.
  */
 class BashProcessTest : FunSpec({
@@ -30,7 +31,7 @@ class BashProcessTest : FunSpec({
             BashProcess.requireDrainThreadsFinished(
                 command = listOf("grep", "-rc", "-e", "token", "."),
                 readers = listOf(alreadyFinishedThread(), stillRunningThread()),
-                joinMillis = 5
+                joinBudget = 5.milliseconds
             )
         }
         thrown.message!! shouldContain "grep -rc -e token ."
@@ -44,7 +45,7 @@ class BashProcessTest : FunSpec({
         BashProcess.requireDrainThreadsFinished(
             command = listOf("grep"),
             readers = listOf(alreadyFinishedThread(), alreadyFinishedThread()),
-            joinMillis = 5_000
+            joinBudget = 5_000.milliseconds
         )
     }
 
@@ -53,18 +54,18 @@ class BashProcessTest : FunSpec({
             BashProcess.requireDrainThreadsFinished(
                 command = listOf("grep"),
                 readers = listOf(stillRunningThread(), stillRunningThread()),
-                joinMillis = 5
+                joinBudget = 5.milliseconds
             )
         }
         thrown.message!! shouldContain "2 of its 2 output-draining thread(s)"
     }
 
     test("an empty reader list -- the omitted-parameter call shape -- never throws") {
-        // The default join budget (5_000ms, matching production) is exercised here rather than
+        // The default join budget (5 seconds, matching production) is exercised here rather than
         // asserted as a literal: there is nothing to observe about a budget's length except
         // whether waiting it out changes the outcome, and an empty list finishes instantly either
         // way. What this pins is the call shape [BashProcess.SYSTEM] actually uses --
-        // `requireDrainThreadsFinished(command, readers)` with `joinMillis` omitted -- compiling
+        // `requireDrainThreadsFinished(command, readers)` with `joinBudget` omitted -- compiling
         // and returning normally.
         BashProcess.requireDrainThreadsFinished(command = listOf("grep"), readers = emptyList())
     }

@@ -5,6 +5,7 @@ import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /** A base-system `grep` invocation failed to start, timed out, or exited with a real error (not "no match"). */
 class BashCommandExecutionException(message: String) : RuntimeException(message)
@@ -100,7 +101,7 @@ object BashProcess {
     }
 
     /**
-     * Waits up to [joinMillis] for each of [readers] to finish, then throws if any is still alive.
+     * Waits up to [joinBudget] for each of [readers] to finish, then throws if any is still alive.
      *
      * By the time this runs the process itself has already exited, so a reader thread still
      * draining its pipe past a generous budget means its `forEachLine` loop never reached EOF --
@@ -110,18 +111,18 @@ object BashProcess {
      * own KDoc forbids. Previously `join(5_000)`'s implicit outcome -- whether the thread actually
      * finished -- was discarded and [SYSTEM] read the builders regardless.
      *
-     * [joinMillis] is a parameter, not a hardcoded literal in [SYSTEM], so a test can force the
+     * [joinBudget] is a parameter, not a hardcoded literal in [SYSTEM], so a test can force the
      * "still alive" branch deterministically with a slow fake [Thread] and a tiny budget rather
      * than waiting out the real 5s one.
      */
-    internal fun requireDrainThreadsFinished(command: List<String>, readers: List<Thread>, joinMillis: Long = 5_000) {
-        readers.forEach { it.join(joinMillis) }
+    internal fun requireDrainThreadsFinished(command: List<String>, readers: List<Thread>, joinBudget: Duration = 5.seconds) {
+        readers.forEach { it.join(joinBudget.inWholeMilliseconds) }
         val stillAlive = readers.filter { it.isAlive }
         if (stillAlive.isNotEmpty()) {
             throw BashCommandExecutionException(
                 "'${command.joinToString(" ")}' exited, but ${stillAlive.size} of its " +
                     "${readers.size} output-draining thread(s) had not finished within " +
-                    "${joinMillis}ms of that -- the captured stdout/stderr cannot be trusted as " +
+                    "$joinBudget of that -- the captured stdout/stderr cannot be trusted as " +
                     "complete, so no answer is returned rather than a partial one."
             )
         }
