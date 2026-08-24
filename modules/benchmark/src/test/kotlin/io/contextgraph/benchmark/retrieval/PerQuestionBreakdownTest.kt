@@ -120,6 +120,30 @@ class PerQuestionBreakdownTest : FunSpec({
         val allMissed = runOf(result("alpha-q1", "alpha", contextGraph = side("miss.kt"), ripgrep = side("miss.kt")))
         PerQuestionBreakdown.project(allMissed).single().leaders shouldBe emptyList()
     }
+
+    test("leaderVerdict names a single leader, names a tie with the shared rank, and is null when no leader") {
+        // M3: RetrievalReportGenerator and RetrievalSitePage each held their own copy of exactly
+        // this naming. Tested once here, at the seam, so neither can drift from the other again.
+        val soleLeader = runOf(
+            result("alpha-q1", "alpha", contextGraph = side("gold.kt"), ripgrep = side("miss.kt"))
+        )
+        PerQuestionBreakdown.project(soleLeader).single().leaderVerdict() shouldBe
+            "${RetrievalSide.CONTEXT_GRAPH.label} leads"
+
+        val tied = runOf(
+            result(
+                "alpha-q1", "alpha",
+                contextGraph = side("gold.kt"),
+                bash = side("gold.kt"),
+                ripgrep = side("miss.kt")
+            )
+        )
+        PerQuestionBreakdown.project(tied).single().leaderVerdict() shouldBe
+            "${RetrievalSide.CONTEXT_GRAPH.label}, ${RetrievalSide.BASH.label} tie at rank 1"
+
+        val allMissed = runOf(result("alpha-q1", "alpha", contextGraph = side("miss.kt"), ripgrep = side("miss.kt")))
+        PerQuestionBreakdown.project(allMissed).single().leaderVerdict().shouldBeNull()
+    }
 })
 
 private fun result(

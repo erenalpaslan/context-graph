@@ -204,20 +204,15 @@ object RetrievalSitePage {
         }
 
     /**
-     * Who won the question, by name and including ties -- the same rule
-     * [RetrievalReportGenerator.verdict] applies, so the page and the report never name different
-     * winners for the same question. Losing to two sides is not a smaller loss than losing to one,
-     * so every leading side is named.
+     * Who won the question, by name and including ties -- [PerQuestionBreakdown.leaderVerdict],
+     * so the page and [RetrievalReportGenerator.verdict] never name different winners for the same
+     * question. Losing to two sides is not a smaller loss than losing to one, so every leading side
+     * is named. Only the "nothing measured" / "no side found" wording stays local: this is plain
+     * JSON text, where the report's markdown bold and "(see \"Skipped\")" pointer do not belong.
      */
     private fun verdict(question: PerQuestionBreakdown): String {
         if (question.measured.isEmpty()) return "nothing measured"
-        val leaders = question.leaders
-        if (leaders.isEmpty()) return "no side found a gold-cited file"
-        return if (leaders.size == 1) {
-            "${leaders.single().side.label} leads"
-        } else {
-            "${leaders.joinToString(", ") { it.side.label }} tie at rank ${leaders.first().firstGoldHitRank}"
-        }
+        return question.leaderVerdict() ?: "no side found a gold-cited file"
     }
 
     /**

@@ -12,7 +12,7 @@ import io.contextgraph.benchmark.model.QuestionCategory
  * derive it differently, and a site and a report disagreeing about the same question's score would
  * discredit both. So the derivation lives here, once, and both render it.
  *
- * Four things are derived rather than read straight out of [RetrievalRunResult], and each is a
+ * Five things are derived rather than read straight out of [RetrievalRunResult], and each is a
  * decision the surfaces must not make for themselves:
  *
  * - **[QuestionSideScore.firstGoldHitRank]** -- the position of the first gold-cited file in a
@@ -26,6 +26,8 @@ import io.contextgraph.benchmark.model.QuestionCategory
  * - **[leaders]** -- who actually won the question, ties included, so no surface has to invent
  *   its own tie-breaking rule (and so none of them silently breaks a tie in a favoured
  *   direction).
+ * - **[leaderVerdict]** -- [leaders], named, so a surface renders "who won" as text without
+ *   re-deriving the "one leader vs. a tie" wording for itself.
  *
  * Nothing here filters, re-orders or re-scores anything: [project] returns every question the run
  * scored, ordered by repo and then by question id, so a row where any side loses is exactly as
@@ -79,6 +81,28 @@ data class PerQuestionBreakdown(
             val best = measured.mapNotNull { it.firstGoldHitRank }.minOrNull() ?: return emptyList()
             return measured.filter { it.firstGoldHitRank == best }
         }
+
+    /**
+     * [leaders], named: `"X leads"` for one, `"X, Y tie at rank N"` for a tie, `null` when
+     * [leaders] is empty.
+     *
+     * Both [RetrievalReportGenerator] and [RetrievalSitePage] render a verdict for every question,
+     * and until this was hoisted each held its own copy of exactly this naming -- one difference
+     * away from the report and the site disagreeing about who won the same question. `null` rather
+     * than a third piece of wording for the empty case: that case, and the separate "nothing was
+     * even measured" case, are each surface's own -- the report bolds one and adds a pointer to its
+     * own "Skipped" section, the site's is plain JSON text meant for a page to style itself -- so
+     * only the naming that is genuinely identical between them lives here.
+     */
+    fun leaderVerdict(): String? {
+        val won = leaders
+        if (won.isEmpty()) return null
+        return if (won.size == 1) {
+            "${won.single().side.label} leads"
+        } else {
+            "${won.joinToString(", ") { it.side.label }} tie at rank ${won.first().firstGoldHitRank}"
+        }
+    }
 
     fun scoreFor(side: RetrievalSide): QuestionSideScore? = scores[side]
 

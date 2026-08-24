@@ -1609,17 +1609,15 @@ object RetrievalReportGenerator {
      * thing this column exists for: a verdict reading "tie at rank 2" would name a winner when one
      * side wins and name nobody when two do, so a loss to a pair of sides would read more quietly
      * than a loss to a single one. Losing to two is not a smaller loss than losing to one.
+     *
+     * The naming itself is [PerQuestionBreakdown.leaderVerdict] -- shared with
+     * [RetrievalSitePage.verdict] so the report and the site can never name different winners for
+     * the same question. Only the two edge cases stay here: this table's own "(see \"Skipped\")"
+     * pointer, and this document's markdown bold, neither of which the site's JSON wants.
      */
     private fun verdict(question: PerQuestionBreakdown): String {
         if (question.measured.isEmpty()) return "nothing measured (see \"Skipped\")"
-        val leaders = question.leaders
-        if (leaders.isEmpty()) return "**no side found a gold-cited file**"
-        val rank = leaders.first().firstGoldHitRank
-        return if (leaders.size == 1) {
-            "${leaders.single().side.label} leads"
-        } else {
-            "${leaders.joinToString(", ") { it.side.label }} tie at rank $rank"
-        }
+        return question.leaderVerdict() ?: "**no side found a gold-cited file**"
     }
 
     // ------------------------------------------------------- negative control
