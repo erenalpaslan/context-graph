@@ -61,20 +61,30 @@ object PublishedSummaries {
     private const val KEYCLOAK_INGEST_AFTER_BATCHING = "8m 16.4s"
     private const val KEYCLOAK_INGEST_SPEEDUP = "17.3×"
 
-    private val CONTEXT_GRAPH = RetrievalSide.CONTEXT_GRAPH.label
-    private val CODE_GRAPH = RetrievalSide.CODE_GRAPH.label
-    private val BASH = RetrievalSide.BASH.label
+    private val CONTEXT_GRAPH = publishedLabel(RetrievalSide.CONTEXT_GRAPH)
+    private val CODE_GRAPH = publishedLabel(RetrievalSide.CODE_GRAPH)
+    private val BASH = publishedLabel(RetrievalSide.BASH)
+    private val RIPGREP = publishedLabel(RetrievalSide.RIPGREP)
 
     /**
-     * ripgrep is labelled *third-party* here rather than by [RetrievalSide.RIPGREP]'s "(baseline)".
+     * The display text for [side] in this section -- distinct from [RetrievalSide.label] for
+     * exactly one side, and a function rather than a fourth pre-baked constant so that
+     * *deciding who a table row is about* never again has to go through this string.
+     * [sides], [Loss.leaders] and every identity check below carry a [RetrievalSide], not this
+     * return value; this function is called only where the label is about to be printed.
      *
+     * ripgrep is labelled *third-party* here rather than by [RetrievalSide.RIPGREP]'s "(baseline)".
      * The full report can afford one word because it spends a whole section establishing which
      * sides are installs and which is the base system. This section cannot, and the one thing a
      * reader must not miss is that exactly one of the two text-search columns needs something
      * installed -- which is the entire reason the fourth side was added. Both qualifiers are true
-     * of the same side; this one is the one that carries here.
+     * of the same side; this one is the one that carries here. Every other side keeps
+     * [RetrievalSide.label] verbatim.
      */
-    private const val RIPGREP = "ripgrep (third-party)"
+    private fun publishedLabel(side: RetrievalSide): String = when (side) {
+        RetrievalSide.RIPGREP -> "ripgrep (third-party)"
+        else -> side.label
+    }
 
     // ------------------------------------------------------------- upsert
 
@@ -329,8 +339,10 @@ object PublishedSummaries {
         }
         // The sharpest of these losses is the one to a side that builds no index at all, and it is
         // printed only when there actually is one -- a sentence about `grep` outperforming the
-        // index would otherwise survive into a run where it did not.
-        val toBash = losses.firstOrNull { RetrievalSide.BASH.label in it.leaders }
+        // index would otherwise survive into a run where it did not. Compared as the enum, not as
+        // a label: leaders is a List<RetrievalSide> (see Loss), so re-wording BASH's published
+        // label can never make this sentence silently stop appearing.
+        val toBash = losses.firstOrNull { RetrievalSide.BASH in it.leaders }
         val sting = toBash?.let {
             " Plain `grep` pays nothing for an index and still retrieves more than this project's " +
                 "index does on `${it.repoId}`."
@@ -484,12 +496,17 @@ object PublishedSummaries {
 
     private fun precisionMetric(k: Int) = Metric("precision@$k", { it.meanPrecisionAtK[k] }, ::fmtPercent)
 
-    private fun sides(aggregate: RetrievalAggregate): List<Pair<String, SideAggregate?>> = listOf(
-        CONTEXT_GRAPH to aggregate.contextGraph,
-        CODE_GRAPH to aggregate.codeGraph,
-        BASH to aggregate.bash,
-        RIPGREP to aggregate.ripgrep
-    )
+    /**
+     * Every side, keyed by [RetrievalSide] rather than by its display label -- through
+     * [RetrievalAggregate.sideAggregate], the accessor [RetrievalReportGenerator] and
+     * [RetrievalSitePage] already share, so this is the third surface that needs "which field of
+     * an aggregate does this side name" and the third that reaches the same place for it rather
+     * than re-deriving it. Keying by the enum rather than by [publishedLabel]'s output is what
+     * keeps [loss] identity-safe: a leader is *found* by comparing figures, never by comparing
+     * strings, so re-wording a label can never change who counts as having led a row.
+     */
+    private fun sides(aggregate: RetrievalAggregate): List<Pair<RetrievalSide, SideAggregate?>> =
+        RetrievalSide.entries.map { it to aggregate.sideAggregate(it) }
 
     /**
      * One table row's cells, with every cell equal to the row's best figure **as printed** in bold.
@@ -514,16 +531,19 @@ object PublishedSummaries {
     private class Loss(
         val repoId: String,
         val metricLabel: String,
-        val leaders: List<String>,
+        /** Kept as [RetrievalSide], not a display string -- see [sides]. */
+        val leaders: List<RetrievalSide>,
         val leadingValue: String,
         val contextGraphValue: String
     )
 
     /** The row's loss, or null when this project leads it (ties count as leading). */
     private fun loss(repoId: String, aggregate: RetrievalAggregate, metric: Metric): Loss? {
-        val printed = sides(aggregate).map { (label, side) -> label to side?.let(metric.value)?.let(metric.format) }
-        val ours = printed.first().second ?: return null
-        val best = sides(aggregate).mapNotNull { (_, side) -> side?.let(metric.value) }
+        val printed = sides(aggregate).map { (side, agg) -> side to agg?.let(metric.value)?.let(metric.format) }
+        // Explicit lookup rather than "position 0 is ContextGraph": true today only because
+        // RetrievalSide.CONTEXT_GRAPH happens to be declared first, and nothing enforced that.
+        val ours = printed.first { (side, _) -> side == RetrievalSide.CONTEXT_GRAPH }.second ?: return null
+        val best = sides(aggregate).mapNotNull { (_, agg) -> agg?.let(metric.value) }
             .maxOrNull()?.let(metric.format) ?: return null
         if (ours == best) return null
         return Loss(
@@ -538,9 +558,12 @@ object PublishedSummaries {
     private fun firstLoss(repos: Map<String, RetrievalAggregate>, metric: Metric): Loss? =
         repos.entries.firstNotNullOfOrNull { (repoId, aggregate) -> loss(repoId, aggregate, metric) }
 
-    private fun leadersText(loss: Loss): String = when (loss.leaders.size) {
-        1 -> loss.leaders.single()
-        else -> loss.leaders.dropLast(1).joinToString(", ") + " and " + loss.leaders.last()
+    private fun leadersText(loss: Loss): String {
+        val labels = loss.leaders.map(::publishedLabel)
+        return when (labels.size) {
+            1 -> labels.single()
+            else -> labels.dropLast(1).joinToString(", ") + " and " + labels.last()
+        }
     }
 
     private fun leadVerb(loss: Loss): String = if (loss.leaders.size > 1) "lead" else "leads"

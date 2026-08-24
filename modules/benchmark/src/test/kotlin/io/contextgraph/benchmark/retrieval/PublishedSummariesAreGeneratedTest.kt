@@ -5,6 +5,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import kotlinx.datetime.Instant
 import java.nio.file.Files
 import java.nio.file.Path
@@ -159,5 +160,71 @@ class PublishedSummariesAreGeneratedTest : FunSpec({
         // asserted against the unwrapped text rather than against wherever the breaks landed.
         section.replace("\n", " ") shouldContain
             "on `somerepo` ${RetrievalSide.CODE_GRAPH.label} leads on MRR, 0.900 against 0.100"
+    }
+
+    test("the grep-beats-the-index sting is pinned to the BASH side, not to a label that happens to match it") {
+        // H1: the sting sentence used to key off `RetrievalSide.BASH.label in it.leaders`, a
+        // string built from a local label constant compared against an enum's label -- true only
+        // because the two constants were never deliberately allowed to diverge (unlike ripgrep's,
+        // which the same file re-words on purpose). This pins the sentence to bash actually
+        // leading a row, driven by `RetrievalSide` identity rather than by any string at all, so
+        // re-wording a published label can never make it vanish.
+        val bashWins = SideAggregate(2, mapOf(5 to 0.9), mapOf(5 to 0.9), mrr = 0.900)
+        val everyoneElse = SideAggregate(2, mapOf(5 to 0.1), mapOf(5 to 0.1), mrr = 0.100)
+        val aggregate = RetrievalAggregate(
+            questionCount = 2,
+            contextGraph = everyoneElse,
+            ripgrep = everyoneElse,
+            codeGraph = everyoneElse,
+            bash = bashWins
+        )
+        val run = RetrievalRun(
+            runId = "retrieval-synthetic-bash-wins",
+            generatedAt = Instant.parse("2026-01-01T00:00:00Z"),
+            kValues = listOf(5),
+            summary = RetrievalSummary(
+                headline = aggregate,
+                negativeControl = aggregate,
+                byCategory = emptyMap(),
+                byRepo = mapOf("somerepo" to aggregate)
+            )
+        )
+
+        val section = PublishedSummaries.readmeSection(run).replace("\n", " ")
+
+        section shouldContain
+            "Plain `grep` pays nothing for an index and still retrieves more than this " +
+            "project's index does on `somerepo`."
+        // The leader is named by its published label, still driven off the same RetrievalSide.
+        section shouldContain "on `somerepo` ${RetrievalSide.BASH.label} leads on MRR"
+    }
+
+    test("a loss to CodeGraph alone never triggers the grep-specific sting") {
+        // The other half of the same pin: a row this project loses to a side that is NOT bash
+        // must not print the grep sting, however similarly the labels might read.
+        val losing = SideAggregate(2, mapOf(5 to 0.1), mapOf(5 to 0.1), mrr = 0.100)
+        val winning = SideAggregate(2, mapOf(5 to 0.9), mapOf(5 to 0.9), mrr = 0.900)
+        val aggregate = RetrievalAggregate(
+            questionCount = 2,
+            contextGraph = losing,
+            ripgrep = losing,
+            codeGraph = winning,
+            bash = losing
+        )
+        val run = RetrievalRun(
+            runId = "retrieval-synthetic-codegraph-wins",
+            generatedAt = Instant.parse("2026-01-01T00:00:00Z"),
+            kValues = listOf(5),
+            summary = RetrievalSummary(
+                headline = aggregate,
+                negativeControl = aggregate,
+                byCategory = emptyMap(),
+                byRepo = mapOf("somerepo" to aggregate)
+            )
+        )
+
+        val section = PublishedSummaries.readmeSection(run)
+
+        section shouldNotContain "Plain `grep` pays nothing for an index"
     }
 })
