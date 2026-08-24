@@ -32,6 +32,7 @@ object RetrievalReportGenerator {
         renderIngestCost(run)
         renderCoverage(run)
         renderSkipped(run)
+        renderBaselineAgreement(run)
         renderHeadline(run)
         renderCategoryBreakdown(run)
         renderRepoBreakdown(run)
@@ -551,20 +552,408 @@ object RetrievalReportGenerator {
 
     // ------------------------------------------------------------ skipped
 
+    /**
+     * The skip list, **printed whether or not anything was skipped**.
+     *
+     * It used to disappear when [RetrievalRun.skippedRepos] was empty, and that was a mistake worth
+     * naming: every table above promises that a short denominator is "listed under Skipped", and
+     * the paragraph above that promises absence is never scored as zero. A section that vanishes
+     * when it has nothing to say leaves both promises pointing at nothing, and a reader cannot tell
+     * a clean run from a generator that forgot to write the section. An empty list is a result -- it
+     * is the discharge of the rule -- so it is rendered as one.
+     *
+     * The denominator check below is the second half of that discharge, and it is computed rather
+     * than asserted: a repo can be absent from the skip list and still have a column that measured
+     * fewer questions than its table's `n`.
+     */
     private fun StringBuilder.renderSkipped(run: RetrievalRun) {
-        if (run.skippedRepos.isEmpty()) return
         appendLine("### Skipped")
         appendLine()
-        appendLine(
-            "Not silently omitted -- every repo this run could not fully measure, and why:"
-        )
-        appendLine()
-        appendLine("| Repo | Reason |")
-        appendLine("|---|---|")
-        run.skippedRepos.forEach { skip ->
-            appendLine("| ${skip.repoId} | ${skip.reason} |")
+        if (run.skippedRepos.isNotEmpty()) {
+            appendLine(
+                "Not silently omitted -- every repo this run could not fully measure, and why:"
+            )
+            appendLine()
+            appendLine("| Repo | Reason |")
+            appendLine("|---|---|")
+            run.skippedRepos.forEach { skip ->
+                appendLine("| ${skip.repoId} | ${skip.reason} |")
+            }
+            appendLine()
+        } else {
+            appendLine(
+                "**Nothing was skipped in this run.** The list is empty, and it is printed empty " +
+                    "rather than dropped: every table below promises that a short column is listed " +
+                    "here, and a section that disappears when it has nothing to say is " +
+                    "indistinguishable from one nobody wrote. \"Absence is never scored as zero\" " +
+                    "is only checkable if the absences are enumerated -- including when there are " +
+                    "none of them."
+            )
+            appendLine()
+        }
+        renderDenominatorDischarge(run)
+    }
+
+    /**
+     * Whether every side actually measured every question its table counts, per repo -- the claim
+     * each aggregate table's "Measured:" line makes, aggregated into one statement so a reader does
+     * not have to check sixteen of them by eye. A side that is absent from the run entirely is not
+     * a shortfall and is skipped here; the tables already print `not in this run` for it.
+     */
+    private fun StringBuilder.renderDenominatorDischarge(run: RetrievalRun) {
+        val byRepo = run.summary?.byRepo?.toSortedMap() ?: return
+        if (byRepo.isEmpty()) return
+        val short = byRepo.entries.flatMap { (repoId, aggregate) ->
+            measuredCounts(aggregate)
+                .filter { it.second < aggregate.questionCount }
+                .map { "`$repoId` -- ${it.first.label} measured ${it.second} of ${aggregate.questionCount}" }
+        }
+        if (short.isEmpty()) {
+            appendLine(
+                "Every side measured every question it was given: across ${byRepo.size} repo(s) " +
+                    "and ${byRepo.values.sumOf { it.questionCount }} question(s), no column's " +
+                    "denominator is short of its table's `n`. That is the rule above discharged by " +
+                    "the run's own counts rather than by assurance."
+            )
+        } else {
+            appendLine(
+                "Columns whose denominator is short of their table's `n` -- excluded from that " +
+                    "column's mean, never counted as zero: ${short.joinToString("; ")}."
+            )
         }
         appendLine()
+    }
+
+    /** Each side present in [aggregate], with how many questions it actually measured. */
+    private fun measuredCounts(aggregate: RetrievalAggregate): List<Pair<RetrievalSide, Int>> =
+        listOfNotNull(
+            RetrievalSide.CONTEXT_GRAPH to aggregate.contextGraph.measuredCount,
+            aggregate.codeGraph?.let { RetrievalSide.CODE_GRAPH to it.measuredCount },
+            aggregate.bash?.let { RetrievalSide.BASH to it.measuredCount },
+            RetrievalSide.RIPGREP to aggregate.ripgrep.measuredCount
+        )
+
+    // ------------------------------------------- the two text-search columns
+
+    /** One question's two text-search measurements, side by side, with what it was scored against. */
+    private class TextSearchPair(
+        val questionId: String,
+        val expectedFiles: Set<String>,
+        val bash: SideResult,
+        val ripgrep: SideResult
+    ) {
+        /** True when the two sides' first-[prefix] entries differ only over files no gold fact cites. */
+        fun prefixDifferenceIsGoldFree(prefix: Int): Boolean {
+            val onlyBash = bash.rankedFiles.take(prefix).toSet() - ripgrep.rankedFiles.take(prefix).toSet()
+            val onlyRipgrep = ripgrep.rankedFiles.take(prefix).toSet() - bash.rankedFiles.take(prefix).toSet()
+            return (onlyBash + onlyRipgrep).none { it in expectedFiles }
+        }
+    }
+
+    /**
+     * The answer to the first thing a reader notices in the tables below: the two text-search
+     * columns print the same figure in every row.
+     *
+     * Identical columns are exactly what a wiring fault looks like -- one runner's list copied into
+     * both fields, one binary invoked twice -- so leaving it unremarked is the worst available
+     * answer. It is also, on this corpus, the most interesting thing the fourth side produced: if
+     * the "no third-party tools" floor is not lower than the ripgrep floor, then the margins the
+     * indexing sides show over it are not artefacts of a starved baseline.
+     *
+     * **Every count, every question name and every delta here is computed from the run's own ranked
+     * lists -- no repo, language or figure is named in this generator's source**, the same
+     * discipline [renderExtractionDisclosure] and [renderPooledMeanCaveat] are held to. Each claim
+     * branches on what the data shows, so a run whose baselines *do* diverge inside the scored
+     * ranks prints that instead, and the strongest sentence ("all of this lives below the scored
+     * ranks") is never printed unless the lists actually support it.
+     */
+    private fun StringBuilder.renderBaselineAgreement(run: RetrievalRun) {
+        val pairs = run.results
+            .mapNotNull { result ->
+                result.bash?.let {
+                    TextSearchPair(result.questionId, result.expectedFiles.toSet(), it, result.ripgrep)
+                }
+            }
+            .sortedBy { it.questionId }
+        if (pairs.isEmpty()) return
+
+        val cells = comparablePrintedCells(run)
+        val differingCells = cells.count { (bash, ripgrep) -> bash != ripgrep }
+        val differingLists = pairs.filter { it.bash.rankedFiles != it.ripgrep.rankedFiles }
+        val prefix = run.kValues.maxOrNull() ?: 0
+        val differingPrefix = pairs.filter {
+            it.bash.rankedFiles.take(prefix) != it.ripgrep.rankedFiles.take(prefix)
+        }
+        val cappedDivergent = pairs.filter { pair ->
+            run.kValues.any { k ->
+                pair.bash.precisionAtK[k] != pair.ripgrep.precisionAtK[k] ||
+                    pair.bash.recallAtK[k] != pair.ripgrep.recallAtK[k]
+            }
+        }
+        val rankDivergent = pairs.filter { it.bash.reciprocalRank != it.ripgrep.reciprocalRank }
+        val bashSurplus = pairs.maxOf { it.bash.rankedFiles.size - it.ripgrep.rankedFiles.size }
+        val ripgrepSurplus = pairs.maxOf { it.ripgrep.rankedFiles.size - it.bash.rankedFiles.size }
+
+        appendLine("### The two text-search columns")
+        appendLine()
+        appendLine(
+            if (differingCells == 0) {
+                "**Read this before the tables: every figure below is the same for " +
+                    "${RetrievalSide.BASH.label} and for ${RetrievalSide.RIPGREP.label}.** All " +
+                    "${cells.size} aggregate figure(s) this document computes for the two -- every " +
+                    "metric, in every grouping -- come out identical at the precision it prints. " +
+                    "Two columns that read alike are what a wiring fault looks like, so the check " +
+                    "is published here rather than left for a reader to suspect."
+            } else {
+                "**Read this before the tables: ${RetrievalSide.BASH.label} and " +
+                    "${RetrievalSide.RIPGREP.label} agree far more closely than two different " +
+                    "programs might be expected to.** Of the ${cells.size} aggregate figure(s) " +
+                    "this document computes for the two, $differingCells differ and the rest are " +
+                    "identical at the precision it prints. Columns that read alike are what a " +
+                    "wiring fault looks like, so the check is published here rather than left for " +
+                    "a reader to suspect."
+            }
+        )
+        appendLine()
+        appendLine(
+            "**The two are computed independently.** They share exactly one thing, on purpose: " +
+                "`RipgrepQueryDeriver` derives the query tokens once and both sides are handed the " +
+                "same list, which is what makes the pair comparable at all. Below that they have " +
+                "nothing in common -- `BashBaselineRunner` spawns the base-system `grep` through " +
+                "`BashProcess` at an absolute path, `RipgrepBaselineRunner` spawns `rg` through " +
+                "`RipgrepProcess`, each parses its own binary's output, and each ranked list is " +
+                "recorded in its own field of the result document. Neither ever reads the other's " +
+                "answer."
+        )
+        appendLine()
+        renderBaselineDivergence(pairs, differingLists, differingPrefix, prefix, bashSurplus, ripgrepSurplus)
+        if (differingLists.isNotEmpty()) renderBaselineDivergenceCauses(prefix)
+        renderBaselineConclusion(
+            pairs, differingLists, differingPrefix, cappedDivergent, rankDivergent, prefix,
+            aggregatesAgree = differingCells == 0
+        )
+        renderBaselineFinding(run, differingCells)
+    }
+
+    /** How far apart the two ranked lists actually are, in the run's own counts. */
+    private fun StringBuilder.renderBaselineDivergence(
+        pairs: List<TextSearchPair>,
+        differingLists: List<TextSearchPair>,
+        differingPrefix: List<TextSearchPair>,
+        prefix: Int,
+        bashSurplus: Int,
+        ripgrepSurplus: Int
+    ) {
+        if (differingLists.isEmpty()) {
+            appendLine(
+                "**On this run they also returned the same thing.** All ${pairs.size} question(s) " +
+                    "produced not merely equal scores but the identical ranked list -- the same " +
+                    "files in the same order -- so there is nothing beneath the metrics left to " +
+                    "explain: the two searches did not diverge anywhere in this corpus."
+            )
+            appendLine()
+            return
+        }
+        val prefixSentence = if (differingPrefix.isEmpty()) {
+            "**every** question's first-$prefix prefix is identical, so nothing the metrics look " +
+                "at differs at all"
+        } else {
+            "${pairs.size - differingPrefix.size} of ${pairs.size} have an identical first-$prefix " +
+                "prefix, and the ${differingPrefix.size} that do not are " +
+                differingPrefix.joinToString(", ") { "`${it.questionId}`" }
+        }
+        val lengthSentence = when {
+            ripgrepSurplus <= 0 && bashSurplus > 0 ->
+                " The ${RetrievalSide.BASH.label} side never returns fewer files than the " +
+                    "${RetrievalSide.RIPGREP.label} side, and at most $bashSurplus more."
+            bashSurplus <= 0 && ripgrepSurplus > 0 ->
+                " The ${RetrievalSide.RIPGREP.label} side never returns fewer files than the " +
+                    "${RetrievalSide.BASH.label} side, and at most $ripgrepSurplus more."
+            bashSurplus > 0 && ripgrepSurplus > 0 ->
+                " Each side returns files the other does not: at most $bashSurplus more on the " +
+                    "${RetrievalSide.BASH.label} side and at most $ripgrepSurplus more on the " +
+                    "${RetrievalSide.RIPGREP.label} side."
+            else -> " Neither side ever returns a longer list than the other."
+        }
+        appendLine(
+            "**They did not, however, return the same thing.** ${differingLists.size} of " +
+                "${pairs.size} question(s) produce ranked lists that are not equal, which is the " +
+                "check that these are two measurements rather than one printed twice. What they " +
+                "share is the part the metrics can see: $prefixSentence.$lengthSentence"
+        )
+        appendLine()
+    }
+
+    /**
+     * Why the two lists come apart. **Two causes, deliberately, rather than the tidier one.** The
+     * ignore-file story alone explains most of the difference and is the one an investigator
+     * reaches for first; stated as the whole story it would be a confident falsehood sitting in the
+     * one section whose entire job is explaining the method. The second cause is real, was verified
+     * against the corpus, and is invisible to a prefix check -- which is exactly why it survives
+     * being overlooked.
+     *
+     * Both are properties of the two binaries, not of any repository, so nothing here is named from
+     * the data or goes stale when the corpus changes.
+     */
+    private fun StringBuilder.renderBaselineDivergenceCauses(prefix: Int) {
+        appendLine("**Why they differ at all -- two causes, not one:**")
+        appendLine()
+        appendLine(
+            "1. **`rg` never opens files that `grep` reads.** `rg` honours the checkout's own " +
+                "`.gitignore` files and skips hidden entries by default. The flag table above " +
+                "shows the ${RetrievalSide.BASH.label} side is told only to skip `.git` and binary " +
+                "files, because emulating the rest would quietly turn it into a second ripgrep. " +
+                "Anything an ignore rule excludes, or that sits under a hidden directory, is " +
+                "therefore searched by one side and never opened by the other. This is the larger " +
+                "of the two effects and accounts for most of the extra tail."
+        )
+        appendLine(
+            "2. **The two do not mean the same thing by `-w`.** Both sides pass a whole-word flag, " +
+                "but the character classes behind them differ: the base-system `grep` decides word " +
+                "boundaries over ASCII, `rg` decides them over Unicode. An ASCII token butted " +
+                "directly against non-ASCII text is a whole-word match for the first and not for " +
+                "the second, so the *same* file can be counted by both sides with different match " +
+                "counts -- and the ranking is ordered by match count, so it moves. This cause is " +
+                "invisible to a first-$prefix check: it shifts ranks deep in the tail on questions " +
+                "whose scored prefix is identical, which is precisely how it gets overlooked."
+        )
+        appendLine()
+    }
+
+    /** Whether any of that divergence reaches a position the metrics score. */
+    private fun StringBuilder.renderBaselineConclusion(
+        pairs: List<TextSearchPair>,
+        differingLists: List<TextSearchPair>,
+        differingPrefix: List<TextSearchPair>,
+        cappedDivergent: List<TextSearchPair>,
+        rankDivergent: List<TextSearchPair>,
+        prefix: Int,
+        aggregatesAgree: Boolean
+    ) {
+        if (differingLists.isEmpty()) return
+        when {
+            cappedDivergent.isNotEmpty() -> appendLine(
+                "**Some of it does reach a scored position.** ${cappedDivergent.size} of " +
+                    "${pairs.size} question(s) score differently on at least one precision@k or " +
+                    "recall@k: ${cappedDivergent.joinToString(", ") { "`${it.questionId}`" }}. " +
+                    "Where an aggregate row above still reads alike, that is those differences " +
+                    "cancelling within the mean rather than their absence, and the per-question " +
+                    "figures are the place to check it."
+            )
+            differingPrefix.isEmpty() -> appendLine(
+                "**All of it lives below the ranks that are scored.** No question's ranked list " +
+                    "differs inside its first $prefix entries, so every per-question precision@k " +
+                    "and recall@k -- at every `k` this run measured -- is identical on both sides, " +
+                    "and so is every mean built from them."
+            )
+            else -> {
+                // Checked, not inferred. Equal precision@k/recall@k is consistent with a gold file
+                // moving *within* the prefix, so "what differs is not gold" is a separate claim
+                // about the same lists and is tested against the expected sets before it is made.
+                val goldFree = differingPrefix.all { it.prefixDifferenceIsGoldFree(prefix) }
+                val because = if (goldFree) {
+                    "where the entries that differ are not gold-cited files at all, and so change " +
+                        "nothing that is scored"
+                } else {
+                    "where the gold-cited files fall inside the same scored ranks on both sides"
+                }
+                appendLine(
+                    "**None of it reaches a scored position.** Every per-question precision@k and " +
+                        "recall@k, at every `k` this run measured, is identical on both sides -- " +
+                        "including on the ${differingPrefix.size} question(s) whose first-$prefix " +
+                        "order does differ, $because."
+                )
+            }
+        }
+        val shallowest = rankDivergent
+            .flatMap { listOf(it.bash.reciprocalRank, it.ripgrep.reciprocalRank) }
+            .filter { it > 0.0 }
+            .maxOrNull()
+            ?.let { Math.round(1.0 / it).toInt() }
+        appendLine()
+        if (rankDivergent.isEmpty()) {
+            appendLine(
+                "Reciprocal rank -- the one metric here that is *not* capped at `k`, and so the " +
+                    "one place a tail difference could still show -- is identical on both sides too."
+            )
+        } else {
+            val depth = shallowest?.let { "rank $it or deeper, far beyond every `k` measured here" }
+                ?: "a depth this document cannot state, because neither side found a gold file there"
+            val survival = if (aggregatesAgree) {
+                "They are carried into the pooled MRR and are the only thing that is -- and not " +
+                    "one of them survives rounding to the precision the tables print, which is why " +
+                    "the MRR rows read alike too."
+            } else {
+                "They are carried into the pooled MRR, where the tables below show what became of " +
+                    "them."
+            }
+            appendLine(
+                "Reciprocal rank is the one metric here that is *not* capped at `k`, and it is the " +
+                    "only place any difference survives at all: it differs on ${rankDivergent.size} " +
+                    "of ${pairs.size} question(s) -- " +
+                    rankDivergent.joinToString(", ") { "`${it.questionId}`" } +
+                    " -- where the first gold-cited file sits at $depth. $survival"
+            )
+        }
+        appendLine()
+    }
+
+    /**
+     * What the agreement is evidence *for*, printed only where the data supports the claim.
+     *
+     * The claim is about the published aggregates -- "the no-installs floor is not lower than the
+     * ripgrep floor" -- so it is gated on those and on nothing else. A run where individual
+     * questions diverge but every aggregate figure still comes out the same has earned the claim;
+     * a run where any aggregate figure differs has not, and prints the difference instead.
+     */
+    private fun StringBuilder.renderBaselineFinding(run: RetrievalRun, differingCells: Int) {
+        if (differingCells != 0) {
+            appendLine(
+                "Where the two columns differ below, that difference is the measurement, printed " +
+                    "as it came out."
+            )
+            appendLine()
+            return
+        }
+        appendLine(
+            "**And that is the finding, not a footnote to one.** At " +
+                "${run.kValues.joinToString(" and ") { "k=$it" }} on this corpus, the engineering " +
+                "inside `rg` -- its ignore-file awareness, its parallel walk, its tuned matcher -- " +
+                "buys nothing a stock `grep` does not already reach. The floor a developer gets " +
+                "with **nothing installed** is not lower than the floor `rg` sets, so the margins " +
+                "the two index-building sides show over ${RetrievalSide.BASH.label} below are " +
+                "margins over a baseline that was not starved to produce them. That is the whole " +
+                "reason the fourth side was added. *Baseline'ı zayıflatarak kazanılan bir sayı, " +
+                "kazanılmamış bir sayıdır.*"
+        )
+        appendLine()
+    }
+
+    /**
+     * Every aggregate figure this document computes for the two text-search sides, as the pair of
+     * strings it would print -- so "the two columns are identical" is a claim about what a reader
+     * sees, checked against the same formatters the tables use, and can never contradict them.
+     *
+     * A grouping with no questions renders as prose rather than a table and is not counted; a
+     * grouping whose bash side is absent entirely is not comparable and is not counted either.
+     */
+    private fun comparablePrintedCells(run: RetrievalRun): List<Pair<String, String>> {
+        val summary = run.summary ?: return emptyList()
+        val metrics = headlineMetrics(run)
+        val groupings = listOf(summary.headline, summary.negativeControl) +
+            summary.byCategory.values + summary.byRepo.values
+        return groupings
+            .filter { it.questionCount > 0 }
+            .flatMap { aggregate ->
+                val bash = aggregate.bash
+                if (bash == null) {
+                    emptyList()
+                } else {
+                    metrics.map { metric ->
+                        metric.render(metric.extract(bash)) to metric.render(metric.extract(aggregate.ripgrep))
+                    }
+                }
+            }
     }
 
     // -------------------------------------------------------------- headline

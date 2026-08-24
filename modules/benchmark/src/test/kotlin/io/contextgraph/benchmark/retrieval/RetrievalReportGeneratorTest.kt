@@ -398,6 +398,131 @@ class RetrievalReportGeneratorTest : FunSpec({
             .contains("is one whose index this run found already built") shouldBe false
     }
 
+    // ------------------- the two text-search columns, and why they read alike
+
+    test("a run whose baselines diverge only past k says so, and says where the difference lives") {
+        val section = RetrievalReportGenerator.generate(tailDivergenceRun())
+        val subsection = baselineSubsection(section)
+
+        // Counted, not asserted: one of the two questions differs, and it differs past rank 5.
+        subsection shouldContain "1 of 2 question(s) produce ranked lists that are not equal"
+        subsection shouldContain "**every** question's first-5 prefix is identical"
+        subsection shouldContain "never returns fewer files than the ripgrep (baseline) side, and at most 1 more"
+        // The strongest available conclusion, printed only because the lists support it.
+        subsection shouldContain "**All of it lives below the ranks that are scored.**"
+        subsection shouldContain "Reciprocal rank -- the one metric here that is *not* capped at `k`"
+        // Both causes, never just the tidy one.
+        subsection shouldContain "two causes, not one"
+        subsection shouldContain "`rg` never opens files that `grep` reads"
+        subsection shouldContain "do not mean the same thing by `-w`"
+    }
+
+    test("a run whose baselines diverge inside k never claims the difference lives below it") {
+        val section = RetrievalReportGenerator.generate(prefixDivergenceRun())
+        val subsection = baselineSubsection(section)
+
+        // The question whose top-k order differs is named, and the count is computed.
+        subsection shouldContain "1 of 2 have an identical first-5 prefix, and the 1 that do not are `q1`"
+        subsection shouldContain "**None of it reaches a scored position.**"
+        subsection shouldContain "including on the 1 question(s) whose first-5 order does differ, " +
+            "where the entries that differ are not gold-cited files at all"
+        // The claim the data does not support must not appear.
+        subsection.contains("**All of it lives below the ranks that are scored.**") shouldBe false
+        // Reciprocal rank is uncapped, so it is the one place the tail difference shows.
+        subsection shouldContain "it differs on 1 of 2 question(s) -- `q1` -- where the first " +
+            "gold-cited file sits at rank 98 or deeper"
+        subsection shouldContain "not one of them survives rounding to the precision the tables print"
+    }
+
+    test("a prefix difference that does involve a gold file is never described as gold-free") {
+        // Two different gold files, one in each side's prefix: precision@k and recall@k come out
+        // equal, so the metrics cannot tell -- but "the entries that differ are not gold-cited
+        // files" would be false, and is checked against the expected set rather than inferred
+        // from the metrics agreeing.
+        val subsection = baselineSubsection(RetrievalReportGenerator.generate(goldSwapRun()))
+
+        subsection shouldContain "**None of it reaches a scored position.**"
+        subsection shouldContain "where the gold-cited files fall inside the same scored ranks on both sides"
+        subsection.contains("are not gold-cited files at all") shouldBe false
+    }
+
+    test("a run whose baselines return identical lists says that, and explains nothing further") {
+        // Every question's bash and ripgrep results are the same object here, so there is no
+        // divergence to attribute -- and a causes list printed anyway would be explaining a
+        // difference the run does not have.
+        val subsection = baselineSubsection(RetrievalReportGenerator.generate(pooledLeadRun()))
+
+        // 7 groupings (headline, 3 categories, 2 repos, negative control) x 3 metrics at k=5.
+        subsection shouldContain "All 21 aggregate figure(s) this document computes for the two"
+        subsection shouldContain "**On this run they also returned the same thing.** All 4 question(s)"
+        subsection.contains("two causes, not one") shouldBe false
+        subsection.contains("**None of it reaches a scored position.**") shouldBe false
+    }
+
+    test("a run whose baselines score differently says so instead of claiming agreement") {
+        // `gin-q8`'s two text-search sides return different files inside k and score differently
+        // for it. The section must report that as the measurement, not reach for the fairness
+        // conclusion that only an agreeing run earns.
+        val subsection = baselineSubsection(RetrievalReportGenerator.generate(fourWayRun()))
+
+        subsection shouldContain "**Some of it does reach a scored position.**"
+        subsection shouldContain "1 of 2 question(s) score differently on at least one precision@k " +
+            "or recall@k: `gin-q8`"
+        subsection shouldContain "Where the two columns differ below, that difference is the measurement"
+        subsection.contains("that is the finding, not a footnote to one") shouldBe false
+    }
+
+    test("the agreement is reported as a finding, and the fairness invariant it discharges") {
+        val subsection = baselineSubsection(RetrievalReportGenerator.generate(tailDivergenceRun()))
+
+        subsection shouldContain "**And that is the finding, not a footnote to one.**"
+        subsection shouldContain "At k=5 on this corpus"
+        subsection shouldContain "was not starved to produce them"
+        subsection shouldContain "Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir sayıdır."
+        // Independence is stated as a mechanism a reader can check, not as reassurance.
+        subsection shouldContain "**The two are computed independently.**"
+        subsection shouldContain "`BashBaselineRunner`"
+        subsection shouldContain "`RipgrepBaselineRunner`"
+    }
+
+    test("a run with no bash side has no such subsection at all") {
+        // Nothing to reconcile when only one text-search column exists; a section explaining an
+        // agreement between a column and an absent one would be explaining nothing.
+        val section = RetrievalReportGenerator.generate(threeWayRun())
+        section.contains("### The two text-search columns") shouldBe false
+    }
+
+    // ------------------------------------------- the "Skipped" section, either way
+
+    test("a run that skipped nothing prints the Skipped section anyway, saying so") {
+        val section = RetrievalReportGenerator.generate(pooledLeadRun())
+
+        section shouldContain "### Skipped"
+        section shouldContain "**Nothing was skipped in this run.**"
+        section shouldContain "Every side measured every question it was given: across 2 repo(s) and 4 question(s)"
+        // An empty list must not render as an empty table with a dangling header.
+        section.contains("| Repo | Reason |") shouldBe false
+    }
+
+    test("a run that skipped something still prints the table, and the reason with it") {
+        val section = RetrievalReportGenerator.generate(fourWayRun())
+
+        section shouldContain "### Skipped"
+        section shouldContain "| Repo | Reason |"
+        section shouldContain "| calcom | WITHOUT working copy not found |"
+        section.contains("**Nothing was skipped in this run.**") shouldBe false
+    }
+
+    test("a column that measured fewer questions than its table's n is named under Skipped") {
+        // The skip list is about repos; a side can be short on one question of a repo that was
+        // otherwise measured, and that shortfall is computed from the counts rather than trusted
+        // to have made it into the list.
+        val section = RetrievalReportGenerator.generate(threeWayRun())
+
+        section shouldContain "Columns whose denominator is short of their table's `n`"
+        section shouldContain "`keycloak` -- CodeGraph (third-party) measured 1 of 2"
+    }
+
     test("regenerating from the same result JSON is byte for byte identical") {
         // AC-11: the published file is generated, never hand-edited, and the way that claim is
         // kept honest is that anyone can regenerate it and diff. Round-tripped through JSON on
@@ -422,6 +547,97 @@ class RetrievalReportGeneratorTest : FunSpec({
         RetrievalReportGenerator.upsert(file, section) shouldBe file
     }
 })
+
+/** Just the subsection reconciling the two text-search columns, so an assertion cannot drift into a neighbour. */
+private fun baselineSubsection(section: String): String =
+    section.substringAfter("### The two text-search columns").substringBefore("### Headline")
+
+/**
+ * A run whose two text-search sides return different ranked lists that agree on everything the
+ * metrics look at: same first-`k` prefix, same precision@k/recall@k, same reciprocal rank, one
+ * extra file on the bash side past the scored ranks. The shape the real four-way measurement has,
+ * reduced to the two questions it takes to exercise it.
+ */
+private fun tailDivergenceRun(): RetrievalRun = baselineRun(
+    listOf(
+        textPair(
+            bashFiles = listOf("a", "b", "c", "d", "e", "tail-only"),
+            ripgrepFiles = listOf("a", "b", "c", "d", "e")
+        ),
+        textPair(bashFiles = listOf("a", "b"), ripgrepFiles = listOf("a", "b"))
+    )
+)
+
+/**
+ * A run whose two sides differ *inside* the scored prefix -- on a non-gold entry, so no
+ * precision@k or recall@k moves -- and whose first gold hit sits at a different depth in each
+ * list, so the uncapped reciprocal rank differs while still rounding to the same printed score.
+ * The case where "the difference lives below k" is false and must not be printed.
+ */
+private fun prefixDivergenceRun(): RetrievalRun = baselineRun(
+    listOf(
+        textPair(
+            bashFiles = listOf("a", "non-gold", "b", "c", "d", "e"),
+            ripgrepFiles = listOf("a", "b", "c", "d", "e"),
+            bashReciprocalRank = 0.0100,
+            ripgrepReciprocalRank = 0.0102
+        ),
+        textPair(bashFiles = listOf("a", "b"), ripgrepFiles = listOf("a", "b"))
+    )
+)
+
+/**
+ * A run where each side's scored prefix contains a *different* gold-cited file. precision@k and
+ * recall@k come out equal, so no metric can see it -- but the prefixes do differ over gold, and
+ * the section must not say otherwise.
+ */
+private fun goldSwapRun(): RetrievalRun = baselineRun(
+    listOf(
+        textPair(
+            bashFiles = listOf("g1", "b", "c", "d", "e"),
+            ripgrepFiles = listOf("g2", "b", "c", "d", "e")
+        ),
+        textPair(bashFiles = listOf("b", "c"), ripgrepFiles = listOf("b", "c"))
+    ),
+    expectedFiles = listOf("g1", "g2")
+)
+
+/** One question's two text-search sides, scored identically at `k` unless told otherwise. */
+private fun textPair(
+    bashFiles: List<String>,
+    ripgrepFiles: List<String>,
+    bashReciprocalRank: Double = 0.5,
+    ripgrepReciprocalRank: Double = 0.5
+): Pair<SideResult, SideResult> =
+    SideResult(bashFiles, mapOf(5 to 0.2), mapOf(5 to 1.0), bashReciprocalRank) to
+        SideResult(ripgrepFiles, mapOf(5 to 0.2), mapOf(5 to 1.0), ripgrepReciprocalRank)
+
+/** A single-repo run built from [pairs], one question each, for exercising the baseline subsection. */
+private fun baselineRun(
+    pairs: List<Pair<SideResult, SideResult>>,
+    expectedFiles: List<String> = listOf("a")
+): RetrievalRun {
+    val results = pairs.mapIndexed { index, (bash, ripgrep) ->
+        RetrievalRunResult(
+            questionId = "q${index + 1}",
+            repoId = "repo",
+            category = QuestionCategory.GRAPH_HEAVY,
+            expectedFiles = expectedFiles,
+            ripgrepQueryTokens = listOf("resolve"),
+            contextGraph = SideResult(listOf("a"), mapOf(5 to 0.2), mapOf(5 to 1.0), 1.0),
+            ripgrep = ripgrep,
+            codeGraph = SideResult(emptyList(), mapOf(5 to 0.0), mapOf(5 to 0.0), 0.0),
+            bash = bash
+        )
+    }
+    return RetrievalRun(
+        runId = "retrieval-baseline-fixture",
+        generatedAt = Instant.parse("2026-08-24T00:00:00Z"),
+        kValues = listOf(5),
+        results = results,
+        summary = RetrievalStats.summarize(results, listOf(5))
+    )
+}
 
 /** gin's real shape before Go support: files and prose indexed, not one declaration parsed. */
 private val NO_DECLARATIONS = mapOf("Document" to 847, "Concept" to 206, "CodeFile" to 128)

@@ -117,6 +117,31 @@ How much of each repo's gold-fact-cited file set each tool's index can answer fo
 | `keycloak` | bash (base-system shell only) | 26 / 26 | 100.0% | 100% by construction — reads the working tree directly |
 | `keycloak` | ripgrep (baseline) | 26 / 26 | 100.0% | 100% by construction — reads the working tree directly |
 
+### Skipped
+
+**Nothing was skipped in this run.** The list is empty, and it is printed empty rather than dropped: every table below promises that a short column is listed here, and a section that disappears when it has nothing to say is indistinguishable from one nobody wrote. "Absence is never scored as zero" is only checkable if the absences are enumerated -- including when there are none of them.
+
+Every side measured every question it was given: across 4 repo(s) and 33 question(s), no column's denominator is short of its table's `n`. That is the rule above discharged by the run's own counts rather than by assurance.
+
+### The two text-search columns
+
+**Read this before the tables: every figure below is the same for bash (base-system shell only) and for ripgrep (baseline).** All 45 aggregate figure(s) this document computes for the two -- every metric, in every grouping -- come out identical at the precision it prints. Two columns that read alike are what a wiring fault looks like, so the check is published here rather than left for a reader to suspect.
+
+**The two are computed independently.** They share exactly one thing, on purpose: `RipgrepQueryDeriver` derives the query tokens once and both sides are handed the same list, which is what makes the pair comparable at all. Below that they have nothing in common -- `BashBaselineRunner` spawns the base-system `grep` through `BashProcess` at an absolute path, `RipgrepBaselineRunner` spawns `rg` through `RipgrepProcess`, each parses its own binary's output, and each ranked list is recorded in its own field of the result document. Neither ever reads the other's answer.
+
+**They did not, however, return the same thing.** 12 of 33 question(s) produce ranked lists that are not equal, which is the check that these are two measurements rather than one printed twice. What they share is the part the metrics can see: 30 of 33 have an identical first-10 prefix, and the 3 that do not are `calcom-q3`, `calcom-q5`, `keycloak-q6`. The bash (base-system shell only) side never returns fewer files than the ripgrep (baseline) side, and at most 29 more.
+
+**Why they differ at all -- two causes, not one:**
+
+1. **`rg` never opens files that `grep` reads.** `rg` honours the checkout's own `.gitignore` files and skips hidden entries by default. The flag table above shows the bash (base-system shell only) side is told only to skip `.git` and binary files, because emulating the rest would quietly turn it into a second ripgrep. Anything an ignore rule excludes, or that sits under a hidden directory, is therefore searched by one side and never opened by the other. This is the larger of the two effects and accounts for most of the extra tail.
+2. **The two do not mean the same thing by `-w`.** Both sides pass a whole-word flag, but the character classes behind them differ: the base-system `grep` decides word boundaries over ASCII, `rg` decides them over Unicode. An ASCII token butted directly against non-ASCII text is a whole-word match for the first and not for the second, so the *same* file can be counted by both sides with different match counts -- and the ranking is ordered by match count, so it moves. This cause is invisible to a first-10 check: it shifts ranks deep in the tail on questions whose scored prefix is identical, which is precisely how it gets overlooked.
+
+**None of it reaches a scored position.** Every per-question precision@k and recall@k, at every `k` this run measured, is identical on both sides -- including on the 3 question(s) whose first-10 order does differ, where the entries that differ are not gold-cited files at all, and so change nothing that is scored.
+
+Reciprocal rank is the one metric here that is *not* capped at `k`, and it is the only place any difference survives at all: it differs on 4 of 33 question(s) -- `calcom-q2`, `calcom-q3`, `keycloak-q1`, `keycloak-q3` -- where the first gold-cited file sits at rank 80 or deeper, far beyond every `k` measured here. They are carried into the pooled MRR and are the only thing that is -- and not one of them survives rounding to the precision the tables print, which is why the MRR rows read alike too.
+
+**And that is the finding, not a footnote to one.** At k=5 and k=10 on this corpus, the engineering inside `rg` -- its ignore-file awareness, its parallel walk, its tuned matcher -- buys nothing a stock `grep` does not already reach. The floor a developer gets with **nothing installed** is not lower than the floor `rg` sets, so the margins the two index-building sides show over bash (base-system shell only) below are margins over a baseline that was not starved to produce them. That is the whole reason the fourth side was added. *Baseline'ı zayıflatarak kazanılan bir sayı, kazanılmamış bir sayıdır.*
+
 ### Headline (GRAPH_HEAVY + NEUTRAL)
 
 Negative-control questions are excluded here on purpose (AC-26) -- see "Negative Controls" below.
