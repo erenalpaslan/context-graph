@@ -154,15 +154,43 @@ class FileDiscovery(private val config: ContextGraphConfig) {
      * discovery while its sibling `…services/org.keycloak.authentication.AuthenticatorFactory` was
      * indexed, so whether a service registration reached the graph depended on how the interface it
      * names happens to be spelled.
+     *
+     * That dependency is narrowed, not eliminated, by [extensionLooksReal]: a services entry whose
+     * FQN happens to *end* in a word from [sensitiveExtensions] -- `java.security.Key`,
+     * `some.pkg.Cert` -- still reaches [ext] the same way `server.pem` does, because
+     * `substringAfterLast(".")` cannot tell a Java simple name from a real extension. What still
+     * separates them is case: a real extension is conventionally lowercase where it sits in the
+     * file's own (non-lowered) name, and a Java type's simple name is conventionally capitalised.
+     * [extensionLooksReal] checks that, on the file's own casing, before trusting [ext] inside
+     * `META-INF/services/`. The one spelling this does NOT fix: an interface named in defiance of
+     * that convention -- all lower-case, e.g. a hypothetical `some.pkg.cert` -- still reads as a
+     * real extension and is still dropped. That residual is real; it is also now conditioned on
+     * violating Java's own naming convention rather than on containing any word in
+     * [sensitiveExtensions], which is what made the original bug (whole files silently missing
+     * because of what their *interface* was named) possible in the first place.
      */
     private fun isSensitive(path: Path): Boolean {
-        val name = path.fileName?.toString()?.lowercase() ?: return false
+        val rawName = path.fileName?.toString() ?: return false
+        val name = rawName.lowercase()
         if (name in sensitiveNames) return true
         val ext = name.substringAfterLast(".", "")
-        if (ext in sensitiveExtensions) return true
+        val isServiceEntry = isServiceLoaderRegistration(path)
+        if (ext in sensitiveExtensions && (!isServiceEntry || extensionLooksReal(rawName))) return true
         if (ext in ArtifactTypeDetector.codeExtensions) return false
-        if (isServiceLoaderRegistration(path)) return false
+        if (isServiceEntry) return false
         return sensitivePatterns.any { it.matches(name) }
+    }
+
+    /**
+     * Whether [rawName]'s own (case-preserving) text after its last dot is itself already
+     * lowercase -- true for a real extension (`server.pem` -> `pem`), false for the Java simple
+     * name a `META-INF/services/` provider-configuration file is named after (`java.security.Key`
+     * -> `Key`, capitalised by Java's own type-naming convention). Only meaningful for a services
+     * entry; see the exemption reasoning on [isSensitive].
+     */
+    private fun extensionLooksReal(rawName: String): Boolean {
+        val rawExt = rawName.substringAfterLast(".", "")
+        return rawExt.isNotEmpty() && rawExt == rawExt.lowercase()
     }
 
     /**

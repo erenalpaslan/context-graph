@@ -148,6 +148,27 @@ class FileDiscoveryTest : FunSpec({
         )
     }
 
+    test("META-INF/services registrations are indexed even when the interface's simple name collides with a credential extension") {
+        val root = tempRepo()
+        val services = root.resolve("META-INF/services")
+        services.createDirectories()
+        // Real JDK/std-lib-shaped interfaces. Each one's simple name -- the text
+        // `substringAfterLast(".")` reads off the FQN filename -- happens to spell a word in
+        // `sensitiveExtensions` once lower-cased ("Key" -> "key", "Cert" -> "cert"). Before this
+        // fix, that spelling coincidence alone dropped the file, exactly as
+        // `PasswordHashProviderFactory` once did for the unrelated reason pinned above -- the same
+        // bug, narrowed to a different set of interface names rather than eliminated.
+        services.resolve("java.security.Key").writeText("com.example.MyKeyImpl")
+        services.resolve("org.example.spi.Cert").writeText("com.example.MyCertImpl")
+
+        val found = discoverRelativePaths(root)
+
+        found shouldContainExactlyInAnyOrder listOf(
+            "META-INF/services/java.security.Key",
+            "META-INF/services/org.example.spi.Cert"
+        )
+    }
+
     test("actual credential files are still excluded, whatever the exemption above allows") {
         val root = tempRepo()
         root.resolve(".env").writeText("API_KEY=live")
