@@ -391,7 +391,7 @@ io.contextgraph.cli.FreshnessTest > FileWatcher: with the watcher enabled, creat
 FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':modules:cli:test'.
-> There were failing tests. See the report at: file:///Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-23-145625-materialise-identifier-segments-at-index/modules/cli/build/reports/tests/test/index.html
+> There were failing tests. See the report at: file://<repo>/modules/cli/build/reports/tests/test/index.html
 ```
 
 `:modules:storage-sqlite:test` executed (not `UP-TO-DATE`) and reported all 60 tests green,
@@ -495,7 +495,7 @@ io.contextgraph.cli.FreshnessTest > FileWatcher: with the watcher enabled, creat
 FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':modules:cli:test'.
-> There were failing tests. See the report at: file:///Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-23-145625-materialise-identifier-segments-at-index/modules/cli/build/reports/tests/test/index.html
+> There were failing tests. See the report at: file://<repo>/modules/cli/build/reports/tests/test/index.html
 ```
 
 The same pre-existing `FreshnessTest` FileWatcher failure as every earlier `check` in this

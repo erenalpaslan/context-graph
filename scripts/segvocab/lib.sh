@@ -39,8 +39,8 @@ SEGVOCAB_REPO_ID="${SEGVOCAB_REPO_ID:-excalidraw}"
 # GRADLE_RO_DEP_CACHE -- read-only, never written -- still allowed to point at the real cache so
 # nothing needs re-downloading). A different machine sets SEGVOCAB_JAVA_HOME/SEGVOCAB_GRADLE_BIN
 # before sourcing this file, or before running any script here, and every default below yields.
-SEGVOCAB_JAVA_HOME="${SEGVOCAB_JAVA_HOME:-/Users/erenalpaslan/Library/Java/JavaVirtualMachines/jbr-17.0.8.1/Contents/Home}"
-SEGVOCAB_GRADLE_BIN="${SEGVOCAB_GRADLE_BIN:-/Users/erenalpaslan/.gradle/wrapper/dists/gradle-8.11.1-bin/bpt9gzteqjrbo1mjrsomdt32c/gradle-8.11.1/bin/gradle}"
+SEGVOCAB_JAVA_HOME="${SEGVOCAB_JAVA_HOME:-$HOME/Library/Java/JavaVirtualMachines/jbr-17.0.8.1/Contents/Home}"
+SEGVOCAB_GRADLE_BIN="${SEGVOCAB_GRADLE_BIN:-$HOME/.gradle/wrapper/dists/gradle-8.11.1-bin/bpt9gzteqjrbo1mjrsomdt32c/gradle-8.11.1/bin/gradle}"
 SEGVOCAB_GRADLE_USER_HOME="${SEGVOCAB_GRADLE_USER_HOME:-$SEGVOCAB_PRIVATE_ROOT/gradle-home}"
 SEGVOCAB_GRADLE_RO_DEP_CACHE="${GRADLE_RO_DEP_CACHE:-$HOME/.gradle/caches}"
 SEGVOCAB_TMPDIR="${SEGVOCAB_TMPDIR:-/tmp/claude}"

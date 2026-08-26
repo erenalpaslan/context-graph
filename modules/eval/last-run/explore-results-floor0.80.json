@@ -1,7 +1,7 @@
 {
     "generatedAt": "2026-08-17T08:12:47.307637Z",
     "dbPath": "/private/tmp/claude-501/-Users-erenalpaslan-Projects-context-graph/0A076508-B3AE-4734-AD87-F97CF1BBBF8E/scratchpad/eval-scratch/.contextgraph/graph.local.db",
-    "projectRoot": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-16-163329-bring-contextgraph-to-enterprise-grade-c",
+    "projectRoot": "<repo>",
     "litellmEnabled": false,
     "blastRadiusConfidenceFloor": 0.8,
     "rungDistribution": {

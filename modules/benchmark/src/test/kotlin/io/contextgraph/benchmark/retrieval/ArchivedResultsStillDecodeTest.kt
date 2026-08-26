@@ -80,11 +80,12 @@ class ArchivedResultsStillDecodeTest : FunSpec({
         // walk still finds the archive at all: with the directory moved or renamed, every test
         // above would pass while checking nothing.
         //
-        // The floors are the archive as it stood when the third comparator landed: 4 schema-v1
-        // retrieval results and 11 benchmark runs. Those files are committed, so the counts can
-        // only ever rise.
-        (archivedFiles("retrieval-").size >= 4) shouldBe true
-        (archivedFiles("run-").size >= 11) shouldBe true
+        // The floors were last reset on 2026-08-26, when the archive was pruned for publication:
+        // every result set nothing cited was deleted, leaving the ones the benchmark page, the
+        // ablation write-ups and the report code actually read -- 20 retrieval results and 3
+        // benchmark runs. Those files are committed, so from here the counts can only rise again.
+        (archivedFiles("retrieval-").size >= 20) shouldBe true
+        (archivedFiles("run-").size >= 3) shouldBe true
     }
 
     test("at least one archived retrieval result is still schema v1 -- the case the guard exists for") {
