@@ -112,8 +112,7 @@ class CorpusPreparerTest : FunSpec({
             val codeGraphPath = Path.of(requireNotNull(GraphTool.CODEGRAPH.withToolsDir(prepared)))
 
             Files.writeString(codeGraphPath.resolve("drift.txt"), "unpinned change")
-            GitOps.run(listOf("add", "."), cwd = codeGraphPath)
-            GitOps.run(listOf("commit", "-q", "-m", "drift"), cwd = codeGraphPath)
+            LocalGitFixture.commitAll(codeGraphPath, "drift")
 
             val ex = shouldThrow<CorpusShaMismatchException> {
                 CorpusPreparer().prepare(entry, corpusRoot)
@@ -180,8 +179,7 @@ class CorpusPreparerTest : FunSpec({
 
             // Simulate an operator (or a bug) moving the WITH checkout off the pin.
             Files.writeString(withPath.resolve("drift.txt"), "unpinned change")
-            GitOps.run(listOf("add", "."), cwd = withPath)
-            GitOps.run(listOf("commit", "-q", "-m", "drift"), cwd = withPath)
+            LocalGitFixture.commitAll(withPath, "drift")
             val driftedSha = GitOps.revParseHead(withPath)
             driftedSha shouldNotBe remote.sha
 
