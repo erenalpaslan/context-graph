@@ -86,3 +86,8 @@ local.properties
 # Repo-local install of third-party graph tools used as benchmark positive controls.
 # Kept inside the repo so nothing is written to the developer machine globally.
 .benchmark-tools/
+
+# Personal Claude Code settings: a developer-local permission allowlist, never public.
+# Harness run records are excluded by .harness/.gitignore, which stays tracked so a
+# fresh clone keeps ignoring them.
+.claude/settings.local.json

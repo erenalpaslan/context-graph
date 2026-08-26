@@ -19,8 +19,8 @@
             "url": "https://github.com/keycloak/keycloak.git",
             "pinnedTag": "26.7.1",
             "pinnedSha": "73f08b397f193712b26d317210dce99898129709",
-            "workingCopyWithPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/keycloak/with",
-            "workingCopyWithoutPath": "/Users/erenalpaslan/Projects/context-graph/.harness/worktrees/2026-08-17-104440-contextgraph-in-sagladigi-kazanimi-olcen/.benchmark-corpus/keycloak/without"
+            "workingCopyWithPath": "<repo>/.benchmark-corpus/keycloak/with",
+            "workingCopyWithoutPath": "<repo>/.benchmark-corpus/keycloak/without"
         }
     ],
     "questions": [
