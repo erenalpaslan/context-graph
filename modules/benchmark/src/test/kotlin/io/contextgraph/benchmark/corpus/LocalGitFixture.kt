@@ -29,6 +29,24 @@ object LocalGitFixture {
         return CreatedRepo(dir, tag, sha)
     }
 
+    /**
+     * Stages everything under [dir] and commits it with an identity passed on the command line.
+     *
+     * The mismatch tests commit inside a *worktree* of the mirror clone, which inherits no
+     * identity: [create]'s `git config` calls are repo-local to the fixture remote. A developer
+     * machine hides that, because git then auto-detects `user@hostname`; a CI runner's hostname
+     * has no domain, so auto-detection fails there and only there ("Author identity unknown").
+     * Supplying the identity per invocation makes these tests independent of whatever git
+     * configuration the machine running them happens to have.
+     */
+    fun commitAll(dir: Path, message: String) {
+        GitOps.run(listOf("add", "."), cwd = dir)
+        GitOps.run(
+            listOf("-c", "user.email=test@example.com", "-c", "user.name=Test", "commit", "-q", "-m", message),
+            cwd = dir
+        )
+    }
+
     /** Adds a second commit and lightweight [tag] on top of an existing fixture repo at [dir]. */
     fun addTag(dir: Path, tag: String, annotated: Boolean = false) {
         Files.writeString(dir.resolve("src/Foo.kt"), "fun foo(): Int = 43\n")

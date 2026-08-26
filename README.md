@@ -25,10 +25,13 @@ them on.
 
 ```bash
 brew tap erenalpaslan/contextgraph
+brew trust erenalpaslan/contextgraph
 brew install contextgraph
 ```
 
 macOS arm64 and Linux x64. The formula brings its own JDK 17, so no system Java is needed.
+The middle line is not optional: Homebrew 5.1.15 and later refuse to load a formula from a
+third-party tap until that tap is trusted.
 
 ```bash
 # Set up and index a project
