@@ -50,8 +50,8 @@ contextgraph serve-mcp
 Prefer to run the jar directly? Every release is on Maven Central, unauthenticated:
 
 ```bash
-curl -fsSLO https://repo1.maven.org/maven2/io/github/erenalpaslan/contextgraph-cli/0.2.0/contextgraph-cli-0.2.0-all.jar
-java -jar contextgraph-cli-0.2.0-all.jar --help
+curl -fsSLO https://repo1.maven.org/maven2/io/github/erenalpaslan/contextgraph-cli/0.3.0/contextgraph-cli-0.3.0-all.jar
+java -jar contextgraph-cli-0.3.0-all.jar --help
 ```
 
 Working on the ContextGraph sources themselves? `./gradlew :modules:cli:run --args="index ."`
@@ -87,7 +87,7 @@ To keep a repository's graph fresh from CI, install the CLI with the composite a
 run `ci-reindex` — it needs no credentials, since it forces LiteLLM off:
 
 ```yaml
-- uses: erenalpaslan/context-graph/action@v0.2.0
+- uses: erenalpaslan/context-graph/action@v0.3.0
 - run: contextgraph ci-reindex .
 ```
 
@@ -98,7 +98,7 @@ to run at all to you:
 ```yaml
 jobs:
   graph:
-    uses: erenalpaslan/context-graph/.github/workflows/reindex.yml@v0.2.0
+    uses: erenalpaslan/context-graph/.github/workflows/reindex.yml@v0.3.0
 ```
 
 ### The primary tool
