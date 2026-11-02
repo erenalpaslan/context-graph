@@ -116,7 +116,7 @@ class ExploreReachabilityTest : FunSpec({
                 val text = (callResult?.content?.single() as TextContent).text!!
                 text shouldContain "\"authenticate\""
                 text shouldContain "Auth/UserService.kt"
-                text shouldContain "\"empty\": false"
+                text shouldContain "\"empty\":false"
             } finally {
                 serverJob.cancel()
                 clientJob.cancel()

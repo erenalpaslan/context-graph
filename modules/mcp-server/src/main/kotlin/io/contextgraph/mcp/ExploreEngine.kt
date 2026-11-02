@@ -16,6 +16,7 @@ import io.contextgraph.ingest.describe.ModuleSemanticSearch
 import io.contextgraph.query.BlastRadius
 import io.contextgraph.query.VerbatimSource
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import java.nio.file.Path
 
@@ -29,13 +30,47 @@ import java.nio.file.Path
 const val DEFAULT_EXPLORE_TOKEN_BUDGET = 15_000
 
 /**
- * Rough characters-per-token used only to decide packing order and where to draw the elision
- * line -- not a real tokenizer. Cheap and self-contained (no tokenizer dependency for an
- * estimate that only needs to be in the right ballpark); English source code averages close to
- * 4 characters per token under most BPE tokenizers, which is the same rule of thumb used
- * elsewhere for this kind of budgeting.
+ * Characters per token for the budget -- not a real tokenizer. Source code averages close to 4
+ * characters per token under most BPE tokenizers. The budget is checked against the length of
+ * the response as [encodeExploreResponse] writes it, so the only approximation left is this
+ * ratio, never the size of the payload itself.
  */
 private const val CHARS_PER_TOKEN = 4.0
+
+/** Path segments that mark a test source root. Compared lowercased. */
+private val TEST_DIRECTORY_SEGMENTS = setOf(
+    "test", "tests", "__tests__", "androidtest", "testfixtures", "unittest", "integrationtest", "spec", "specs"
+)
+
+/** Question words that make test sources relevant again, so they keep their normal rank. */
+private val TEST_QUESTION_TERMS = setOf("test", "tests", "testing", "spec", "specs")
+
+/**
+ * The one encoder for an `explore` response, used both for the wire and for budget accounting.
+ * Compact rather than pretty-printed: indentation was a third of the payload, and an agent
+ * reads compact JSON as easily.
+ */
+private val exploreJson = Json { encodeDefaults = true }
+
+internal fun encodeExploreResponse(response: ExploreResponse): String =
+    exploreJson.encodeToString(ExploreResponse.serializer(), response)
+
+private fun encodedLength(symbol: ExploreSymbol): Int =
+    exploreJson.encodeToString(ExploreSymbol.serializer(), symbol).length
+
+/**
+ * Whether [path] is test code: under a test source root (`src/test`, `__tests__`, ...) or named
+ * like a test file (`FooTest.kt`, `foo.test.ts`, `foo_test.go`, `test_foo.py`).
+ */
+internal fun isTestSourcePath(path: String): Boolean {
+    val segments = path.split('/')
+    if (segments.dropLast(1).any { it.lowercase() in TEST_DIRECTORY_SEGMENTS }) return true
+    val fileName = segments.last()
+    val stem = fileName.substringBefore('.')
+    return stem.endsWith("Test") || stem.endsWith("Tests") || stem.endsWith("Spec") ||
+        stem.endsWith("_test") || stem.startsWith("test_") ||
+        ".test." in fileName || ".spec." in fileName
+}
 
 /** Bounds how many candidate symbols get ranked and (for the top ones) have blast radius computed, independent of the token budget -- keeps one `explore` call bounded on a repo where a query matches hundreds of symbols. */
 private const val MAX_CANDIDATE_SYMBOLS = 40
@@ -156,41 +191,59 @@ class ExploreEngine(
             return emptyResponse(question, tokenBudget)
         }
 
-        var used = 0
-        var truncated = false
-        val symbolViews = symbolCandidates.map { node ->
-            val provenance = storage.getProvenance(node.id.value).firstOrNull()
-            if (truncated) {
-                used += elidedCost(node, provenance)
-                return@map elidedSymbol(node, provenance)
-            }
-
-            val source = provenance?.let { VerbatimSource.read(projectRoot, it) }
-            val edges = edgeViewsFor(node.id)
-            val radius = blastRadius.compute(node.id, blastRadiusConfidenceFloor)
-            val radiusViews = radius.hits.map { it.toView() }
-            val cost = fullCost(node, source, edges, radiusViews)
-
-            if (used + cost <= tokenBudget) {
-                used += cost
-                fullSymbol(node, provenance, source, edges, radiusViews)
-            } else {
-                truncated = true
-                used += elidedCost(node, provenance)
-                elidedSymbol(node, provenance)
-            }
-        }
-
-        return ExploreResponse(
+        val shell = ExploreResponse(
             question = question,
             tokenBudget = tokenBudget,
-            estimatedTokensUsed = used,
+            estimatedTokensUsed = 0,
             blastRadiusConfidenceFloor = blastRadiusConfidenceFloor,
             modules = modules,
-            symbols = symbolViews,
-            truncated = truncated,
+            symbols = emptyList(),
+            truncated = false,
             empty = false
         )
+        // Budget in characters of the encoded response. The shell is everything but the
+        // symbols; the slack covers `estimatedTokensUsed` growing from "0" and `truncated`
+        // flipping to "true". Each symbol then costs its own encoded length plus a comma.
+        val budgetChars = (tokenBudget * CHARS_PER_TOKEN).toInt()
+        var usedChars = encodeExploreResponse(shell).length + ENCODING_SLACK_CHARS
+        var truncated = false
+        val symbolViews = mutableListOf<ExploreSymbol>()
+
+        for (node in symbolCandidates) {
+            val provenance = storage.getProvenance(node.id.value).firstOrNull()
+            if (!truncated) {
+                val source = provenance?.let { VerbatimSource.read(projectRoot, it) }
+                val edges = edgeViewsFor(node.id)
+                val radiusViews = blastRadius.compute(node.id, blastRadiusConfidenceFloor).hits.map { it.toView() }
+                val full = fullSymbol(node, provenance, source, edges, radiusViews)
+                val cost = encodedLength(full) + 1
+                if (usedChars + cost <= budgetChars) {
+                    usedChars += cost
+                    symbolViews += full
+                    continue
+                }
+                truncated = true
+            }
+            // Past the elision line: signature and location only, while even that fits.
+            val elided = elidedSymbol(node, provenance)
+            val cost = encodedLength(elided) + 1
+            if (usedChars + cost > budgetChars) break
+            usedChars += cost
+            symbolViews += elided
+        }
+        truncated = truncated || symbolViews.size < symbolCandidates.size
+
+        val response = shell.copy(symbols = symbolViews, truncated = truncated)
+        return response.copy(estimatedTokensUsed = encodedTokens(response))
+    }
+
+    /** Tokens of [response] as encoded, including the digits of its own `estimatedTokensUsed`. */
+    private fun encodedTokens(response: ExploreResponse): Int {
+        var estimate = 0
+        repeat(3) {
+            estimate = (encodeExploreResponse(response.copy(estimatedTokensUsed = estimate)).length / CHARS_PER_TOKEN).toInt()
+        }
+        return estimate
     }
 
     private fun emptyResponse(question: String, tokenBudget: Int) = ExploreResponse(
@@ -281,9 +334,14 @@ class ExploreEngine(
         }
 
         val modulePaths = modules.map { it.path }
+        // Test sources go after production sources unless the question is about tests: their
+        // names repeat the production terms (`returnsCachedBalance`), so on score alone they
+        // crowd out the code the question is actually about.
+        val demoteTests = tokens.none { it in TEST_QUESTION_TERMS }
         return candidates.values
             .sortedWith(
-                compareByDescending<GraphNode> { symbolScore(it, tokens, modulePaths) }
+                compareBy<GraphNode> { demoteTests && isTestSourcePath(it.id.value.substringBefore('#')) }
+                    .thenByDescending { symbolScore(it, tokens, modulePaths) }
                     .thenBy { it.id.value }
             )
             .take(MAX_CANDIDATE_SYMBOLS)
@@ -368,24 +426,14 @@ class ExploreEngine(
         blastRadius = emptyList()
     )
 
-    private fun fullCost(node: GraphNode, source: String?, edges: List<ExploreEdgeView>, radius: List<ExploreBlastRadiusHit>): Int {
-        val sourceChars = source?.length ?: 0
-        val overheadChars = node.label.length + 60 + edges.size * 40 + radius.size * 40
-        return charsToTokens(sourceChars + overheadChars)
-    }
-
-    private fun elidedCost(node: GraphNode, provenance: Provenance?): Int {
-        val chars = node.label.length + (provenance?.path?.length ?: 0) + 30
-        return charsToTokens(chars)
-    }
-
-    private fun charsToTokens(chars: Int): Int = (chars / CHARS_PER_TOKEN).toInt().coerceAtLeast(1)
-
     private fun GraphNode.stringProperty(key: String): String? = (properties[key] as? JsonPrimitive)?.content
 
     private fun GraphNode.booleanProperty(key: String): Boolean? = stringProperty(key)?.toBooleanStrictOrNull()
 
     companion object {
         private const val MAX_MODULES = 5
+
+        /** Room for `estimatedTokensUsed` to grow from one digit to seven and `truncated` to flip. */
+        private const val ENCODING_SLACK_CHARS = 8
     }
 }

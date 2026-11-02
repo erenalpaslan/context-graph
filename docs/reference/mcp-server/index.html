@@ -32,13 +32,13 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
 
   <h3>contextgraph.explore <span class="t-str">— primary</span></h3>
   <p><strong>Answers a natural-language question about the codebase in one call.</strong> Returns the modules that matched with their descriptions, the relevant symbols with <strong>verbatim source</strong>, the resolved edges between them — each carrying its confidence and the resolution rung that produced it — and blast radius, meaning what depends on those symbols.</p>
-  <p>The response is capped at a token budget: the highest-ranked symbols carry full source, the rest carry signature and location only and are marked <code>"elided": true</code>. A question that matches nothing returns <code>"empty": true</code> rather than an error.</p>
+  <p>The response is capped at a token budget, measured on the compact JSON it is sent as, at four characters per token: the highest-ranked symbols carry full source, the next carry signature and location only and are marked <code>"elided": true</code>, and symbols that would not fit even elided are left out. <code>estimatedTokensUsed</code> is the size of the response itself, and <code>truncated</code> is true whenever anything was elided or left out. Symbols from test sources rank after production code unless the question mentions tests. A question that matches nothing returns <code>"empty": true</code> rather than an error.</p>
   <p>Prefer this over every tool below for most questions. It exists because agents choose badly among many similar tools and chaining thin calls costs more than one fat call.</p>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
     <tbody>
       <tr><td><code>question</code></td><td>string</td><td>yes</td><td>Natural-language question about the codebase</td></tr>
-      <tr><td><code>tokenBudget</code></td><td>number</td><td>no</td><td>Max response size in approximate tokens (default: 15000)</td></tr>
+      <tr><td><code>tokenBudget</code></td><td>number</td><td>no</td><td>Max size of the encoded response in tokens, at four characters per token (default: 15000)</td></tr>
     </tbody>
   </table>
 
