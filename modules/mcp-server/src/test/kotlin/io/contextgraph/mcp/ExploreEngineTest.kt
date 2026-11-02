@@ -195,9 +195,9 @@ class ExploreEngineTest : FunSpec({
         addSymbol("Big1.kt#bigOne", "bigOne", 1, bigBody.size + 2, "Big1.kt")
         addSymbol("Big2.kt#bigTwo", "bigTwo", 1, bigBody.size + 2, "Big2.kt")
 
-        // Each symbol's full (source + overhead) cost is ~738 estimated tokens (see
-        // ExploreEngine.fullCost); 900 fits exactly one, not both, exercising the packing edge.
-        val response = engine().explore("big", tokenBudget = 900)
+        // Each symbol encodes to ~830 tokens with its full source and ~45 elided; 1,000 fits
+        // one full symbol plus the other elided, not both full, exercising the packing edge.
+        val response = engine().explore("big", tokenBudget = 1_000)
 
         response.truncated.shouldBeTrue()
         response.symbols.shouldNotBeEmpty()
@@ -209,6 +209,69 @@ class ExploreEngineTest : FunSpec({
         full.forEach { it.source.shouldNotBeNull() }
         response.estimatedTokensUsed shouldBe response.estimatedTokensUsed // sanity: computed, not left at 0
         (response.estimatedTokensUsed > 0).shouldBeTrue()
+    }
+
+    test("the encoded response stays within the token budget even when long ids and many edges dominate it") {
+        // Long scope-chain ids and edge-heavy symbols are what the old per-edge guess
+        // (40 chars) underestimated by an order of magnitude on real repositories.
+        val dir = "very/deeply/nested/source/root/com/example/feature/payment/presentation/giftcard"
+        val hub = "$dir/GiftCardBalanceViewModel.kt#GiftCardBalanceViewModel.handleGiftCardBalanceRequest"
+        writeSource("$dir/GiftCardBalanceViewModel.kt", (1..30).map { "    val giftCardBalanceLine$it = $it" })
+        addSymbol(hub, "handleGiftCardBalanceRequest", 1, 30, "$dir/GiftCardBalanceViewModel.kt")
+        repeat(30) { i ->
+            val path = "$dir/GiftCardBalanceUseCase$i.kt"
+            val id = "$path#GiftCardBalanceUseCase$i.giftCardBalanceStep$i"
+            writeSource(path, (1..30).map { "    val giftCardBalanceStep${i}Line$it = $it" })
+            addSymbol(id, "giftCardBalanceStep$i", 1, 30, path)
+            storage.upsertEdge(
+                GraphEdge(
+                    EdgeId("calls:$i"), NodeId(hub), NodeId(id), EdgeType.Calls,
+                    properties = mapOf("rung" to JsonPrimitive("same_directory")),
+                    confidence = ConfidenceDefaults.CALL_RESOLUTION_SAME_DIRECTORY
+                )
+            )
+        }
+
+        for (budget in listOf(500, 2_000, 6_000)) {
+            val response = engine().explore("gift card balance", tokenBudget = budget)
+            val encoded = encodeExploreResponse(response)
+
+            (encoded.length / 4.0 <= budget).shouldBeTrue()
+            response.estimatedTokensUsed shouldBe (encoded.length / 4.0).toInt()
+            response.truncated.shouldBeTrue()
+        }
+    }
+
+    test("the encoded response is compact JSON") {
+        writeSource("A.kt", listOf("fun alpha() {", "    return", "}"))
+        addSymbol("A.kt#alpha", "alpha", 1, 3, "A.kt")
+
+        val encoded = encodeExploreResponse(engine().explore("alpha"))
+
+        encoded.contains("\n    \"").shouldBeFalse()
+        encoded.startsWith("{\"question\":").shouldBeTrue()
+    }
+
+    test("ranks production symbols above test symbols that match the same terms") {
+        writeSource("src/main/Balance.kt", listOf("fun balance() {}"))
+        writeSource("src/test/BalanceTest.kt", listOf("fun balanceReturnsCachedBalance() {}"))
+        addSymbol("src/test/BalanceTest.kt#BalanceTest.balanceReturnsCachedBalance", "balanceReturnsCachedBalance", 1, 1, "src/test/BalanceTest.kt")
+        addSymbol("src/main/Balance.kt#balance", "balance", 1, 1, "src/main/Balance.kt")
+
+        val ids = engine().explore("cached balance").symbols.map { it.id }
+
+        ids.first() shouldBe "src/main/Balance.kt#balance"
+    }
+
+    test("keeps test symbols in normal order when the question asks about tests") {
+        writeSource("src/main/Balance.kt", listOf("fun balance() {}"))
+        writeSource("src/test/BalanceTest.kt", listOf("fun balanceReturnsCachedBalance() {}"))
+        addSymbol("src/test/BalanceTest.kt#BalanceTest.balanceReturnsCachedBalance", "balanceReturnsCachedBalance", 1, 1, "src/test/BalanceTest.kt")
+        addSymbol("src/main/Balance.kt#balance", "balance", 1, 1, "src/main/Balance.kt")
+
+        val ids = engine().explore("which test covers cached balance").symbols.map { it.id }
+
+        ids.first() shouldBe "src/test/BalanceTest.kt#BalanceTest.balanceReturnsCachedBalance"
     }
 
     test("documents the default token budget") {

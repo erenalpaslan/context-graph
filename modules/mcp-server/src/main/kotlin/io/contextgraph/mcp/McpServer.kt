@@ -32,7 +32,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -75,7 +74,6 @@ class ContextGraphMcpServer(
     }
 
     private val exploreEngine = ExploreEngine(storage, projectRoot, LiteLlmModuleEmbedder(), config.litellm)
-    private val exploreJson = Json { prettyPrint = true; encodeDefaults = true }
 
     fun createServer(): Server {
         val server = Server(
@@ -132,7 +130,7 @@ class ContextGraphMcpServer(
             try {
                 val response = runBlocking { exploreEngine.explore(question, tokenBudget) }
                 CallToolResult(
-                    content = listOf(TextContent(exploreJson.encodeToString(ExploreResponse.serializer(), response))),
+                    content = listOf(TextContent(encodeExploreResponse(response))),
                     isError = false
                 )
             } catch (e: Exception) {
