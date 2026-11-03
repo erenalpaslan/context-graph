@@ -371,6 +371,17 @@ class SqliteStorageAdapterTest : FunSpec({
             all.single().referenceName shouldBe "calleeFn"
         }
 
+        test("every receiver hint survives the roundtrip") {
+            val reference = makeReference("execute", "A#caller", "A.kt", "A.kt").copy(
+                receiverType = "OrderRepository",
+                receiverCall = "fetch",
+                receiverProperty = "loadOrder",
+                receiverPropertyOwner = "OrderUseCases"
+            )
+            storage.insertUnresolvedReference(reference)
+            storage.getAllUnresolvedReferences().single() shouldBe reference
+        }
+
         test("deleteUnresolvedReferencesForArtifact removes only that artifact's rows") {
             storage.insertUnresolvedReference(makeReference("x", "A#caller", "A.kt", "A.kt"))
             storage.insertUnresolvedReference(makeReference("y", "B#caller", "B.kt", "B.kt"))

@@ -108,6 +108,19 @@
   <h2>4. Reference and entity resolution</h2>
   <p>A call site in one file usually names something declared in another, so it cannot be resolved while that first file is being parsed. Unresolved references are recorded and settled after extraction by <code>ReferenceResolver</code>, which walks <code>ResolutionLadder</code> — a sequence of increasingly permissive strategies, from exact qualified match down to name-only matching.</p>
   <p>Every edge records <strong>which rung resolved it</strong> and with what confidence. That is deliberate: an agent reading the graph can tell an exactly-resolved call from a plausible guess, instead of being handed both as though they were the same fact.</p>
+  <p>Before the ladder runs, the candidates are narrowed by what the calling file says about the call's <strong>receiver</strong>. For Java and Kotlin, pass 1 records:</p>
+  <ul>
+    <li>the receiver's declared type, when it names a parameter, local, field or property, <code>this</code>, or an object;</li>
+    <li>the call that produced the receiver, in a chain like <code>load(id).items()</code>, whose declared return type pass 2 reads;</li>
+    <li>for Kotlin, the property a receiver reads off another value, in <code>useCases.loadOrder.execute()</code>, whose declared type pass 2 reads off the holder's property.</li>
+  </ul>
+  <p>Calling a Kotlin value directly — <code>loadOrder(id)</code>, or <code>useCases.loadOrder(id)</code> on a property — resolves to its type's <code>invoke</code> operator.</p>
+  <p>A name-only match is kept as a guess, below the 0.8 floor rather than at full confidence, in two cases:</p>
+  <ul>
+    <li>the receiver's type cannot reach the matched declaration through itself or its supertypes;</li>
+    <li>the name is a standard-library member (<code>fold</code>, <code>map</code>, <code>orEmpty</code>, …) and the receiver could not be typed.</li>
+  </ul>
+  <p>That keeps a repo's one <code>fold</code> from collecting every collection fold as a caller.</p>
   <p><code>EntityResolver</code> then deduplicates nodes across files. If a <code>Class</code> named <code>UserService</code> appears as both a definition in a <code>.kt</code> file and a reference in a Markdown doc, they resolve to the same node with provenance from both sources.</p>
 
   <h2>5. Storage</h2>

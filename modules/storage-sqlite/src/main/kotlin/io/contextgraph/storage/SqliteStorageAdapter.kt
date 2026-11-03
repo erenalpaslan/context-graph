@@ -14,6 +14,7 @@ import io.contextgraph.core.StorageAdapter
 import io.contextgraph.core.EdgeType
 import io.contextgraph.core.UnresolvedReference
 import io.contextgraph.storage.migration.V7__Rebuild_nodes_fts_row_keying
+import io.contextgraph.storage.migration.V8__Unresolved_reference_receiver_property
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
@@ -101,6 +102,8 @@ object UnresolvedReferencesTable : Table("unresolved_references") {
     val line = integer("line")
     val receiverType = text("receiver_type").nullable()
     val receiverCall = text("receiver_call").nullable()
+    val receiverProperty = text("receiver_property").nullable()
+    val receiverPropertyOwner = text("receiver_property_owner").nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -177,10 +180,10 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
         Flyway.configure()
             .dataSource(jdbcUrl, "", "")
             .locations("classpath:db/migration")
-            // Registered by instance rather than found by classpath scanning: a repair that
+            // Registered by instance rather than found by classpath scanning: a migration that
             // silently fails to be discovered in a packaged distribution is worse than one
-            // that fails loudly. See the class for what it repairs and why re-indexing cannot.
-            .javaMigrations(V7__Rebuild_nodes_fts_row_keying())
+            // that fails loudly. See V7 for what it repairs and why re-indexing cannot.
+            .javaMigrations(V7__Rebuild_nodes_fts_row_keying(), V8__Unresolved_reference_receiver_property())
             .load()
             .migrate()
         logger.info { "Database migrations applied at $dbPath" }
@@ -311,6 +314,8 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 this[UnresolvedReferencesTable.line] = reference.line
                 this[UnresolvedReferencesTable.receiverType] = reference.receiverType
                 this[UnresolvedReferencesTable.receiverCall] = reference.receiverCall
+                this[UnresolvedReferencesTable.receiverProperty] = reference.receiverProperty
+                this[UnresolvedReferencesTable.receiverPropertyOwner] = reference.receiverPropertyOwner
             }
         }
 
@@ -609,6 +614,8 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
             it[line] = reference.line
             it[receiverType] = reference.receiverType
             it[receiverCall] = reference.receiverCall
+            it[receiverProperty] = reference.receiverProperty
+            it[receiverPropertyOwner] = reference.receiverPropertyOwner
         }
     }
 
@@ -625,7 +632,9 @@ class SqliteStorageAdapter(private val dbPath: Path) : StorageAdapter {
                 artifactId = ArtifactId(it[UnresolvedReferencesTable.artifactId]),
                 line = it[UnresolvedReferencesTable.line],
                 receiverType = it[UnresolvedReferencesTable.receiverType],
-                receiverCall = it[UnresolvedReferencesTable.receiverCall]
+                receiverCall = it[UnresolvedReferencesTable.receiverCall],
+                receiverProperty = it[UnresolvedReferencesTable.receiverProperty],
+                receiverPropertyOwner = it[UnresolvedReferencesTable.receiverPropertyOwner]
             )
         }
     }

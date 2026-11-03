@@ -556,4 +556,101 @@ class ReferenceResolverTest : FunSpec({
 
         secondRun shouldBe firstRun
     }
+
+    fun property(id: String, label: String, type: String) =
+        GraphNode(NodeId(id), NodeType.Custom("Property"), label, properties = mapOf("type" to JsonPrimitive(type)))
+
+    test("a receiver that is a property of a typed holder is typed from the property's declared type") {
+        // `useCases.loadOrder.execute()` where `useCases: OrderUseCases` and `OrderUseCases`
+        // declares `val loadOrder: LoadOrderUseCase`. `execute` is declared on every use case,
+        // so by name alone this is hopelessly ambiguous.
+        storage.upsertNode(GraphNode(NodeId("app/ui/OrderViewModel.kt#OrderViewModel.load()"), NodeType.Method, "load"))
+        storage.upsertNode(property("app/domain/OrderUseCases.kt#OrderUseCases.loadOrder", "loadOrder", "LoadOrderUseCase"))
+        storage.upsertNode(property("app/domain/CartUseCases.kt#CartUseCases.loadOrder", "loadOrder", "LoadCartOrderUseCase"))
+        listOf("LoadOrderUseCase", "LoadCartOrderUseCase", "PayUseCase", "ShipUseCase").forEach { type ->
+            storage.upsertNode(GraphNode(NodeId("api/usecase/$type.kt#$type.execute()"), NodeType.Method, "execute"))
+        }
+        storage.insertUnresolvedReference(
+            reference("execute", "app/ui/OrderViewModel.kt#OrderViewModel.load()", "app/ui/OrderViewModel.kt")
+                .copy(receiverProperty = "loadOrder", receiverPropertyOwner = "OrderUseCases")
+        )
+
+        ReferenceResolver(storage).resolveAll()
+
+        storage.getEdgesFrom(NodeId("app/ui/OrderViewModel.kt#OrderViewModel.load()")).single().target shouldBe
+            NodeId("api/usecase/LoadOrderUseCase.kt#LoadOrderUseCase.execute()")
+    }
+
+    test("calling a holder's property resolves to the property type's invoke operator") {
+        // `useCases.loadOrder(id)`: `loadOrder` is a property, not a method, so the call reaches
+        // `LoadOrderUseCase.invoke`.
+        storage.upsertNode(GraphNode(NodeId("app/ui/OrderViewModel.kt#OrderViewModel.load()"), NodeType.Method, "load"))
+        storage.upsertNode(property("app/domain/OrderUseCases.kt#OrderUseCases.loadOrder", "loadOrder", "LoadOrderUseCase"))
+        listOf("LoadOrderUseCase", "PayUseCase", "ShipUseCase", "RefundUseCase").forEach { type ->
+            storage.upsertNode(GraphNode(NodeId("app/domain/$type.kt#$type.invoke(String)"), NodeType.Method, "invoke"))
+        }
+        storage.insertUnresolvedReference(
+            reference("loadOrder", "app/ui/OrderViewModel.kt#OrderViewModel.load()", "app/ui/OrderViewModel.kt")
+                .copy(receiverType = "OrderUseCases")
+        )
+
+        ReferenceResolver(storage).resolveAll()
+
+        storage.getEdgesFrom(NodeId("app/ui/OrderViewModel.kt#OrderViewModel.load()")).single().target shouldBe
+            NodeId("app/domain/LoadOrderUseCase.kt#LoadOrderUseCase.invoke(String)")
+    }
+
+    test("an untyped call to a standard-library member name resolves below the floor, not at full confidence") {
+        // `items.fold(0) { ... }` in a repo that declares one `fold` of its own: by name alone
+        // it lands on the repo's, but that is a guess, not an unambiguous resolution.
+        storage.upsertNode(GraphNode(NodeId("app/ui/Totals.kt#Totals.sum()"), NodeType.Method, "sum"))
+        storage.upsertNode(GraphNode(NodeId("net/result/Outcome.kt#Outcome.fold(Function1,Function1)"), NodeType.Method, "fold"))
+        storage.insertUnresolvedReference(reference("fold", "app/ui/Totals.kt#Totals.sum()", "app/ui/Totals.kt"))
+
+        ReferenceResolver(storage).resolveAll()
+
+        val edge = storage.getEdgesFrom(NodeId("app/ui/Totals.kt#Totals.sum()")).single()
+        edge.confidence shouldBe ConfidenceDefaults.CALL_RESOLUTION_REPO_UNIQUE_NAME_AMBIGUOUS
+    }
+
+    test("a typed receiver whose type cannot reach the name's declaring type resolves below the floor") {
+        // `runCatching { }.fold(...)` typed as Kotlin's `Result`: the repo's `Outcome.fold` is
+        // not on `Result` or any of its supertypes.
+        storage.upsertNode(GraphNode(NodeId("app/ui/Totals.kt#Totals.sum()"), NodeType.Method, "sum"))
+        storage.upsertNode(GraphNode(NodeId("net/result/Outcome.kt#Outcome.fold(Function1,Function1)"), NodeType.Method, "fold"))
+        storage.insertUnresolvedReference(
+            reference("fold", "app/ui/Totals.kt#Totals.sum()", "app/ui/Totals.kt").copy(receiverType = "Result")
+        )
+
+        ReferenceResolver(storage).resolveAll()
+
+        storage.getEdgesFrom(NodeId("app/ui/Totals.kt#Totals.sum()")).single().confidence shouldBe
+            ConfidenceDefaults.CALL_RESOLUTION_REPO_UNIQUE_NAME_AMBIGUOUS
+    }
+
+    test("a receiver typed as the declaring type, or a subtype of it, keeps the full repo-wide confidence") {
+        storage.upsertNode(GraphNode(NodeId("app/ui/Totals.kt#Totals.sum()"), NodeType.Method, "sum"))
+        storage.upsertNode(GraphNode(NodeId("app/ui/Totals.kt#Totals.avg()"), NodeType.Method, "avg"))
+        storage.upsertNode(GraphNode(NodeId("net/result/Outcome.kt#Outcome"), NodeType.Class, "Outcome"))
+        storage.upsertNode(
+            GraphNode(
+                NodeId("net/result/Success.kt#Success"), NodeType.Class, "Success",
+                properties = mapOf("supertypes" to JsonArray(listOf(JsonPrimitive("Outcome"))))
+            )
+        )
+        storage.upsertNode(GraphNode(NodeId("net/result/Outcome.kt#Outcome.fold(Function1,Function1)"), NodeType.Method, "fold"))
+        storage.insertUnresolvedReference(
+            reference("fold", "app/ui/Totals.kt#Totals.sum()", "app/ui/Totals.kt").copy(receiverType = "Outcome")
+        )
+        storage.insertUnresolvedReference(
+            reference("fold", "app/ui/Totals.kt#Totals.avg()", "app/ui/Totals.kt").copy(receiverType = "Success")
+        )
+
+        ReferenceResolver(storage).resolveAll()
+
+        storage.getEdgesFrom(NodeId("app/ui/Totals.kt#Totals.sum()")).single().confidence shouldBe
+            ConfidenceDefaults.CALL_RESOLUTION_REPO_UNIQUE_NAME
+        storage.getEdgesFrom(NodeId("app/ui/Totals.kt#Totals.avg()")).single().confidence shouldBe
+            ConfidenceDefaults.CALL_RESOLUTION_REPO_UNIQUE_NAME
+    }
 })

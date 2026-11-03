@@ -18,6 +18,7 @@ import io.contextgraph.treesitter.textIn
 import io.contextgraph.treesitter.withFqn
 import io.github.treesitter.ktreesitter.Language
 import io.github.treesitter.ktreesitter.Node
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -97,7 +98,7 @@ object KotlinLanguageSupport : LanguageSupport {
  * ## Call-site emission (slice 20)
  * Every top-level/member function body (and secondary constructor body, if it has one) is
  * walked, after its own declaration node is built, for `call_expression` nodes -- see
- * [collectReferences] and [calleeName]. This grammar's `"fields": {}` quirk (documented
+ * [collectReferences] and [emitCall]. This grammar's `"fields": {}` quirk (documented
  * above) means the callee can't be read via `childByFieldName`: for a plain call
  * (`foo()`) the callee is a `simple_identifier`; for a member call (`obj.method()`) it's a
  * `navigation_expression` whose own last child, `navigation_suffix`, holds the
@@ -107,6 +108,26 @@ object KotlinLanguageSupport : LanguageSupport {
  * so unlike Python's, this walk needs no boundary check to avoid double-attributing a call
  * -- everything found within a function's body, however deeply nested, belongs to that
  * function's own [UnresolvedReference.referringSymbolId].
+ *
+ * ## Receiver hints
+ * Name-only resolution cannot tell `orders.load()` from the dozens of other `load`s in a repo,
+ * so each call also records what the file can say about its receiver, the same three shapes
+ * the Java walker records (see [UnresolvedReference]):
+ * - a named receiver -- a parameter, local, or property of the enclosing type, including
+ *   `this.x` -- gives its declared type ([UnresolvedReference.receiverType]); `this` gives the
+ *   enclosing type, and a capitalised name is taken as an object or companion receiver;
+ * - a receiver that is another call gives that call's name ([UnresolvedReference.receiverCall]);
+ * - a receiver that is a property read off a named value, `useCases.loadOrder.execute()`, gives
+ *   the property's name and the value's declared type ([UnresolvedReference.receiverProperty]).
+ * Calling a named value directly, `loadOrder(id)` for a `loadOrder` property or parameter, is a
+ * call to its type's `invoke` operator and is recorded as one.
+ *
+ * To let pass 2 finish what a single file cannot, declarations carry their declared types:
+ * `type` on properties (constructor `val`/`var` parameters included), `returns` on functions
+ * with an explicit return type, and `supertypes` on types. Types are reduced to their simple
+ * name, without nullability or type arguments, the form ids and labels use. Only explicit types
+ * are read: an inferred `val x = load()` carries no hint, and the call resolves by name as it
+ * did before.
  */
 private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest) {
     private val nodes = mutableListOf<GraphNode>()
@@ -169,6 +190,7 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
             isCompanion -> "companion_object"
             else -> classKeywordKind(node)
         }
+        val supertypes = supertypesOf(node)
         val typeNode = declarationNode(
             astNode = node,
             type = when (kind) {
@@ -178,20 +200,26 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
             label = simpleName,
             idScopeChain = scopeChain,
             fqnNameChain = scopeChain,
-            extraProps = mapOf("kind" to JsonPrimitive(kind))
+            extraProps = buildMap {
+                put("kind", JsonPrimitive(kind))
+                if (supertypes.isNotEmpty()) put("supertypes", JsonArray(supertypes.map { JsonPrimitive(it) }))
+            }
         )
         nodes.add(typeNode)
         addContains(parentId(fileId, enclosingScope), typeNode.id)
 
         extractPrimaryConstructor(node, scopeChain, typeNode.id)
 
-        val body = node.namedChildren.firstOrNull { it.type == "class_body" || it.type == "enum_class_body" } ?: return
+        val body = node.namedChildren.firstOrNull { it.type == "class_body" || it.type == "enum_class_body" }
+        // Read once per type: every function in the body starts its type environment from these.
+        val memberTypes = memberTypesOf(node, body)
+        if (body == null) return
         for (member in body.namedChildren) {
             when (member.type) {
                 "class_declaration", "object_declaration", "companion_object" -> extractType(member, fileId, scopeChain)
-                "function_declaration" -> extractFunction(member, scopeChain, typeNode.id)
+                "function_declaration" -> extractFunction(member, scopeChain, typeNode.id, memberTypes, simpleName)
                 "property_declaration" -> extractProperty(member, scopeChain, typeNode.id)
-                "secondary_constructor" -> extractSecondaryConstructor(member, scopeChain, typeNode.id)
+                "secondary_constructor" -> extractSecondaryConstructor(member, scopeChain, typeNode.id, memberTypes, simpleName)
                 "type_alias" -> extractTypeAlias(member, scopeChain, typeNode.id)
                 "enum_entry" -> extractEnumEntry(member, scopeChain, typeNode.id)
                 else -> Unit
@@ -220,20 +248,30 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
         for (param in params) {
             if (param.namedChildren.none { it.type == "binding_pattern_kind" }) continue
             val paramName = param.namedChildren.firstOrNull { it.type == "simple_identifier" }?.textIn(request.sourceText)?.toString() ?: continue
+            val declaredType = typeNodeAfterName(param)?.let(::simpleTypeName)
             val propNode = declarationNode(
                 astNode = param,
                 type = NodeType.Custom("Property"),
                 label = paramName,
                 idScopeChain = typeScope + paramName,
                 fqnNameChain = typeScope + paramName,
-                extraProps = mapOf("kind" to JsonPrimitive("property"))
+                extraProps = buildMap {
+                    put("kind", JsonPrimitive("property"))
+                    if (declaredType != null) put("type", JsonPrimitive(declaredType))
+                }
             )
             nodes.add(propNode)
             addContains(typeId, propNode.id)
         }
     }
 
-    private fun extractSecondaryConstructor(node: Node, enclosingScope: List<String>, parentId: NodeId) {
+    private fun extractSecondaryConstructor(
+        node: Node,
+        enclosingScope: List<String>,
+        parentId: NodeId,
+        memberTypes: Map<String, String>,
+        enclosingType: String
+    ) {
         val params = node.namedChildren.firstOrNull { it.type == "function_value_parameters" }
         val paramTypes = paramTypesOf(params)
         val segment = "<init>(${paramTypes.joinToString(",")})"
@@ -247,7 +285,9 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
         )
         nodes.add(ctorNode)
         addContains(parentId, ctorNode.id)
-        node.namedChildren.firstOrNull { it.type == "statements" }?.let { collectReferences(it, ctorNode.id) }
+        node.namedChildren.firstOrNull { it.type == "statements" }?.let { statements ->
+            collectReferences(statements, ctorNode.id, typeEnvironment(node, memberTypes), enclosingType)
+        }
     }
 
     /**
@@ -261,7 +301,13 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
      * extension functions with the same name on different receivers (`Int.identity()` vs
      * `String.identity()`) never collide on identity either.
      */
-    private fun extractFunction(node: Node, enclosingScope: List<String>, parentId: NodeId) {
+    private fun extractFunction(
+        node: Node,
+        enclosingScope: List<String>,
+        parentId: NodeId,
+        memberTypes: Map<String, String> = emptyMap(),
+        enclosingType: String? = null
+    ) {
         val named = node.namedChildren
         val nameIdx = named.indexOfFirst { it.type == "simple_identifier" }
         if (nameIdx < 0) return
@@ -269,19 +315,33 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
         val receiver = named.getOrNull(nameIdx - 1)?.takeIf { it.type in receiverTypes }
         val baseChain = enclosingScope + listOfNotNull(receiver?.let(::receiverSimpleName))
 
-        val paramTypes = paramTypesOf(named.firstOrNull { it.type == "function_value_parameters" })
+        val parameters = named.firstOrNull { it.type == "function_value_parameters" }
+        val paramTypes = paramTypesOf(parameters)
         val segment = "$simpleName(${paramTypes.joinToString(",")})"
+        // The declared return type, so pass 2 can type a chained receiver (`load(id).items()`).
+        // It is the type node right after the parameter list; an expression body without one
+        // has no declared type to read.
+        val returns = parameters?.let { params ->
+            named.getOrNull(named.indexOf(params) + 1)?.takeIf { it.type in typeNodeTypes }?.let(::simpleTypeName)
+        }
         val functionNode = declarationNode(
             astNode = node,
             type = if (enclosingScope.isEmpty() && receiver == null) NodeType.Function else NodeType.Method,
             label = simpleName,
             idScopeChain = baseChain + segment,
             fqnNameChain = baseChain + simpleName,
-            extraProps = mapOf("kind" to JsonPrimitive("function"))
+            extraProps = buildMap {
+                put("kind", JsonPrimitive("function"))
+                if (returns != null) put("returns", JsonPrimitive(returns))
+            }
         )
         nodes.add(functionNode)
         addContains(parentId, functionNode.id)
-        named.firstOrNull { it.type == "function_body" }?.let { collectReferences(it, functionNode.id) }
+        named.firstOrNull { it.type == "function_body" }?.let { body ->
+            // An extension function's receiver is `this` inside its body.
+            val thisType = receiver?.let(::receiverSimpleName) ?: enclosingType
+            collectReferences(body, functionNode.id, typeEnvironment(node, memberTypes), thisType)
+        }
     }
 
     /** Handles member, top-level AND extension properties uniformly -- see [extractFunction]. */
@@ -294,13 +354,17 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
         val receiver = named.getOrNull(declIdx - 1)?.takeIf { it.type in receiverTypes }
         val baseChain = enclosingScope + listOfNotNull(receiver?.let(::receiverSimpleName))
 
+        val declaredType = typeNodeAfterName(varDecl)?.let(::simpleTypeName)
         val propNode = declarationNode(
             astNode = node,
             type = NodeType.Custom("Property"),
             label = simpleName,
             idScopeChain = baseChain + simpleName,
             fqnNameChain = baseChain + simpleName,
-            extraProps = mapOf("kind" to JsonPrimitive("property"))
+            extraProps = buildMap {
+                put("kind", JsonPrimitive("property"))
+                if (declaredType != null) put("type", JsonPrimitive(declaredType))
+            }
         )
         nodes.add(propNode)
         addContains(parentId, propNode.id)
@@ -381,47 +445,189 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
             }
     }
 
+    /** Node types that spell a declared type: `Foo`, `a.b.Foo<T>`, `Foo?`, `(Foo)`. */
+    private val typeNodeTypes = setOf("user_type", "nullable_type", "parenthesized_type")
+
+    /**
+     * The simple name of a declared type node, or null for a type that names no declaration
+     * (a function type, `dynamic`). `a.b.Foo<Bar>?` -> `Foo`: the last identifier of the user
+     * type, without its package, its type arguments or its nullability.
+     */
+    private fun simpleTypeName(typeNode: Node): String? = when (typeNode.type) {
+        "user_type" -> typeNode.namedChildren.lastOrNull { it.type == "type_identifier" }?.textIn(request.sourceText)?.toString()
+        "nullable_type", "parenthesized_type" -> typeNode.namedChildren.firstOrNull()?.let(::simpleTypeName)
+        else -> null
+    }
+
+    /** The declared type of a `name: Type` declaration (parameter, class parameter, variable): the type node after the name. */
+    private fun typeNodeAfterName(declaration: Node): Node? {
+        val named = declaration.namedChildren
+        val nameIdx = named.indexOfFirst { it.type == "simple_identifier" }
+        return named.getOrNull(nameIdx + 1)?.takeIf { it.type in typeNodeTypes }
+    }
+
+    /** The simple names a type extends or implements, in source order: each `delegation_specifier`'s type. */
+    private fun supertypesOf(typeDeclaration: Node): List<String> =
+        typeDeclaration.namedChildren
+            .filter { it.type == "delegation_specifier" }
+            .mapNotNull { spec ->
+                val typeNode = spec.namedChildren.firstOrNull { it.type in typeNodeTypes }
+                    ?: spec.namedChildren.firstOrNull { it.type == "constructor_invocation" }
+                        ?.namedChildren?.firstOrNull { it.type in typeNodeTypes }
+                typeNode?.let(::simpleTypeName)
+            }
+            .distinct()
+
+    /**
+     * Property name to declared simple type for one type: its `val`/`var` constructor
+     * parameters and its body's properties with an explicit type.
+     */
+    private fun memberTypesOf(typeDeclaration: Node, body: Node?): Map<String, String> {
+        val out = HashMap<String, String>()
+        typeDeclaration.namedChildren.firstOrNull { it.type == "primary_constructor" }
+            ?.namedChildren?.filter { it.type == "class_parameter" && it.namedChildren.any { c -> c.type == "binding_pattern_kind" } }
+            ?.forEach { param -> nameAndType(param)?.let { (n, t) -> out[n] = t } }
+        body?.namedChildren?.filter { it.type == "property_declaration" }?.forEach { property ->
+            property.namedChildren.firstOrNull { it.type == "variable_declaration" }
+                ?.let(::nameAndType)?.let { (n, t) -> out[n] = t }
+        }
+        return out
+    }
+
+    private fun nameAndType(declaration: Node): Pair<String, String>? {
+        val name = declaration.namedChildren.firstOrNull { it.type == "simple_identifier" }
+            ?.textIn(request.sourceText)?.toString() ?: return null
+        val type = typeNodeAfterName(declaration)?.let(::simpleTypeName) ?: return null
+        return name to type
+    }
+
+    /**
+     * The declared type of every name a call inside [declaration] could use as a receiver: the
+     * enclosing type's properties, the declaration's parameters, and every local with an explicit
+     * type anywhere in its body.
+     *
+     * Flat and scope-blind, as in the Java walker, and for the same reason: a hint is only ever a
+     * filter over same-name candidates, and pass 2 falls back to the unfiltered set when it
+     * matches none, so a shadowed name costs a missed narrowing, never a wrong edge.
+     */
+    private fun typeEnvironment(declaration: Node, memberTypes: Map<String, String>): Map<String, String> {
+        val env = HashMap(memberTypes)
+        declaration.namedChildren.firstOrNull { it.type == "function_value_parameters" }
+            ?.namedChildren?.filter { it.type == "parameter" }
+            ?.forEach { p -> nameAndType(p)?.let { (n, t) -> env[n] = t } }
+        declaration.namedChildren.firstOrNull { it.type == "function_body" || it.type == "statements" }
+            ?.let { collectLocals(it, env) }
+        return env
+    }
+
+    private fun collectLocals(node: Node, env: MutableMap<String, String>) {
+        for (child in node.namedChildren) {
+            if (child.type == "property_declaration") {
+                child.namedChildren.firstOrNull { it.type == "variable_declaration" }
+                    ?.let(::nameAndType)?.let { (n, t) -> env[n] = t }
+            }
+            collectLocals(child, env)
+        }
+    }
+
     /**
      * Recurses through every descendant of [node] looking for `call_expression` nodes,
      * attributing each one found to [referringId]. See this class's doc comment for why no
      * boundary check against nested declarations is needed here.
      */
-    private fun collectReferences(node: Node, referringId: NodeId) {
+    private fun collectReferences(node: Node, referringId: NodeId, env: Map<String, String>, enclosingType: String?) {
         for (child in node.namedChildren) {
-            if (child.type == "call_expression") {
-                calleeName(child)?.let { emitReference(it, child, referringId) }
-            }
-            collectReferences(child, referringId)
+            if (child.type == "call_expression") emitCall(child, referringId, env, enclosingType)
+            collectReferences(child, referringId, env, enclosingType)
         }
     }
 
     /**
      * `call_expression`'s namedChildren are `[calleeExpr, call_suffix]` (this grammar has
      * no fields at all -- see class doc). For a plain call the callee is a
-     * `simple_identifier`; for a member call it's a `navigation_expression` whose last
-     * namedChild, `navigation_suffix`, holds the `simple_identifier` being invoked. Any
-     * other callee shape (an indexing/call chain, a lambda invoked directly, ...) returns
-     * `null` rather than guess.
+     * `simple_identifier`; for a member call it's a `navigation_expression` whose namedChildren
+     * are `[receiver, navigation_suffix]`, the suffix holding the `simple_identifier` being
+     * invoked. Any other callee shape (an indexing/call chain, a lambda invoked directly, ...)
+     * emits nothing rather than guess.
      */
-    private fun calleeName(callExpression: Node): String? {
-        val callee = callExpression.namedChildren.firstOrNull { it.type != "call_suffix" } ?: return null
-        return when (callee.type) {
-            "simple_identifier" -> callee.textIn(request.sourceText).toString()
-            "navigation_expression" -> callee.namedChildren.lastOrNull { it.type == "navigation_suffix" }
-                ?.namedChildren?.firstOrNull { it.type == "simple_identifier" }
-                ?.textIn(request.sourceText)?.toString()
-            else -> null
+    private fun emitCall(callExpression: Node, referringId: NodeId, env: Map<String, String>, enclosingType: String?) {
+        val callee = callExpression.namedChildren.firstOrNull { it.type != "call_suffix" } ?: return
+        when (callee.type) {
+            "simple_identifier" -> {
+                val name = callee.textIn(request.sourceText).toString()
+                // Calling a named value is a call to its type's `invoke` operator: `loadOrder(id)`
+                // on a `loadOrder: LoadOrderUseCase` reaches `LoadOrderUseCase.invoke`.
+                val valueType = env[name]
+                if (valueType != null) {
+                    emitReference("invoke", callExpression, referringId, Receiver(type = valueType))
+                } else {
+                    emitReference(name, callExpression, referringId, Receiver())
+                }
+            }
+            "navigation_expression" -> {
+                val name = memberName(callee) ?: return
+                val receiver = callee.namedChildren.firstOrNull { it.type != "navigation_suffix" }
+                emitReference(name, callExpression, referringId, receiverOf(receiver, env, enclosingType))
+            }
+            else -> Unit
         }
     }
 
-    private fun emitReference(name: String, callNode: Node, referringId: NodeId) {
+    /** The member a `navigation_expression` selects: the identifier in its last `navigation_suffix`. */
+    private fun memberName(navigation: Node): String? =
+        navigation.namedChildren.lastOrNull { it.type == "navigation_suffix" }
+            ?.namedChildren?.firstOrNull { it.type == "simple_identifier" }
+            ?.textIn(request.sourceText)?.toString()
+
+    /** What the receiver expression of a member call says about its type. See the class doc. */
+    private fun receiverOf(receiver: Node?, env: Map<String, String>, enclosingType: String?): Receiver = when (receiver?.type) {
+        "simple_identifier" -> {
+            val name = receiver.textIn(request.sourceText).toString()
+            Receiver(type = env[name] ?: name.takeIf { it.first().isUpperCase() })
+        }
+        "this_expression" -> Receiver(type = enclosingType)
+        "call_expression" -> Receiver(call = receiver.namedChildren.firstOrNull { it.type != "call_suffix" }?.let { inner ->
+            when (inner.type) {
+                "simple_identifier" -> inner.textIn(request.sourceText).toString()
+                "navigation_expression" -> memberName(inner)
+                else -> null
+            }
+        })
+        "navigation_expression" -> {
+            val property = memberName(receiver)
+            val owner = receiver.namedChildren.firstOrNull { it.type != "navigation_suffix" }
+            when (owner?.type) {
+                // `this.orders.load()`: `orders` is a property of the enclosing type, typed in the file.
+                "this_expression" -> Receiver(type = property?.let(env::get))
+                "simple_identifier" -> {
+                    val ownerName = owner.textIn(request.sourceText).toString()
+                    Receiver(property = property, propertyOwner = env[ownerName] ?: ownerName.takeIf { it.first().isUpperCase() })
+                }
+                else -> Receiver(property = property)
+            }
+        }
+        else -> Receiver()
+    }
+
+    private data class Receiver(
+        val type: String? = null,
+        val call: String? = null,
+        val property: String? = null,
+        val propertyOwner: String? = null
+    )
+
+    private fun emitReference(name: String, callNode: Node, referringId: NodeId, receiver: Receiver) {
         references.add(
             UnresolvedReference(
                 referenceName = name,
                 referringSymbolId = referringId,
                 repoRelativePath = request.repoRelativePath,
                 artifactId = request.artifactId,
-                line = callNode.startPoint.row.toInt() + 1
+                line = callNode.startPoint.row.toInt() + 1,
+                receiverType = receiver.type,
+                receiverCall = receiver.call,
+                receiverProperty = receiver.property,
+                receiverPropertyOwner = receiver.propertyOwner
             )
         )
     }
