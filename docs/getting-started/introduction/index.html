@@ -12,7 +12,7 @@
 
   <h2>Overview</h2>
   <p>ContextGraph is a local-first <strong>code understanding engine</strong> for AI agents. It parses your repository into a graph of symbols and the resolved edges between them — built from tree-sitter ASTs, with scope-correct identity, so a <code>getName</code> in one class is never confused with a <code>getName</code> in another — and stores it in SQLite on your disk.</p>
-  <p>Agents reach it through a Model Context Protocol (MCP) server. The primary tool, <code>contextgraph.explore</code>, takes a natural-language question and returns the matched modules, the relevant symbols with <strong>verbatim source</strong>, the resolved edges between them, and the blast radius of changing them — in one call.</p>
+  <p>Agents reach it through a Model Context Protocol (MCP) server. The primary tool, <code>contextgraph.explore</code>, takes a natural-language question and returns the matched modules and the relevant symbols — ranked by how well they match and how they connect in the call graph — with their locations, callers and callees, the blast radius of changing them, and <strong>verbatim source</strong> for the top hits, in one call.</p>
   <p>The same engine also ingests Markdown, PDFs, SQL schemas and config files into the same graph, so a design document and the code implementing it end up connected rather than merely stored side by side.</p>
 
   <h2>Why it exists</h2>

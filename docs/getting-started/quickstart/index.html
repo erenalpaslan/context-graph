@@ -60,7 +60,7 @@ contextgraph init</code></pre>
   <pre><code>contextgraph report</code></pre>
 
   <h2>6. Connect to an AI agent</h2>
-  <p>Start the MCP server so agents can query the graph directly. The tool that matters is <code>contextgraph.explore</code>: one call, one natural-language question, and the answer comes back with verbatim source rather than pointers to go read.</p>
+  <p>Start the MCP server so agents can query the graph directly. The tool that matters is <code>contextgraph.explore</code>: one call, one natural-language question, and the answer comes back as the relevant code, ranked, with source for the top hits and locations for the rest.</p>
   <div class="pre-header"><div class="pre-dot pre-dot-r"></div><div class="pre-dot pre-dot-y"></div><div class="pre-dot pre-dot-g"></div><span class="pre-label">Terminal</span></div>
   <pre><code>contextgraph serve-mcp</code></pre>
 

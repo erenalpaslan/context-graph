@@ -105,7 +105,7 @@ jobs:
 
 | Tool | Description |
 |------|-------------|
-| `contextgraph.explore` | **Answer a natural-language question in one call.** Returns matched modules with descriptions, relevant symbols with verbatim source, their resolved edges (each with confidence and resolution rung), and blast radius. Caps its response at a token budget — top-ranked symbols carry full source, the rest carry signature and location and are marked `elided`. |
+| `contextgraph.explore` | **Answer a natural-language question in one call.** Returns matched modules and the relevant symbols, ranked by name match and by how they connect in the call graph. Each symbol has its location, why it ranked, its main callers and callees, and how many symbols depend on it; the top two carry verbatim source (`detail: "pointers"`, the default, about 4k tokens). `detail: "full"` carries source, edges and blast radius for every symbol that fits a 15k-token budget. |
 
 `explore` exists because agents choose badly among many similar tools and chain thin calls
 expensively. Prefer it for almost every question.

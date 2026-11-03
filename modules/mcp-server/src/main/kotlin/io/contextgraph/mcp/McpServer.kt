@@ -32,9 +32,11 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.nio.file.Path
 
@@ -102,22 +104,32 @@ class ContextGraphMcpServer(
         // instead of asking an agent to chain several thin ones together.
         server.addTool(
             "contextgraph.explore",
-            "PRIMARY TOOL -- answer a natural-language question about this codebase in one call: " +
-                "matched modules with descriptions, relevant symbols, VERBATIM SOURCE for those " +
-                "symbols, their resolved edges (with confidence and resolution rung), and blast " +
-                "radius (what depends on them). Prefer this over the other tools below for most " +
-                "questions -- they return pointers you would then have to follow with a separate " +
-                "file read; this returns the source directly. Caps its response at a token budget " +
-                "(default ${DEFAULT_EXPLORE_TOKEN_BUDGET}, configurable via 'tokenBudget'): the " +
-                "highest-ranked symbols carry full source, the rest carry signature and location " +
-                "only and are marked 'elided': true. A question matching nothing returns " +
-                "'empty': true rather than an error.",
+            "PRIMARY TOOL -- answer a natural-language question about this codebase in one call. " +
+                "Returns the matched modules and the relevant symbols ranked by how well their names " +
+                "match the question and how they connect to each other in the call graph. Each symbol " +
+                "has its file and line range, why it ranked, its main callers and callees (with " +
+                "confidence and resolution rung) and what depends on it (blast radius). By default " +
+                "('detail': 'pointers', about ${DEFAULT_POINTERS_TOKEN_BUDGET} tokens) only the top " +
+                "$POINTER_SOURCE_SYMBOLS symbols carry verbatim source: read the files you need from " +
+                "the locations given. 'detail': 'full' carries source for every symbol that fits the " +
+                "budget (default ${DEFAULT_EXPLORE_TOKEN_BUDGET} tokens) at a much larger response. " +
+                "Symbols past the budget carry location only and are marked 'elided': true. A question " +
+                "matching nothing returns 'empty': true rather than an error.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("question") { put("type", "string"); put("description", "Natural-language question about the codebase") }
                     putJsonObject("tokenBudget") {
                         put("type", "number")
-                        put("description", "Max response size in (approximate) tokens. Default $DEFAULT_EXPLORE_TOKEN_BUDGET.")
+                        put(
+                            "description",
+                            "Max response size in tokens, at four characters per token. Default " +
+                                "$DEFAULT_POINTERS_TOKEN_BUDGET for pointers, $DEFAULT_EXPLORE_TOKEN_BUDGET for full."
+                        )
+                    }
+                    putJsonObject("detail") {
+                        put("type", "string")
+                        putJsonArray("enum") { add("pointers"); add("full") }
+                        put("description", "'pointers' (default): ranked locations, source for the top few. 'full': source for every symbol that fits.")
                     }
                 },
                 listOf("question")
@@ -126,9 +138,13 @@ class ContextGraphMcpServer(
             val question = request.arguments["question"]?.jsonPrimitive?.content
                 ?: return@addTool errorResult("Missing 'question' argument")
             val tokenBudget = request.arguments["tokenBudget"]?.jsonPrimitive?.content?.toIntOrNull()
-                ?: DEFAULT_EXPLORE_TOKEN_BUDGET
+            val detail = when (request.arguments["detail"]?.jsonPrimitive?.content?.lowercase()) {
+                null, "pointers" -> ExploreDetail.POINTERS
+                "full" -> ExploreDetail.FULL
+                else -> return@addTool errorResult("'detail' must be 'pointers' or 'full'")
+            }
             try {
-                val response = runBlocking { exploreEngine.explore(question, tokenBudget) }
+                val response = runBlocking { exploreEngine.explore(question, tokenBudget, detail) }
                 CallToolResult(
                     content = listOf(TextContent(encodeExploreResponse(response))),
                     isError = false
