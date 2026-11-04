@@ -55,7 +55,15 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
   </table>
 
   <h3>contextgraph.search_nodes</h3>
-  <p>Full-text search across all nodes, with optional type filtering.</p>
+  <p>Finds symbols by name or description and returns one line per hit, best first, with its <code>file:line</code>.</p>
+  <p>Ranking is the same as <code>explore</code>'s:</p>
+  <ul>
+    <li>identifier words over substrings, and rare words over common ones;</li>
+    <li>classes and methods over constants;</li>
+    <li>links to the other matches count;</li>
+    <li>production code comes before tests unless the query mentions tests.</li>
+  </ul>
+  <p>Each name it shows can be passed straight to <code>trace</code> or <code>impact_analysis</code> as <code>symbol</code>. A <code>types</code> filter, or a query no symbol matches, falls back to plain full-text search across all nodes.</p>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
     <tbody>
@@ -105,7 +113,8 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
     <tbody>
-      <tr><td><code>nodeId</code></td><td>string</td><td>yes</td><td>From <code>search_nodes</code> or <code>explore</code></td></tr>
+      <tr><td><code>symbol</code></td><td>string</td><td>one of the two</td><td>By name: <code>Type.member</code>, <code>member</code> or <code>Type</code>. An ambiguous name answers with its candidates.</td></tr>
+      <tr><td><code>nodeId</code></td><td>string</td><td>one of the two</td><td>A node id; one with a wrong parameter list resolves like a name</td></tr>
       <tr><td><code>direction</code></td><td>string</td><td>no</td><td><code>callers</code> (default) or <code>callees</code></td></tr>
       <tr><td><code>minConfidence</code></td><td>number</td><td>no</td><td>Lowest confidence listed (default 0.8; 0.4 also lists name-only guesses)</td></tr>
       <tr><td><code>includeTests</code></td><td>boolean</td><td>no</td><td>List calls from test code too (default false)</td></tr>
@@ -121,7 +130,8 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
     <tbody>
-      <tr><td><code>nodeId</code></td><td>string</td><td>yes</td><td>Where to start: a method, function or type</td></tr>
+      <tr><td><code>symbol</code></td><td>string</td><td>one of the two</td><td>Where to start, by name: <code>Type.member</code>, <code>member</code> or <code>Type</code></td></tr>
+      <tr><td><code>nodeId</code></td><td>string</td><td>one of the two</td><td>Where to start, by node id</td></tr>
       <tr><td><code>direction</code></td><td>string</td><td>no</td><td><code>callers</code> (default) or <code>callees</code></td></tr>
       <tr><td><code>depth</code></td><td>number</td><td>no</td><td>Max hops (default 5, at most 8)</td></tr>
       <tr><td><code>entryPoints</code></td><td>string</td><td>no</td><td>Regex on a method's or its type's name where the walk stops; for callees, the target to reach</td></tr>

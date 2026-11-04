@@ -403,6 +403,20 @@ class ExploreEngineTest : FunSpec({
         compoundWords(listOf("order", "view", "model")) shouldBe setOf("orderview", "viewmodel", "orderviewmodel")
     }
 
+    test("searchSymbols ranks like explore: production code and methods before tests and constants") {
+        writeSource("src/test/BalanceTest.kt", listOf("fun cachedBalanceIsReused() {}"))
+        writeSource("src/main/Constants.kt", listOf("const val CACHED_BALANCE = 1"))
+        writeSource("src/main/Balance.kt", listOf("fun loadCachedBalance() {}"))
+        addSymbol("src/test/BalanceTest.kt#BalanceTest.cachedBalanceIsReused", "cachedBalanceIsReused", 1, 1, "src/test/BalanceTest.kt")
+        addSymbol("src/main/Constants.kt#CACHED_BALANCE", "CACHED_BALANCE", 1, 1, "src/main/Constants.kt", type = NodeType.Custom("Property"))
+        addSymbol("src/main/Balance.kt#loadCachedBalance", "loadCachedBalance", 1, 1, "src/main/Balance.kt")
+
+        val ids = engine().searchSymbols("cached balance", limit = 10).map { it.node.id.value }
+
+        ids.first() shouldBe "src/main/Balance.kt#loadCachedBalance"
+        ids.last() shouldBe "src/test/BalanceTest.kt#BalanceTest.cachedBalanceIsReused"
+    }
+
     test("splits identifiers into words and questions into adjacent word pairs") {
         identifierWords("ShoppingCartController") shouldBe listOf("shopping", "cart", "controller")
         identifierWords("MAX_CART_ITEMS") shouldBe listOf("max", "cart", "items")

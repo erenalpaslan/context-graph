@@ -270,6 +270,9 @@ data class ExploreResponse(
     val detail: String = "full"
 )
 
+/** One ranked hit from [ExploreEngine.searchSymbols]. */
+data class SymbolHit(val node: GraphNode, val score: Double, val why: String)
+
 /** A ranked candidate and the evidence for its rank, kept so the response can say why. */
 private class RankedSymbol(
     val node: GraphNode,
@@ -312,6 +315,20 @@ class ExploreEngine(
 ) {
     private val moduleSearch = ModuleSemanticSearch(storage, moduleEmbedder, litellm)
     private val blastRadius = BlastRadius(storage)
+
+    /**
+     * [explore]'s symbol ranking without the response around it, for `search_nodes`: the same
+     * candidates, scored the same way (identifier words over substrings, rare words over
+     * common ones, classes and methods over values, links to the other matches, tests last
+     * unless asked for), best first. Module matching is skipped -- a search names symbols.
+     */
+    fun searchSymbols(query: String, limit: Int): List<SymbolHit> {
+        val tokens = tokenize(query)
+        if (tokens.isEmpty()) return emptyList()
+        return rankSymbols(tokens, termPairs(query), emptyList())
+            .take(limit)
+            .map { SymbolHit(it.node, roundScore(it.score), why(it)) }
+    }
 
     suspend fun explore(
         question: String,

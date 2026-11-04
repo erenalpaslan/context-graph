@@ -11,6 +11,7 @@ import io.contextgraph.query.CallGraph
 import io.contextgraph.query.ContextBundler
 import io.contextgraph.query.QueryEngine
 import io.contextgraph.query.RESOLVED_CALL_CONFIDENCE
+import io.contextgraph.query.Resolution
 import io.contextgraph.query.Trace
 import io.contextgraph.report.ReportGenerator
 import io.contextgraph.storage.SqliteStorageAdapter
@@ -61,6 +62,9 @@ private const val MAX_TRACE_DEPTH = 8
 
 /** Where a callers `trace` stops by default: the names UI entry points and framework-invoked types conventionally end in. */
 private const val DEFAULT_ENTRY_POINTS = "(ViewModel|Presenter|Fragment|Activity|Controller|Screen)$"
+
+/** Candidates listed for an ambiguous symbol name. */
+private const val MAX_AMBIGUOUS_CANDIDATES = 15
 
 class ContextGraphMcpServer(
     private val dbPath: Path,
@@ -203,7 +207,10 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.search_nodes",
-            "Search the knowledge graph for nodes matching a query. Secondary tool -- returns pointers, not source; prefer 'contextgraph.explore' for most questions.",
+            "Find symbols by name or description: one line per hit, best first, with its file:line and the node id the " +
+                "call-graph tools take. Ranked like 'contextgraph.explore' (identifier words over substrings, classes and " +
+                "methods over constants, production code before tests unless the query mentions tests). Use it to find " +
+                "where something is; 'contextgraph.trace' and 'contextgraph.impact_analysis' also accept a name directly.",
             Tool.Input(
                 buildJsonObject {
                     putJsonObject("query") { put("type", "string"); put("description", "Search query") }
@@ -219,12 +226,28 @@ class ContextGraphMcpServer(
             val minConf = request.arguments["minConfidence"]?.jsonPrimitive?.content?.toDoubleOrNull() ?: 0.5
             val limit = request.arguments["limit"]?.jsonPrimitive?.content?.toIntOrNull() ?: 20
             val types = typesStr?.split(",")?.mapNotNull { NodeType.fromStringOrNull(it.trim()) } ?: emptyList()
-            val result = queryEngine.search(query, types, minConf, limit)
-            // Search already named the id; the location is what turns a hit into somewhere to
-            // look, and it costs one indexed lookup per row.
-            val text = result.nodes.joinToString("\n") { node ->
-                "${renderNode(node)}\n  confidence=${node.confidence}"
-            }.ifEmpty { "No nodes found" }
+            // Symbols go through explore's ranking; a type filter (files, modules, documents)
+            // or a query no symbol matches falls back to the plain full-text search.
+            val hits = if (types.isEmpty()) {
+                exploreEngine.searchSymbols(query, limit).filter { it.node.confidence >= minConf }
+            } else {
+                emptyList()
+            }
+            val text = if (hits.isNotEmpty()) {
+                // No id per line: it repeats the path, and the call-graph tools take the name
+                // shown here as 'symbol' (an ambiguous one answers with the ids to choose from).
+                hits.joinToString("\n", postfix = "\n(Pass a name above as 'symbol' to contextgraph.trace or contextgraph.impact_analysis.)") { hit ->
+                    "${NodeType.stringify(hit.node.type)} ${rendering.memberName(hit.node)}  ${rendering.declaredAt(hit.node)}" +
+                        "  -- ${hit.why.substringBefore("; ")}"
+                }
+            } else {
+                val result = queryEngine.search(query, types, minConf, limit)
+                // Search already named the id; the location is what turns a hit into somewhere to
+                // look, and it costs one indexed lookup per row.
+                result.nodes.joinToString("\n") { node ->
+                    "${renderNode(node)}\n  confidence=${node.confidence}"
+                }.ifEmpty { "No nodes found" }
+            }
             CallToolResult(content = listOf(TextContent(text)), isError = false)
         }
 
@@ -329,12 +352,16 @@ class ContextGraphMcpServer(
                 "call from production code with the call site's file:line, including calls that reach it through an " +
                 "interface method it implements, and says how complete the list is. Calls are resolved by the receiver's " +
                 "declared type, so same-named methods on other types are excluded, which a text search cannot do. One " +
-                "hop: for chains across several hops ('which screens end up calling X') use 'contextgraph.trace'. Get " +
-                "the nodeId from 'contextgraph.search_nodes' or 'contextgraph.explore'. 'direction': 'callees' lists " +
-                "what it calls instead.",
+                "hop: for chains across several hops ('which screens end up calling X') use 'contextgraph.trace'. Name " +
+                "the target with 'symbol' ('OrderRepository.load', 'load', 'OrderRepository') or 'nodeId'. " +
+                "'direction': 'callees' lists what it calls instead.",
             Tool.Input(
                 buildJsonObject {
-                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID of a method, function or type") }
+                    putJsonObject("symbol") {
+                        put("type", "string")
+                        put("description", "The method, function or type by name: 'Type.member', 'member' or 'Type'. An ambiguous name lists its candidates.")
+                    }
+                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID, instead of 'symbol'") }
                     putJsonObject("direction") {
                         put("type", "string")
                         putJsonArray("enum") { add("callers"); add("callees") }
@@ -353,11 +380,14 @@ class ContextGraphMcpServer(
                         put("description", "Max calls to render (default $DEFAULT_NEIGHBOUR_LIMIT)")
                     }
                 },
-                listOf("nodeId")
+                emptyList()
             )
         ) { request ->
-            val nodeId = request.arguments["nodeId"]?.jsonPrimitive?.content
-                ?: return@addTool errorResult("Missing 'nodeId'")
+            val target = when (val resolved = resolveTarget(request.arguments)) {
+                is Resolution.Found -> resolved.node
+                else -> return@addTool resolutionResult(resolved, request.arguments)
+            }
+            val nodeId = target.id.value
             val limit = request.arguments["limit"]?.jsonPrimitive?.content?.toIntOrNull()
                 ?: DEFAULT_NEIGHBOUR_LIMIT
             val minConfidence = request.arguments["minConfidence"]?.jsonPrimitive?.content?.toDoubleOrNull()
@@ -367,7 +397,7 @@ class ContextGraphMcpServer(
                 null, "callers" -> callGraph.callers(NodeId(nodeId), minConfidence, includeTests)?.let { rendering.callers(it, limit) }
                 "callees" -> callGraph.callees(NodeId(nodeId), minConfidence, includeTests)?.let { rendering.callees(it, limit) }
                 else -> return@addTool errorResult("'direction' must be 'callers' or 'callees'")
-            } ?: return@addTool errorResult("No node with id '$nodeId' -- get one from contextgraph.search_nodes")
+            } ?: return@addTool errorResult("No node with id '$nodeId'")
             CallToolResult(content = listOf(TextContent(text)), isError = false)
         }
 
@@ -380,11 +410,15 @@ class ContextGraphMcpServer(
                 "invoke operators and interface methods. Callers stop at entry points matching 'entryPoints' " +
                 "(default /$DEFAULT_ENTRY_POINTS/ on the method or its type). For callees, set 'entryPoints' to " +
                 "what you are looking for ('Api$' for endpoints) and only the paths that reach it are shown. " +
-                "Works from a type too: a ViewModel's callees are everything its methods call. Get the nodeId " +
-                "from 'contextgraph.search_nodes' or 'contextgraph.explore'.",
+                "Works from a type too: a ViewModel's callees are everything its methods call. Name the start with " +
+                "'symbol' ('OrderViewModel', 'GetOrderApiUseCase.execute') or 'nodeId'.",
             Tool.Input(
                 buildJsonObject {
-                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID of the method or function to start from") }
+                    putJsonObject("symbol") {
+                        put("type", "string")
+                        put("description", "Where to start, by name: 'Type.member', 'member' or 'Type'. An ambiguous name lists its candidates.")
+                    }
+                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID, instead of 'symbol'") }
                     putJsonObject("direction") {
                         put("type", "string")
                         putJsonArray("enum") { add("callers"); add("callees") }
@@ -412,11 +446,14 @@ class ContextGraphMcpServer(
                         put("description", "Follow calls from test code too (default false)")
                     }
                 },
-                listOf("nodeId")
+                emptyList()
             )
         ) { request ->
-            val nodeId = request.arguments["nodeId"]?.jsonPrimitive?.content
-                ?: return@addTool errorResult("Missing 'nodeId'")
+            val start = when (val resolved = resolveTarget(request.arguments)) {
+                is Resolution.Found -> resolved.node
+                else -> return@addTool resolutionResult(resolved, request.arguments)
+            }
+            val nodeId = start.id.value
             val direction = when (request.arguments["direction"]?.jsonPrimitive?.content?.lowercase()) {
                 null, "callers" -> Trace.Direction.CALLERS
                 "callees" -> Trace.Direction.CALLEES
@@ -435,7 +472,7 @@ class ContextGraphMcpServer(
                 ?: RESOLVED_CALL_CONFIDENCE
             val includeTests = request.arguments["includeTests"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
             val trace = callGraph.trace(NodeId(nodeId), direction, depth, entryPoints, minConfidence, includeTests)
-                ?: return@addTool errorResult("No node with id '$nodeId' -- get one from contextgraph.search_nodes")
+                ?: return@addTool errorResult("No node with id '$nodeId'")
             CallToolResult(content = listOf(TextContent(rendering.trace(trace, entryPoints))), isError = false)
         }
 
@@ -662,6 +699,33 @@ class ContextGraphMcpServer(
                 )
             }
         }.trimEnd()
+    }
+
+    /** The node a call-graph tool's `symbol` or `nodeId` argument names; a loose id resolves like a name. */
+    private fun resolveTarget(arguments: kotlinx.serialization.json.JsonObject): Resolution {
+        val reference = arguments["symbol"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+            ?: arguments["nodeId"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+            ?: return Resolution.NotFound
+        return callGraph.resolve(reference)
+    }
+
+    /**
+     * The answer when [resolveTarget] found no single node: the candidates to choose from for an
+     * ambiguous name, so the next call can name one, instead of a bare "not found".
+     */
+    private fun resolutionResult(resolution: Resolution, arguments: kotlinx.serialization.json.JsonObject): CallToolResult {
+        val reference = arguments["symbol"]?.jsonPrimitive?.content ?: arguments["nodeId"]?.jsonPrimitive?.content
+        if (reference.isNullOrBlank()) return errorResult("Name the target with 'symbol' (a name) or 'nodeId'")
+        if (resolution !is Resolution.Ambiguous) {
+            return errorResult("Nothing named '$reference' -- try a shorter name ('member' or 'Type'), or contextgraph.search_nodes")
+        }
+        val shown = resolution.candidates.take(MAX_AMBIGUOUS_CANDIDATES)
+        val text = buildString {
+            appendLine("'$reference' matches ${resolution.candidates.size} declarations. Call again with one of these ids as 'nodeId', or qualify the name as 'Type.member':")
+            shown.forEach { appendLine("- ${rendering.memberName(it)}  ${rendering.declaredAt(it)}  id=${it.id.value}") }
+            if (resolution.candidates.size > shown.size) append("... ${resolution.candidates.size - shown.size} more; qualify the name to narrow it.")
+        }.trimEnd()
+        return CallToolResult(content = listOf(TextContent(text)), isError = false)
     }
 
     private fun errorResult(message: String) = CallToolResult(

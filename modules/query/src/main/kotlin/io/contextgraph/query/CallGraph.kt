@@ -28,6 +28,12 @@ fun isTestSourcePath(path: String): Boolean {
         ".test." in fileName || ".spec." in fileName
 }
 
+/** Node types a call-graph question is about: what can be called, and the types that hold it. */
+private val CALLABLE_OR_TYPE = setOf<NodeType>(
+    NodeType.Method, NodeType.Function, NodeType.Class,
+    NodeType.Custom("Interface"), NodeType.Custom("Object"), NodeType.Custom("Enum")
+)
+
 /** How much further a goal-directed callees walk explores than it shows. */
 private const val PRUNED_EXPLORATION_FACTOR = 20
 
@@ -89,6 +95,13 @@ enum class TraceStop {
     SEEN,
     /** The node budget ran out. */
     BUDGET
+}
+
+/** What a symbol reference given to a call-graph tool resolved to. */
+sealed interface Resolution {
+    data class Found(val node: GraphNode) : Resolution
+    data class Ambiguous(val candidates: List<GraphNode>) : Resolution
+    data object NotFound : Resolution
 }
 
 data class Trace(
@@ -227,6 +240,49 @@ class CallGraph(private val storage: StorageAdapter) {
     }
 
     private fun count(node: TraceNode): Int = 1 + node.children.sumOf { count(it) }
+
+    /**
+     * Resolves what an agent wrote to the declaration it means, so a call-graph tool does not
+     * need an exact node id first.
+     *
+     * Accepted forms:
+     * - an exact id;
+     * - an id with a wrong or missing parameter list (`path#Type.member()` for
+     *   `path#Type.member(String)`);
+     * - `Type.member`, `member` or `Type`, with or without parameters.
+     *
+     * Among several matches, production code wins over tests, and methods, functions and
+     * types over properties. More than one left is [Resolution.Ambiguous], with the candidates
+     * to choose from rather than a guess.
+     */
+    fun resolve(reference: String): Resolution {
+        val ref = reference.trim()
+        if (ref.isEmpty()) return Resolution.NotFound
+        storage.getNode(NodeId(ref))?.let { return Resolution.Found(it) }
+
+        val candidates = if ('#' in ref) {
+            // An id whose member part is off by its parameter list.
+            val withoutParams = ref.substringBefore('(')
+            val label = withoutParams.substringAfter('#').substringAfterLast('.')
+            storage.findNodesByLabel(label).filter { it.id.value.substringBefore('(') == withoutParams }
+        } else {
+            val parts = ref.substringBefore('(').split('.').filter { it.isNotEmpty() }
+            val label = parts.lastOrNull() ?: return Resolution.NotFound
+            val owner = parts.getOrNull(parts.size - 2)
+            storage.findNodesByLabel(label)
+                .filter { '#' in it.id.value && it.type != NodeType.Module }
+                .filter { owner == null || declaringTypeOf(it) == owner }
+        }
+
+        val narrowed = candidates
+            .let { all -> all.filterNot { isTestSourcePath(it.id.value.substringBefore('#')) }.ifEmpty { all } }
+            .let { all -> all.filter { it.type in CALLABLE_OR_TYPE }.ifEmpty { all } }
+        return when (narrowed.size) {
+            0 -> Resolution.NotFound
+            1 -> Resolution.Found(narrowed.single())
+            else -> Resolution.Ambiguous(narrowed.sortedBy { it.id.value })
+        }
+    }
 
     /** The simple name of the type [node] is declared in, read out of its id, or null at file level. */
     fun declaringTypeOf(node: GraphNode): String? {

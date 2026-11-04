@@ -173,4 +173,29 @@ class CallGraphTest : FunSpec({
         only.node.id.value shouldBe useCase
         only.children.single().stop shouldBe TraceStop.ENTRY_POINT
     }
+
+    test("resolve accepts an exact id, an id with the wrong parameters, Type.member, a bare name and a type") {
+        type("repo/OrderRepository.kt#OrderRepository")
+        method("repo/OrderRepository.kt#OrderRepository.load(String)")
+        contains("repo/OrderRepository.kt#OrderRepository", "repo/OrderRepository.kt#OrderRepository.load(String)")
+        val load = "repo/OrderRepository.kt#OrderRepository.load(String)"
+
+        (graph.resolve(load) as Resolution.Found).node.id.value shouldBe load
+        (graph.resolve("repo/OrderRepository.kt#OrderRepository.load()") as Resolution.Found).node.id.value shouldBe load
+        (graph.resolve("OrderRepository.load") as Resolution.Found).node.id.value shouldBe load
+        (graph.resolve("load(String)") as Resolution.Found).node.id.value shouldBe load
+        (graph.resolve("OrderRepository") as Resolution.Found).node.id.value shouldBe "repo/OrderRepository.kt#OrderRepository"
+        graph.resolve("NoSuchThing") shouldBe Resolution.NotFound
+    }
+
+    test("resolve prefers production code and callables, and reports a real ambiguity with its candidates") {
+        method("app/a/A.kt#A.execute()")
+        method("app/b/B.kt#B.execute()")
+        method("app/src/test/ATest.kt#ATest.execute()")
+        storage.upsertNode(GraphNode(NodeId("app/c/C.kt#C.execute"), NodeType.Custom("Property"), "execute"))
+
+        val ambiguous = graph.resolve("execute") as Resolution.Ambiguous
+        ambiguous.candidates.map { it.id.value } shouldContainExactly listOf("app/a/A.kt#A.execute()", "app/b/B.kt#B.execute()")
+        (graph.resolve("B.execute") as Resolution.Found).node.id.value shouldBe "app/b/B.kt#B.execute()"
+    }
 })
