@@ -11,9 +11,9 @@
 #
 #   jobs:
 #     graph:
-#       uses: erenalpaslan/context-graph/.github/workflows/reindex.yml@v0.3.0
+#       uses: erenalpaslan/context-graph/.github/workflows/reindex.yml@v0.4.0
 #       with:
-#         contextgraph-version: "0.3.0"
+#         contextgraph-version: "0.4.0"
 #     publish:
 #       needs: graph
 #       runs-on: ubuntu-latest
@@ -81,7 +81,7 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - uses: erenalpaslan/context-graph/action@v0.3.0
+      - uses: erenalpaslan/context-graph/action@v0.4.0
         with:
           version: ${{ inputs.contextgraph-version }}
 
