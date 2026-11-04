@@ -15,8 +15,10 @@ import kotlin.io.path.inputStream
  * checksum stale exactly once, on the first index after the upgrade.
  *
  * 2: Kotlin records declared types, return types, supertypes and receiver hints.
+ * 3: the full-text index also holds an identifier's adjacent word pairs joined ("ViewModel"),
+ *    rewritten for a node only when its file is re-extracted.
  */
-internal const val EXTRACTION_FORMAT_VERSION = 2
+internal const val EXTRACTION_FORMAT_VERSION = 3
 
 class ChecksumTracker {
     fun checksum(path: Path): String {

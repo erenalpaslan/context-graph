@@ -86,7 +86,7 @@ internal dependencies; the third column lists the edges beyond that.
 | `query` | Search, expand, path-find, evidence, blast radius, context bundles | `graph`, `storage-sqlite` |
 | `report` | One Markdown health report from storage stats and graph algorithms | `graph`, `storage-sqlite` |
 | `visualization` | The whole graph as one standalone interactive HTML page | `storage-sqlite` |
-| `mcp-server` | MCP stdio server: `ExploreEngine`, 11 tools, 6 resources, 4 prompts | `extractors`, `graph`, `ingest`, `query`, `report`, `storage-sqlite`, `visualization` |
+| `mcp-server` | MCP stdio server: `ExploreEngine`, 12 tools, 6 resources, 4 prompts | `extractors`, `graph`, `ingest`, `query`, `report`, `storage-sqlite`, `visualization` |
 | `cli` | Clikt entry point, 15 subcommands | `mcp-server` + its deps; **not** `tree-sitter` |
 | `eval` | Grades `explore` answers against a curated question set | `ingest`, `mcp-server`, `storage-sqlite` |
 | `benchmark` | Corpus prep, LLM judge, retrieval/ingest-cost comparison vs CodeGraph, `grep`, ripgrep | `cli` (the only module that does), `extractors`, `graph`, `ingest`, `mcp-server`, `query`, `storage-sqlite` |
@@ -119,14 +119,19 @@ Each indexed project needs `.contextgraph/config.json` (auto-created by `init`):
 
 ## MCP Server
 
-11 tools over stdio. **`contextgraph.explore` is the primary one**: it answers a
-natural-language question in a single call, returning matched modules, relevant
-symbols with **verbatim source**, their resolved edges (with confidence and
-resolution rung), and blast radius, capped at a token budget with lower-ranked
-symbols marked `elided`. Agents choose badly among many thin tools — prefer it.
-The other ten mostly return pointers: `index_project`, `search_nodes`, `get_node`,
-`expand_node`, `find_path`, `get_evidence`, `impact_analysis`, `related_files`,
-`build_context`, `generate_report`. Also 6 resources under `contextgraph://` and
+12 tools over stdio. **`contextgraph.explore` is the primary one**: it answers a
+natural-language question in a single call, returning matched modules and the
+relevant symbols ranked by name match and call-graph connections, with their
+callers, callees and blast radius, and verbatim source for the top hits
+(`detail: "full"` for source on every symbol). Agents choose badly among many thin
+tools — prefer it. For call questions use the two call-graph tools, which answer
+from `CallGraph` in `modules:query`:
+- `impact_analysis` — the resolved callers (or callees) of one symbol, with call-site lines and a completeness statement.
+- `trace` — the same walked several hops, to entry points or to a target such as `Api$`.
+
+The others mostly return pointers: `index_project`, `search_nodes`, `get_node`,
+`expand_node`, `find_path`, `get_evidence`, `related_files`, `build_context`,
+`generate_report`. Also 6 resources under `contextgraph://` and
 4 prompts, both enumerable over the protocol.
 
 ## Testing

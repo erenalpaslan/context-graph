@@ -565,19 +565,27 @@ private class KotlinSymbolExtractor(private val request: SymbolExtractionRequest
                 }
             }
             "navigation_expression" -> {
-                val name = memberName(callee) ?: return
+                val nameNode = memberNameNode(callee) ?: return
                 val receiver = callee.namedChildren.firstOrNull { it.type != "navigation_suffix" }
-                emitReference(name, callExpression, referringId, receiverOf(receiver, env, enclosingType))
+                // The member name's line, not the call's: a call expression starts where its
+                // receiver chain starts, so in a chain split over several lines every call would
+                // report the chain's first line (the Java walker reads the name token for the
+                // same reason).
+                emitReference(
+                    nameNode.textIn(request.sourceText).toString(), nameNode, referringId,
+                    receiverOf(receiver, env, enclosingType)
+                )
             }
             else -> Unit
         }
     }
 
     /** The member a `navigation_expression` selects: the identifier in its last `navigation_suffix`. */
-    private fun memberName(navigation: Node): String? =
+    private fun memberNameNode(navigation: Node): Node? =
         navigation.namedChildren.lastOrNull { it.type == "navigation_suffix" }
             ?.namedChildren?.firstOrNull { it.type == "simple_identifier" }
-            ?.textIn(request.sourceText)?.toString()
+
+    private fun memberName(navigation: Node): String? = memberNameNode(navigation)?.textIn(request.sourceText)?.toString()
 
     /** What the receiver expression of a member call says about its type. See the class doc. */
     private fun receiverOf(receiver: Node?, env: Map<String, String>, enclosingType: String?): Receiver = when (receiver?.type) {

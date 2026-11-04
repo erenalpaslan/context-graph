@@ -7,8 +7,11 @@ import io.contextgraph.core.NodeType
 import io.contextgraph.graph.GraphAlgorithms
 import io.contextgraph.ingest.ReindexPrimitive
 import io.contextgraph.ingest.describe.LiteLlmModuleEmbedder
+import io.contextgraph.query.CallGraph
 import io.contextgraph.query.ContextBundler
 import io.contextgraph.query.QueryEngine
+import io.contextgraph.query.RESOLVED_CALL_CONFIDENCE
+import io.contextgraph.query.Trace
 import io.contextgraph.report.ReportGenerator
 import io.contextgraph.storage.SqliteStorageAdapter
 import io.contextgraph.visualization.GraphHtmlExporter
@@ -52,12 +55,21 @@ private val logger = KotlinLogging.logger {}
  */
 private const val DEFAULT_NEIGHBOUR_LIMIT = ContextBundler.DEFAULT_MAX_NODES
 
+/** Hops a `trace` walks by default, and at most. Five covers screen -> ViewModel -> use case -> use case -> API use case. */
+private const val DEFAULT_TRACE_DEPTH = 5
+private const val MAX_TRACE_DEPTH = 8
+
+/** Where a callers `trace` stops by default: the names UI entry points and framework-invoked types conventionally end in. */
+private const val DEFAULT_ENTRY_POINTS = "(ViewModel|Presenter|Fragment|Activity|Controller|Screen)$"
+
 class ContextGraphMcpServer(
     private val dbPath: Path,
     private val config: ContextGraphConfig = ContextGraphConfig()
 ) {
     private val storage = SqliteStorageAdapter(dbPath)
     private val queryEngine = QueryEngine(storage)
+    private val callGraph = CallGraph(storage)
+    private val rendering = CallGraphRendering(storage)
 
     /**
      * `dbPath` is always `<projectRoot>/.contextgraph/{graph.db,graph.local.db}` -- the one
@@ -313,18 +325,32 @@ class ContextGraphMcpServer(
 
         server.addTool(
             "contextgraph.impact_analysis",
-            "Every node that points AT this one -- its direct dependents, and for a method its " +
-                "resolved call sites, each with its node id and file:line location. This is the " +
-                "tool for 'what calls X' / 'what breaks if I change X': calls are resolved by " +
-                "declaring type, so unrelated same-named methods are excluded, which a text " +
-                "search cannot do. Direct dependents only -- call it again on a result to go " +
-                "another hop out.",
+            "Who calls this method or function -- 'what calls X' / 'what breaks if I change X'. Lists every resolved " +
+                "call from production code with the call site's file:line, including calls that reach it through an " +
+                "interface method it implements, and says how complete the list is. Calls are resolved by the receiver's " +
+                "declared type, so same-named methods on other types are excluded, which a text search cannot do. One " +
+                "hop: for chains across several hops ('which screens end up calling X') use 'contextgraph.trace'. Get " +
+                "the nodeId from 'contextgraph.search_nodes' or 'contextgraph.explore'. 'direction': 'callees' lists " +
+                "what it calls instead.",
             Tool.Input(
                 buildJsonObject {
-                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID") }
+                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID of a method, function or type") }
+                    putJsonObject("direction") {
+                        put("type", "string")
+                        putJsonArray("enum") { add("callers"); add("callees") }
+                        put("description", "'callers' (default): who calls it. 'callees': what it calls.")
+                    }
+                    putJsonObject("minConfidence") {
+                        put("type", "number")
+                        put("description", "Lowest call confidence listed (default $RESOLVED_CALL_CONFIDENCE). 0.4 also lists name-only guesses.")
+                    }
+                    putJsonObject("includeTests") {
+                        put("type", "boolean")
+                        put("description", "List calls from test code too (default false; they are counted either way)")
+                    }
                     putJsonObject("limit") {
                         put("type", "number")
-                        put("description", "Max dependents to render (default $DEFAULT_NEIGHBOUR_LIMIT)")
+                        put("description", "Max calls to render (default $DEFAULT_NEIGHBOUR_LIMIT)")
                     }
                 },
                 listOf("nodeId")
@@ -334,10 +360,83 @@ class ContextGraphMcpServer(
                 ?: return@addTool errorResult("Missing 'nodeId'")
             val limit = request.arguments["limit"]?.jsonPrimitive?.content?.toIntOrNull()
                 ?: DEFAULT_NEIGHBOUR_LIMIT
-            val bundle = queryEngine.impactAnalysis(nodeId, limit)
-            val text = "Impact: ${bundle.totalNodeCount} dependent node(s)\n" +
-                renderNodes(bundle.nodes, limit, bundle.totalNodeCount)
+            val minConfidence = request.arguments["minConfidence"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                ?: RESOLVED_CALL_CONFIDENCE
+            val includeTests = request.arguments["includeTests"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
+            val text = when (request.arguments["direction"]?.jsonPrimitive?.content?.lowercase()) {
+                null, "callers" -> callGraph.callers(NodeId(nodeId), minConfidence, includeTests)?.let { rendering.callers(it, limit) }
+                "callees" -> callGraph.callees(NodeId(nodeId), minConfidence, includeTests)?.let { rendering.callees(it, limit) }
+                else -> return@addTool errorResult("'direction' must be 'callers' or 'callees'")
+            } ?: return@addTool errorResult("No node with id '$nodeId' -- get one from contextgraph.search_nodes")
             CallToolResult(content = listOf(TextContent(text)), isError = false)
+        }
+
+        server.addTool(
+            "contextgraph.trace",
+            "Follow calls several hops in one call: 'which ViewModels/screens end up calling X' (direction 'callers', " +
+                "the default) or 'which endpoints can X end up calling' (direction 'callees'). Returns the call tree " +
+                "with each call site's file:line, the entry points reached, the branches that end without a caller, " +
+                "and what it could not follow. Follows resolved calls, including calls through use-case holders, " +
+                "invoke operators and interface methods. Callers stop at entry points matching 'entryPoints' " +
+                "(default /$DEFAULT_ENTRY_POINTS/ on the method or its type). For callees, set 'entryPoints' to " +
+                "what you are looking for ('Api$' for endpoints) and only the paths that reach it are shown. " +
+                "Works from a type too: a ViewModel's callees are everything its methods call. Get the nodeId " +
+                "from 'contextgraph.search_nodes' or 'contextgraph.explore'.",
+            Tool.Input(
+                buildJsonObject {
+                    putJsonObject("nodeId") { put("type", "string"); put("description", "Node ID of the method or function to start from") }
+                    putJsonObject("direction") {
+                        put("type", "string")
+                        putJsonArray("enum") { add("callers"); add("callees") }
+                        put("description", "'callers' (default): walk up to whoever ends up calling it. 'callees': walk down to what it ends up calling.")
+                    }
+                    putJsonObject("depth") {
+                        put("type", "number")
+                        put("description", "Max hops (default $DEFAULT_TRACE_DEPTH, at most $MAX_TRACE_DEPTH)")
+                    }
+                    putJsonObject("entryPoints") {
+                        put("type", "string")
+                        put(
+                            "description",
+                            "Regex on a method or its type's name where the walk stops. Default for callers: " +
+                                "$DEFAULT_ENTRY_POINTS; empty string for no stop. For callees, give the target -- 'Api$' " +
+                                "for Retrofit-style API interfaces, 'Repository$' -- and only the paths that reach it are shown."
+                        )
+                    }
+                    putJsonObject("minConfidence") {
+                        put("type", "number")
+                        put("description", "Lowest call confidence followed (default $RESOLVED_CALL_CONFIDENCE)")
+                    }
+                    putJsonObject("includeTests") {
+                        put("type", "boolean")
+                        put("description", "Follow calls from test code too (default false)")
+                    }
+                },
+                listOf("nodeId")
+            )
+        ) { request ->
+            val nodeId = request.arguments["nodeId"]?.jsonPrimitive?.content
+                ?: return@addTool errorResult("Missing 'nodeId'")
+            val direction = when (request.arguments["direction"]?.jsonPrimitive?.content?.lowercase()) {
+                null, "callers" -> Trace.Direction.CALLERS
+                "callees" -> Trace.Direction.CALLEES
+                else -> return@addTool errorResult("'direction' must be 'callers' or 'callees'")
+            }
+            val depth = (request.arguments["depth"]?.jsonPrimitive?.content?.toIntOrNull() ?: DEFAULT_TRACE_DEPTH)
+                .coerceIn(1, MAX_TRACE_DEPTH)
+            val entryPattern = request.arguments["entryPoints"]?.jsonPrimitive?.content
+                ?: if (direction == Trace.Direction.CALLERS) DEFAULT_ENTRY_POINTS else ""
+            val entryPoints = try {
+                entryPattern.takeIf { it.isNotBlank() }?.toRegex()
+            } catch (e: IllegalArgumentException) {
+                return@addTool errorResult("'entryPoints' is not a valid regex: ${e.message}")
+            }
+            val minConfidence = request.arguments["minConfidence"]?.jsonPrimitive?.content?.toDoubleOrNull()
+                ?: RESOLVED_CALL_CONFIDENCE
+            val includeTests = request.arguments["includeTests"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
+            val trace = callGraph.trace(NodeId(nodeId), direction, depth, entryPoints, minConfidence, includeTests)
+                ?: return@addTool errorResult("No node with id '$nodeId' -- get one from contextgraph.search_nodes")
+            CallToolResult(content = listOf(TextContent(rendering.trace(trace, entryPoints))), isError = false)
         }
 
         server.addTool(

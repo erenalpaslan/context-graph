@@ -388,6 +388,21 @@ class ExploreEngineTest : FunSpec({
         ids.contains("Orders.kt#Zephyr") shouldBe true
     }
 
+    test("a question word written as one compound matches the identifier that spells it as two") {
+        // "viewmodel" is one word to whoever asks and two to the identifier (View, Model). As a
+        // substring it scored no better than any label that merely contains the letters, and
+        // the tie went to whichever id sorted first.
+        writeSource("a/Reviewmodelling.kt", listOf("class Reviewmodelling"))
+        writeSource("ui/OrderViewModel.kt", listOf("class OrderViewModel"))
+        addSymbol("a/Reviewmodelling.kt#Reviewmodelling", "Reviewmodelling", 1, 1, "a/Reviewmodelling.kt", type = NodeType.Class)
+        addSymbol("ui/OrderViewModel.kt#OrderViewModel", "OrderViewModel", 1, 1, "ui/OrderViewModel.kt", type = NodeType.Class)
+
+        val ids = engine().explore("viewmodel").symbols.map { it.id }
+
+        ids.first() shouldBe "ui/OrderViewModel.kt#OrderViewModel"
+        compoundWords(listOf("order", "view", "model")) shouldBe setOf("orderview", "viewmodel", "orderviewmodel")
+    }
+
     test("splits identifiers into words and questions into adjacent word pairs") {
         identifierWords("ShoppingCartController") shouldBe listOf("shopping", "cart", "controller")
         identifierWords("MAX_CART_ITEMS") shouldBe listOf("max", "cart", "items")

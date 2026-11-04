@@ -129,6 +129,23 @@ class KotlinReceiverTypeTest : FunSpec({
         refs.named("notAValue").receiverType shouldBe null
     }
 
+    test("a member call reports its own line, not the line its receiver chain starts on") {
+        val refs = referencesIn(
+            """
+            class Caller(private val api: OrderApi) {
+                fun run() {
+                    api.fetch(1)
+                        .map { it }
+                        .fold(onSuccess = {}, onError = {})
+                }
+            }
+            """.trimIndent()
+        )
+        refs.named("fetch").line shouldBe 3
+        refs.named("map").line shouldBe 4
+        refs.named("fold").line shouldBe 5
+    }
+
     test("declarations carry their declared type, return type and supertypes as simple names") {
         val nodes = extract(
             """

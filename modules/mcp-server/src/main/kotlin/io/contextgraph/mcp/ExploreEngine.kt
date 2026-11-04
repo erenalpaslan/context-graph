@@ -14,6 +14,7 @@ import io.contextgraph.ingest.describe.ModuleSearchMethod
 import io.contextgraph.ingest.describe.ModuleSearchResult
 import io.contextgraph.ingest.describe.ModuleSemanticSearch
 import io.contextgraph.query.BlastRadius
+import io.contextgraph.query.isTestSourcePath
 import io.contextgraph.query.VerbatimSource
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -54,11 +55,6 @@ const val DEFAULT_POINTERS_TOKEN_BUDGET = 4_000
  */
 private const val CHARS_PER_TOKEN = 4.0
 
-/** Path segments that mark a test source root. Compared lowercased. */
-private val TEST_DIRECTORY_SEGMENTS = setOf(
-    "test", "tests", "__tests__", "androidtest", "testfixtures", "unittest", "integrationtest", "spec", "specs"
-)
-
 /** Question words that make test sources relevant again, so they keep their normal rank. */
 private val TEST_QUESTION_TERMS = setOf("test", "tests", "testing", "spec", "specs")
 
@@ -76,20 +72,6 @@ private fun encodedLength(symbol: ExploreSymbol): Int =
     exploreJson.encodeToString(ExploreSymbol.serializer(), symbol).length
 
 /**
- * Whether [path] is test code: under a test source root (`src/test`, `__tests__`, ...) or named
- * like a test file (`FooTest.kt`, `foo.test.ts`, `foo_test.go`, `test_foo.py`).
- */
-internal fun isTestSourcePath(path: String): Boolean {
-    val segments = path.split('/')
-    if (segments.dropLast(1).any { it.lowercase() in TEST_DIRECTORY_SEGMENTS }) return true
-    val fileName = segments.last()
-    val stem = fileName.substringBefore('.')
-    return stem.endsWith("Test") || stem.endsWith("Tests") || stem.endsWith("Spec") ||
-        stem.endsWith("_test") || stem.startsWith("test_") ||
-        ".test." in fileName || ".spec." in fileName
-}
-
-/**
  * Lowercased words of an identifier: `ShoppingCartController` -> shopping, cart, controller;
  * `MAX_CART_ITEMS` -> max, cart, items; `parseHTTPResponse` -> parse,
  * http, response.
@@ -99,6 +81,14 @@ internal fun identifierWords(label: String): List<String> =
         .findAll(label)
         .map { it.value.lowercase() }
         .toList()
+
+/**
+ * The words of an identifier joined two and three at a time, in order: order, details, view, model
+ * -> orderdetails, detailsview, viewmodel, orderdetailsview, detailsviewmodel.
+ */
+internal fun compoundWords(words: List<String>): Set<String> = buildSet {
+    for (size in 2..3) words.windowed(size).forEach { add(it.joinToString("")) }
+}
 
 /** Bounds how many candidate symbols get ranked and (for the top ones) have blast radius computed, independent of the token budget -- keeps one `explore` call bounded on a repo where a query matches hundreds of symbols. */
 private const val MAX_CANDIDATE_SYMBOLS = 40
@@ -496,7 +486,10 @@ class ExploreEngine(
             } catch (_: Exception) {
                 emptyList()
             }
-            rarity[term] = ln(1.0 + RARITY_SAMPLE.toDouble() / (1 + found.size))
+            // A term the index holds no row for is no evidence of rarity: the index stores an
+            // identifier's split words, so a compound like `viewmodel` has no row of its own while
+            // naming hundreds of symbols. Weigh it neutrally rather than as the rarest word there is.
+            rarity[term] = if (found.isEmpty()) 1.0 else ln(1.0 + RARITY_SAMPLE.toDouble() / (1 + found.size))
             found.asSequence().filter { it.isSymbol() }.take(POOL_TERM_LIMIT).forEach { pool.putIfAbsent(it.id, it) }
         }
         for ((first, second) in pairs) addFound("$first $second", POOL_PAIR_LIMIT)
@@ -591,6 +584,11 @@ class ExploreEngine(
      * package or enclosing class) counts a little. Each term counts by its [rarity], and a term
      * that is the whole name adds [EXACT_NAME_BONUS], and each adjacent question word pair found
      * in order among the identifier's words adds [PHRASE_BONUS].
+     *
+     * A question word written as one word for what the identifier spells as two or three --
+     * `viewmodel` for `OrderViewModel`, `usecase` for `LoadOrderUseCase` -- counts as a whole
+     * word match: people write these compounds as one word, and as a substring they counted for
+     * a third as much, which let a `...Selection` state outrank the ViewModel a question named.
      */
     private fun lexicalMatch(
         node: GraphNode,
@@ -599,13 +597,14 @@ class ExploreEngine(
         rarity: Map<String, Double>
     ): Pair<Double, List<String>> {
         val words = identifierWords(node.label)
+        val compounds = compoundWords(words)
         val label = node.label.lowercase()
         val qualified = (node.stringProperty("fqn") ?: node.id.value).lowercase()
         var score = 0.0
         val matched = mutableListOf<String>()
         for (t in tokens) {
             val termScore = when {
-                t in words -> 3.0
+                t in words || t in compounds -> 3.0
                 words.any { it.length >= 4 && t.length >= 4 && (it.startsWith(t) || t.startsWith(it)) } -> 2.0
                 t in label -> 1.0
                 t in qualified -> 0.5

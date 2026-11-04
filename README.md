@@ -123,7 +123,8 @@ then have to follow:
 | `contextgraph.expand_node` | BFS neighborhood expansion |
 | `contextgraph.find_path` | Shortest path between two nodes |
 | `contextgraph.get_evidence` | Full provenance chain for a node |
-| `contextgraph.impact_analysis` | Everything pointing at a node — callers, dependents |
+| `contextgraph.impact_analysis` | Who calls a symbol, or what it calls — resolved calls only, each with its call-site `file:line`, including calls through an interface it implements; guesses and test callers are counted, not mixed in |
+| `contextgraph.trace` | The same walked several hops: which ViewModels or screens end up calling X, or which endpoints X can reach (`entryPoints: "Api$"`), as a call tree with each hop's `file:line` |
 | `contextgraph.related_files` | Source files associated with a node |
 | `contextgraph.build_context` | Ranked context bundle for a task description |
 | `contextgraph.generate_report` | Generate report and visualization |
@@ -317,7 +318,7 @@ search. Re-indexing skips unchanged files by checksum.
 | `graph` | Graph builder, entity resolution, JGraphT algorithms |
 | `storage-sqlite` | SQLite + FTS5 persistence with Flyway migrations and batch writes |
 | `query` | Traversal, path finding, evidence retrieval, query-aware relevance ranking |
-| `mcp-server` | MCP server exposing 11 tools, 6 resources and 4 prompts |
+| `mcp-server` | MCP server exposing 12 tools, 6 resources and 4 prompts |
 | `cli` | Command-line interface (Clikt), watcher, CI reindex |
 | `report` | `GRAPH_REPORT.md` generation |
 | `visualization` | Interactive `graph.html` export (D3.js) |
