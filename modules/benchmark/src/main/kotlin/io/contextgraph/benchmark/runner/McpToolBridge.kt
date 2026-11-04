@@ -56,8 +56,9 @@ class ContextGraphMcpToolBridge(indexedWorkingDir: Path) : McpToolBridge {
         ToolDefinition(
             name = TOOL_NAME,
             description = "Answer a natural-language question about this codebase using " +
-                "ContextGraph's knowledge graph: matched modules, relevant symbols, verbatim " +
-                "source, and their resolved edges. Prefer this over reading files directly.",
+                "ContextGraph's knowledge graph: matched modules and the relevant symbols, ranked, " +
+                "each with its location, why it matched and its main callers and callees, with " +
+                "verbatim source for the top few. Read the files you need from the locations given.",
             inputSchemaJson = """{"type":"object","properties":{"question":{"type":"string","description":"Natural-language question about the codebase"}},"required":["question"]}"""
         )
     )

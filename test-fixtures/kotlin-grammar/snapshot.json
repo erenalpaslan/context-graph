@@ -42,7 +42,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.async.Fetcher.buildGreeting",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -60,7 +61,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.async.Fetcher.cachedGreeting",
-                "kind": "property"
+                "kind": "property",
+                "type": "String"
             },
             "provenance": [
                 {
@@ -78,7 +80,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.async.Fetcher.fetch",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -221,7 +224,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.Companion.of",
-                "kind": "function"
+                "kind": "function",
+                "returns": "UserService"
             },
             "provenance": [
                 {
@@ -239,7 +243,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.loginCount",
-                "kind": "property"
+                "kind": "property",
+                "type": "Int"
             },
             "provenance": [
                 {
@@ -257,7 +262,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.name",
-                "kind": "property"
+                "kind": "property",
+                "type": "String"
             },
             "provenance": [
                 {
@@ -275,7 +281,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.save",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -293,7 +300,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.auth.UserService.save",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -415,7 +423,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.ext.Int.shout",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -433,7 +442,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.ext.String.firstOrEmpty",
-                "kind": "property"
+                "kind": "property",
+                "type": "String"
             },
             "provenance": [
                 {
@@ -451,7 +461,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.ext.String.shout",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -469,7 +480,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.ext.String.shout",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -575,7 +587,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.platform.Platform.name",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -628,7 +641,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.platform.Platform.name",
-                "kind": "function"
+                "kind": "function",
+                "returns": "String"
             },
             "provenance": [
                 {
@@ -663,7 +677,10 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.Circle",
-                "kind": "class"
+                "kind": "class",
+                "supertypes": [
+                    "Shape"
+                ]
             },
             "provenance": [
                 {
@@ -699,7 +716,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.Circle.area",
-                "kind": "function"
+                "kind": "function",
+                "returns": "Double"
             },
             "provenance": [
                 {
@@ -717,7 +735,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.Circle.radius",
-                "kind": "property"
+                "kind": "property",
+                "type": "Double"
             },
             "provenance": [
                 {
@@ -807,7 +826,10 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.EmptyShape",
-                "kind": "object"
+                "kind": "object",
+                "supertypes": [
+                    "Shape"
+                ]
             },
             "provenance": [
                 {
@@ -825,7 +847,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.EmptyShape.area",
-                "kind": "function"
+                "kind": "function",
+                "returns": "Double"
             },
             "provenance": [
                 {
@@ -861,7 +884,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.shapes.Shape.area",
-                "kind": "function"
+                "kind": "function",
+                "returns": "Double"
             },
             "provenance": [
                 {
@@ -914,7 +938,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.util.café",
-                "kind": "property"
+                "kind": "property",
+                "type": "String"
             },
             "provenance": [
                 {
@@ -932,7 +957,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.util.defaultRetries",
-                "kind": "property"
+                "kind": "property",
+                "type": "Int"
             },
             "provenance": [
                 {
@@ -950,7 +976,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.util.préparer",
-                "kind": "function"
+                "kind": "function",
+                "returns": "Int"
             },
             "provenance": [
                 {
@@ -968,7 +995,8 @@
             "confidence": 0.98,
             "properties": {
                 "fqn": "com.example.util.square",
-                "kind": "function"
+                "kind": "function",
+                "returns": "Int"
             },
             "provenance": [
                 {

@@ -28,17 +28,20 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
 }</code></pre>
 
   <h2>Tools</h2>
-  <p>The server registers 11 tools. One of them is the primary entry point; the other ten are secondary and mostly return pointers you then have to follow with a separate file read.</p>
+  <p>The server registers 12 tools. <code>explore</code> is the primary entry point. <code>impact_analysis</code> and <code>trace</code> answer call questions from the resolved call graph. The rest are secondary and mostly return pointers you then follow with a separate file read.</p>
 
   <h3>contextgraph.explore <span class="t-str">— primary</span></h3>
-  <p><strong>Answers a natural-language question about the codebase in one call.</strong> Returns the modules that matched with their descriptions, the relevant symbols with <strong>verbatim source</strong>, the resolved edges between them — each carrying its confidence and the resolution rung that produced it — and blast radius, meaning what depends on those symbols.</p>
-  <p>The response is capped at a token budget, measured on the compact JSON it is sent as, at four characters per token: the highest-ranked symbols carry full source, the next carry signature and location only and are marked <code>"elided": true</code>, and symbols that would not fit even elided are left out. <code>estimatedTokensUsed</code> is the size of the response itself, and <code>truncated</code> is true whenever anything was elided or left out. Symbols from test sources rank after production code unless the question mentions tests. A question that matches nothing returns <code>"empty": true</code> rather than an error.</p>
-  <p>Prefer this over every tool below for most questions. It exists because agents choose badly among many similar tools and chaining thin calls costs more than one fat call.</p>
+  <p><strong>Answers a natural-language question about the codebase in one call.</strong> Returns the modules that matched and the relevant symbols, ranked, each with its location and why it ranked.</p>
+  <p><strong>Ranking.</strong> Candidates come from the full-text index — the whole question, each word, and each pair of adjacent words — plus the call-graph neighbours and enclosing classes of the best matches, so the next step of a flow is found even when its name shares no word with the question. Each candidate is scored on how well its name matches the question words (whole identifier words over substrings, rare words over common ones, adjacent word pairs in order, a bonus when the question names it outright; values and fields count for less than classes and functions), on its resolved edges, and on its links to the other strong matches. Symbols from test sources rank after production code unless the question mentions tests.</p>
+  <p><strong>Detail.</strong> <code>"pointers"</code> (the default, 4,000-token budget) gives every symbol its location, why it ranked, up to three callers (<code>calledBy</code>) and callees (<code>calls</code>) as <code>File.kt#Scope.member()</code>, and how many symbols depend on it (<code>dependents</code>); only the top two carry verbatim source, cut to 60 lines (<code>sourceTruncated</code>). Read the files you need from the locations given. <code>"full"</code> (15,000-token budget) gives every symbol that fits its verbatim source, up to 20 resolved edges — each with its confidence and the resolution rung that produced it — and its whole blast radius.</p>
+  <p>The response is capped at the token budget, measured on the compact JSON it is sent as, at four characters per token. Symbols past it carry location only and are marked <code>"elided": true</code>; symbols that would not fit even elided are left out. <code>estimatedTokensUsed</code> is the size of the response itself, and <code>truncated</code> is true whenever anything was elided or left out. A question that matches nothing returns <code>"empty": true</code> rather than an error.</p>
+  <p>Prefer this over every tool below for most questions. It exists because agents choose badly among many similar tools and chaining thin calls costs more than one call.</p>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
     <tbody>
       <tr><td><code>question</code></td><td>string</td><td>yes</td><td>Natural-language question about the codebase</td></tr>
-      <tr><td><code>tokenBudget</code></td><td>number</td><td>no</td><td>Max size of the encoded response in tokens, at four characters per token (default: 15000)</td></tr>
+      <tr><td><code>detail</code></td><td>string</td><td>no</td><td><code>pointers</code> (default) or <code>full</code></td></tr>
+      <tr><td><code>tokenBudget</code></td><td>number</td><td>no</td><td>Max size of the encoded response in tokens, at four characters per token (default: 4000 for pointers, 15000 for full)</td></tr>
     </tbody>
   </table>
 
@@ -52,7 +55,15 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
   </table>
 
   <h3>contextgraph.search_nodes</h3>
-  <p>Full-text search across all nodes, with optional type filtering.</p>
+  <p>Finds symbols by name or description and returns one line per hit, best first, with its <code>file:line</code>.</p>
+  <p>Ranking is the same as <code>explore</code>'s:</p>
+  <ul>
+    <li>identifier words over substrings, and rare words over common ones;</li>
+    <li>classes and methods over constants;</li>
+    <li>links to the other matches count;</li>
+    <li>production code comes before tests unless the query mentions tests.</li>
+  </ul>
+  <p>Each name it shows can be passed straight to <code>trace</code> or <code>impact_analysis</code> as <code>symbol</code>. A <code>types</code> filter, or a query no symbol matches, falls back to plain full-text search across all nodes.</p>
   <table>
     <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
     <tbody>
@@ -96,7 +107,38 @@ modules/cli/build/install/contextgraph/bin/contextgraph serve-mcp</code></pre>
   <p>Return the full provenance chain for a node — every file and line number that contributed to it.</p>
 
   <h3>contextgraph.impact_analysis</h3>
-  <p>Every node that points at this one — its direct dependents, and for a method its resolved call sites, each with its node ID and <code>file:line</code> location. This is the tool for "what calls X" and "what breaks if I change X" when you want that one answer without the rest of an <code>explore</code> response.</p>
+  <p>Who calls a method, function or type — "what calls X", "what breaks if I change X" — or, with <code>direction: "callees"</code>, what it calls.</p>
+  <p>Only resolved calls are listed (confidence 0.8 and up, by default), from production code. Each call names its caller and the call site's <code>file:line</code>, plus the rung that resolved it. That includes calls made through an interface method the target implements, marked with what they went through.</p>
+  <p>The answer says how complete it is. Name-only guesses below the threshold and calls from tests are counted, with the argument that would list them, rather than mixed in. For a type, the answer covers calls to its constructor and members, and not calls between its own members.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>symbol</code></td><td>string</td><td>one of the two</td><td>By name: <code>Type.member</code>, <code>member</code> or <code>Type</code>. An ambiguous name answers with its candidates.</td></tr>
+      <tr><td><code>nodeId</code></td><td>string</td><td>one of the two</td><td>A node id; one with a wrong parameter list resolves like a name</td></tr>
+      <tr><td><code>direction</code></td><td>string</td><td>no</td><td><code>callers</code> (default) or <code>callees</code></td></tr>
+      <tr><td><code>minConfidence</code></td><td>number</td><td>no</td><td>Lowest confidence listed (default 0.8; 0.4 also lists name-only guesses)</td></tr>
+      <tr><td><code>includeTests</code></td><td>boolean</td><td>no</td><td>List calls from test code too (default false)</td></tr>
+      <tr><td><code>limit</code></td><td>number</td><td>no</td><td>Max calls rendered</td></tr>
+    </tbody>
+  </table>
+
+  <h3>contextgraph.trace</h3>
+  <p>Calls followed several hops in one call, returned as a tree with each hop's <code>file:line</code>.</p>
+  <p><strong>Callers</strong> (the default) walk up to the entry points that end up calling the start node. By default those are methods or types whose name ends in ViewModel, Presenter, Fragment, Activity, Controller or Screen. The answer names the entry points reached, the branches that end with no caller, and what was cut at the depth limit.</p>
+  <p><strong>Callees</strong> walk down from a method or a whole type. Set <code>entryPoints</code> to what you are looking for, such as <code>Api$</code> for the endpoints a ViewModel can reach, and only the paths that reach it are shown.</p>
+  <p>Calls through use-case holders, <code>invoke</code> operators and interface methods are followed. Wiring that is not a call (dependency-injection multibindings, reflection) is not, and the answer says so.</p>
+  <table>
+    <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>symbol</code></td><td>string</td><td>one of the two</td><td>Where to start, by name: <code>Type.member</code>, <code>member</code> or <code>Type</code></td></tr>
+      <tr><td><code>nodeId</code></td><td>string</td><td>one of the two</td><td>Where to start, by node id</td></tr>
+      <tr><td><code>direction</code></td><td>string</td><td>no</td><td><code>callers</code> (default) or <code>callees</code></td></tr>
+      <tr><td><code>depth</code></td><td>number</td><td>no</td><td>Max hops (default 5, at most 8)</td></tr>
+      <tr><td><code>entryPoints</code></td><td>string</td><td>no</td><td>Regex on a method's or its type's name where the walk stops; for callees, the target to reach</td></tr>
+      <tr><td><code>minConfidence</code></td><td>number</td><td>no</td><td>Lowest call confidence followed (default 0.8)</td></tr>
+      <tr><td><code>includeTests</code></td><td>boolean</td><td>no</td><td>Follow calls from test code too (default false)</td></tr>
+    </tbody>
+  </table>
 
   <h3>contextgraph.related_files</h3>
   <p>Return all source file paths associated with a node via provenance records.</p>

@@ -51,10 +51,18 @@ class ExploreEngineTest : FunSpec({
         Files.write(file, lines)
     }
 
-    fun addSymbol(id: String, label: String, lineStart: Int, lineEnd: Int, path: String, fqn: String = label) {
+    fun addSymbol(
+        id: String,
+        label: String,
+        lineStart: Int,
+        lineEnd: Int,
+        path: String,
+        fqn: String = label,
+        type: NodeType = NodeType.Method
+    ) {
         val nodeId = NodeId(id)
         storage.upsertNode(
-            GraphNode(nodeId, NodeType.Method, label, properties = mapOf("fqn" to JsonPrimitive(fqn)), confidence = 0.98)
+            GraphNode(nodeId, type, label, properties = mapOf("fqn" to JsonPrimitive(fqn)), confidence = 0.98)
         )
         storage.upsertProvenance(
             nodeId.value, "node",
@@ -64,6 +72,9 @@ class ExploreEngineTest : FunSpec({
 
     fun engine(confidenceFloor: Double = ConfidenceDefaults.CALL_RESOLUTION_REPO_UNIQUE_NAME) =
         ExploreEngine(storage, projectRoot, noOpEmbedder, disabledLiteLlm, confidenceFloor)
+
+    fun calls(from: String, to: String, n: Int, confidence: Double = ConfidenceDefaults.CALL_RESOLUTION_SAME_DIRECTORY) =
+        storage.upsertEdge(GraphEdge(EdgeId("calls:$n"), NodeId(from), NodeId(to), EdgeType.Calls, confidence = confidence))
 
     test("returns verbatim source for a matched symbol, exactly the recorded line range") {
         writeSource(
@@ -104,7 +115,7 @@ class ExploreEngineTest : FunSpec({
             )
         )
 
-        val response = engine().explore("caller")
+        val response = engine().explore("caller", detail = ExploreDetail.FULL)
 
         val symbol = response.symbols.single { it.id == "Caller.kt#caller" }
         val callsEdge = symbol.edges.single { it.type == "calls" && it.direction == "outgoing" }
@@ -126,7 +137,7 @@ class ExploreEngineTest : FunSpec({
             )
         )
 
-        val response = engine(confidenceFloor = 0.8).explore("callee")
+        val response = engine(confidenceFloor = 0.8).explore("callee", detail = ExploreDetail.FULL)
 
         response.blastRadiusConfidenceFloor shouldBe 0.8
         val symbol = response.symbols.single { it.id == "Callee.kt#callee" }
@@ -147,7 +158,7 @@ class ExploreEngineTest : FunSpec({
             )
         )
 
-        val response = engine(confidenceFloor = 0.8).explore("callee")
+        val response = engine(confidenceFloor = 0.8).explore("callee", detail = ExploreDetail.FULL)
 
         val symbol = response.symbols.single { it.id == "Callee.kt#callee" }
         symbol.blastRadius.shouldBeEmpty()
@@ -197,7 +208,7 @@ class ExploreEngineTest : FunSpec({
 
         // Each symbol encodes to ~830 tokens with its full source and ~45 elided; 1,000 fits
         // one full symbol plus the other elided, not both full, exercising the packing edge.
-        val response = engine().explore("big", tokenBudget = 1_000)
+        val response = engine().explore("big", tokenBudget = 1_000, detail = ExploreDetail.FULL)
 
         response.truncated.shouldBeTrue()
         response.symbols.shouldNotBeEmpty()
@@ -232,13 +243,15 @@ class ExploreEngineTest : FunSpec({
             )
         }
 
-        for (budget in listOf(500, 2_000, 6_000)) {
-            val response = engine().explore("gift card balance", tokenBudget = budget)
-            val encoded = encodeExploreResponse(response)
+        for (detail in ExploreDetail.values()) {
+            for (budget in listOf(500, 2_000, 6_000)) {
+                val response = engine().explore("gift card balance", tokenBudget = budget, detail = detail)
+                val encoded = encodeExploreResponse(response)
 
-            (encoded.length / 4.0 <= budget).shouldBeTrue()
-            response.estimatedTokensUsed shouldBe (encoded.length / 4.0).toInt()
-            response.truncated.shouldBeTrue()
+                (encoded.length / 4.0 <= budget).shouldBeTrue()
+                response.estimatedTokensUsed shouldBe (encoded.length / 4.0).toInt()
+                if (detail == ExploreDetail.FULL) response.truncated.shouldBeTrue()
+            }
         }
     }
 
@@ -274,14 +287,143 @@ class ExploreEngineTest : FunSpec({
         ids.first() shouldBe "src/test/BalanceTest.kt#BalanceTest.balanceReturnsCachedBalance"
     }
 
-    test("documents the default token budget") {
-        addSymbol("A.kt#a", "a", 1, 1, "A.kt")
-        writeSource("A.kt", listOf("fun a() {}"))
+    test("documents the default token budgets: pointers by default, full on request") {
+        addSymbol("A.kt#alpha", "alpha", 1, 1, "A.kt")
+        writeSource("A.kt", listOf("fun alpha() {}"))
 
-        val response = engine().explore("a")
+        val pointers = engine().explore("alpha")
+        val full = engine().explore("alpha", detail = ExploreDetail.FULL)
 
-        response.tokenBudget shouldBe DEFAULT_EXPLORE_TOKEN_BUDGET
+        pointers.detail shouldBe "pointers"
+        pointers.tokenBudget shouldBe DEFAULT_POINTERS_TOKEN_BUDGET
+        DEFAULT_POINTERS_TOKEN_BUDGET shouldBe 4_000
+        full.detail shouldBe "full"
+        full.tokenBudget shouldBe DEFAULT_EXPLORE_TOKEN_BUDGET
         DEFAULT_EXPLORE_TOKEN_BUDGET shouldBe 15_000
+    }
+
+    test("pointers carry source for the top symbols only and short call references for every symbol") {
+        repeat(4) { i ->
+            writeSource("Ledger$i.kt", listOf("fun postLedger$i() {", "    step()", "}"))
+            addSymbol("Ledger$i.kt#postLedger$i", "postLedger$i", 1, 3, "Ledger$i.kt")
+        }
+        repeat(3) { i -> calls("Ledger$i.kt#postLedger$i", "Ledger${i + 1}.kt#postLedger${i + 1}", i) }
+
+        val response = engine().explore("post ledger")
+
+        response.symbols.size shouldBe 4
+        response.symbols.take(POINTER_SOURCE_SYMBOLS).forEach { it.source.shouldNotBeNull() }
+        response.symbols.drop(POINTER_SOURCE_SYMBOLS).forEach {
+            it.source.shouldBeNull()
+            it.elided.shouldBeTrue()
+        }
+        response.symbols.forEach {
+            it.edges.shouldBeEmpty()
+            it.blastRadius.shouldBeEmpty()
+            it.why.shouldNotBeNull()
+        }
+        val second = response.symbols.single { it.id == "Ledger1.kt#postLedger1" }
+        second.calls shouldBe listOf("Ledger2.kt#postLedger2")
+        second.calledBy shouldBe listOf("Ledger0.kt#postLedger0")
+    }
+
+    test("a pointer's source is cut to its first lines and says so") {
+        val body = (1..100).map { "    line $it" }
+        writeSource("Long.kt", listOf("fun longLedger() {") + body + listOf("}"))
+        addSymbol("Long.kt#longLedger", "longLedger", 1, body.size + 2, "Long.kt")
+
+        val symbol = engine().explore("long ledger", tokenBudget = 4_000).symbols.single()
+
+        symbol.sourceTruncated shouldBe true
+        symbol.source.shouldNotBeNull().lines().size shouldBe 60
+    }
+
+    test("ranks a method above a constant whose name repeats the question words") {
+        writeSource("Constants.kt", listOf("const val POST_LEDGER_ACTION = \"post\""))
+        writeSource("Ledger.kt", listOf("fun postLedgerAction() {}"))
+        addSymbol("Constants.kt#POST_LEDGER_ACTION", "POST_LEDGER_ACTION", 1, 1, "Constants.kt", type = NodeType.Custom("Property"))
+        addSymbol("Ledger.kt#postLedgerAction", "postLedgerAction", 1, 1, "Ledger.kt")
+
+        val ids = engine().explore("post ledger action").symbols.map { it.id }
+
+        ids.first() shouldBe "Ledger.kt#postLedgerAction"
+    }
+
+    test("of two equal name matches, ranks first the one linked to another match") {
+        writeSource("A.kt", listOf("fun settleInvoice() {}"))
+        writeSource("B.kt", listOf("fun settleInvoice() {}"))
+        writeSource("C.kt", listOf("fun invoiceTotal() {}"))
+        addSymbol("A.kt#settleInvoice", "settleInvoice", 1, 1, "A.kt")
+        addSymbol("B.kt#settleInvoice", "settleInvoice", 1, 1, "B.kt")
+        addSymbol("C.kt#invoiceTotal", "invoiceTotal", 1, 1, "C.kt")
+        calls("B.kt#settleInvoice", "C.kt#invoiceTotal", 1)
+
+        val ids = engine().explore("settle invoice total").symbols.map { it.id }
+
+        ids.indexOf("B.kt#settleInvoice") shouldBe ids.indexOf("A.kt#settleInvoice") - 1
+    }
+
+    test("pulls in a callee whose name shares no word with the question") {
+        writeSource("Checkout.kt", listOf("fun checkoutCart() {}"))
+        writeSource("Gateway.kt", listOf("fun chargeGateway() {}"))
+        addSymbol("Checkout.kt#checkoutCart", "checkoutCart", 1, 1, "Checkout.kt")
+        addSymbol("Gateway.kt#chargeGateway", "chargeGateway", 1, 1, "Gateway.kt")
+        calls("Checkout.kt#checkoutCart", "Gateway.kt#chargeGateway", 1)
+
+        val symbol = engine().explore("checkout cart").symbols.single { it.id == "Gateway.kt#chargeGateway" }
+
+        symbol.why.shouldNotBeNull().startsWith("graph neighbour") shouldBe true
+    }
+
+    test("pulls in the enclosing class of a matched method") {
+        writeSource("Orders.kt", listOf("class Zephyr {", "    fun submitOrderNow() {}", "}"))
+        addSymbol("Orders.kt#Zephyr", "Zephyr", 1, 3, "Orders.kt", type = NodeType.Class)
+        addSymbol("Orders.kt#Zephyr.submitOrderNow", "submitOrderNow", 2, 2, "Orders.kt")
+        storage.upsertEdge(
+            GraphEdge(EdgeId("contains:1"), NodeId("Orders.kt#Zephyr"), NodeId("Orders.kt#Zephyr.submitOrderNow"), EdgeType.Contains, confidence = 0.98)
+        )
+
+        val ids = engine().explore("submit order now").symbols.map { it.id }
+
+        ids.contains("Orders.kt#Zephyr") shouldBe true
+    }
+
+    test("a question word written as one compound matches the identifier that spells it as two") {
+        // "viewmodel" is one word to whoever asks and two to the identifier (View, Model). As a
+        // substring it scored no better than any label that merely contains the letters, and
+        // the tie went to whichever id sorted first.
+        writeSource("a/Reviewmodelling.kt", listOf("class Reviewmodelling"))
+        writeSource("ui/OrderViewModel.kt", listOf("class OrderViewModel"))
+        addSymbol("a/Reviewmodelling.kt#Reviewmodelling", "Reviewmodelling", 1, 1, "a/Reviewmodelling.kt", type = NodeType.Class)
+        addSymbol("ui/OrderViewModel.kt#OrderViewModel", "OrderViewModel", 1, 1, "ui/OrderViewModel.kt", type = NodeType.Class)
+
+        val ids = engine().explore("viewmodel").symbols.map { it.id }
+
+        ids.first() shouldBe "ui/OrderViewModel.kt#OrderViewModel"
+        compoundWords(listOf("order", "view", "model")) shouldBe setOf("orderview", "viewmodel", "orderviewmodel")
+    }
+
+    test("searchSymbols ranks like explore: production code and methods before tests and constants") {
+        writeSource("src/test/BalanceTest.kt", listOf("fun cachedBalanceIsReused() {}"))
+        writeSource("src/main/Constants.kt", listOf("const val CACHED_BALANCE = 1"))
+        writeSource("src/main/Balance.kt", listOf("fun loadCachedBalance() {}"))
+        addSymbol("src/test/BalanceTest.kt#BalanceTest.cachedBalanceIsReused", "cachedBalanceIsReused", 1, 1, "src/test/BalanceTest.kt")
+        addSymbol("src/main/Constants.kt#CACHED_BALANCE", "CACHED_BALANCE", 1, 1, "src/main/Constants.kt", type = NodeType.Custom("Property"))
+        addSymbol("src/main/Balance.kt#loadCachedBalance", "loadCachedBalance", 1, 1, "src/main/Balance.kt")
+
+        val ids = engine().searchSymbols("cached balance", limit = 10).map { it.node.id.value }
+
+        ids.first() shouldBe "src/main/Balance.kt#loadCachedBalance"
+        ids.last() shouldBe "src/test/BalanceTest.kt#BalanceTest.cachedBalanceIsReused"
+    }
+
+    test("splits identifiers into words and questions into adjacent word pairs") {
+        identifierWords("ShoppingCartController") shouldBe listOf("shopping", "cart", "controller")
+        identifierWords("MAX_CART_ITEMS") shouldBe listOf("max", "cart", "items")
+        identifierWords("parseHTTPResponse2") shouldBe listOf("parse", "http", "response", "2")
+        termPairs("the shopping cart apply coupon") shouldBe listOf(
+            "shopping" to "cart", "cart" to "apply", "apply" to "coupon"
+        )
     }
 
     test("a question matching nothing returns an explicit empty result, not an error") {

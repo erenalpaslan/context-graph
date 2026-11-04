@@ -53,5 +53,22 @@ data class UnresolvedReference(
      * [receiverType] alone, the largest group by far carried no receiver hint precisely because
      * the receiver was a call.
      */
-    val receiverCall: String? = null
+    val receiverCall: String? = null,
+    /**
+     * When the receiver is a property read off another value, that property's name
+     * (`loadOrder` for `useCases.loadOrder.execute()`), otherwise null.
+     *
+     * The third receiver shape, after a named variable ([receiverType]) and a call
+     * ([receiverCall]). Grouping a class's dependencies into one holder and calling through it
+     * is common, and the property's declared type sits in the holder's own file -- so, like
+     * [receiverCall], pass 1 records the name and pass 2 reads the type off the declaration it
+     * finds, narrowed by [receiverPropertyOwner].
+     */
+    val receiverProperty: String? = null,
+    /**
+     * The declared type of the value [receiverProperty] is read from (`OrderUseCases` for
+     * `useCases` declared as `useCases: OrderUseCases`), or null when pass 1 could not read
+     * one. Lets pass 2 pick the right `loadOrder` among same-named properties on other types.
+     */
+    val receiverPropertyOwner: String? = null
 )

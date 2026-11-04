@@ -64,7 +64,9 @@ class NodesFtsRepairTest : FunSpec({
         connect(dbPath).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeUpdate("DELETE FROM nodes_fts")
-                statement.executeUpdate("DELETE FROM flyway_schema_history WHERE version = '7'")
+                // Every migration from 7 on, not 7 alone: a history with 7 missing below a later
+                // applied version is a gap Flyway refuses to open, not a pre-7 database.
+                statement.executeUpdate("DELETE FROM flyway_schema_history WHERE CAST(version AS INTEGER) >= 7")
             }
             connection.createStatement().use { statement ->
                 // The old write: no rowid supplied, so `INSERT OR REPLACE` had nothing to

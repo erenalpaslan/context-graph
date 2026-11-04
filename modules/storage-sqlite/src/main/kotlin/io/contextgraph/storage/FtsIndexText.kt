@@ -22,9 +22,17 @@ internal object FtsIndexText {
      * component words. Appending the split components alongside the original lets a search for
      * "rung" or "distribution" retrieve "RungDistribution" without changing what is displayed
      * or stored as truth.
+     *
+     * Adjacent component pairs go in too, joined: "OrderDetailsViewModel" also indexes
+     * "OrderDetails", "DetailsView" and "ViewModel". People write these compounds as one
+     * word -- "viewmodel", "usecase", "datasource" -- and a search for one used to match no row
+     * at all, because the index held only the split words. That kept every ViewModel out of a
+     * question that named one.
      */
     fun labelFor(label: String): String {
         val words = IdentifierSplitter.split(label)
-        return if (words.size > 1) (listOf(label) + words).joinToString(" ") else label
+        if (words.size <= 1) return label
+        val pairs = if (words.size > 2) words.zipWithNext { a, b -> a + b } else emptyList()
+        return (listOf(label) + words + pairs).joinToString(" ")
     }
 }

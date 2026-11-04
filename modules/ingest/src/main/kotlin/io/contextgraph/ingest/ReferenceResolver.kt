@@ -48,6 +48,29 @@ private val CALLABLE_TYPES = setOf<NodeType>(NodeType.Method, NodeType.Function,
 private const val EDGE_WRITE_CHUNK_SIZE = 10_000
 
 /**
+ * Member names the standard libraries of the supported languages declare on their own types:
+ * collections, results, scope functions, `Object`.
+ *
+ * A call to one of these whose receiver could not be typed, resolved only because the repo
+ * happens to declare one method under the same name, is far more likely the library member than
+ * the repo's. Kotlin's `list.fold(0) { ... }` and `runCatching { }.fold(...)` both resolved to
+ * a repo's own `Result.fold` at the repo-unique-name rung's full confidence -- above the
+ * blast-radius floor, so a repo with one `fold` showed every collection fold as its caller.
+ * Such a match keeps its edge but at the ambiguous confidence, below the floor, as a guess.
+ */
+private val LIBRARY_MEMBER_NAMES = setOf(
+    "fold", "map", "mapNotNull", "flatMap", "filter", "filterNot", "forEach", "onEach", "reduce",
+    "first", "firstOrNull", "last", "lastOrNull", "single", "singleOrNull", "find", "any", "all",
+    "none", "count", "sum", "sumOf", "sorted", "sortedBy", "groupBy", "associate", "associateBy",
+    "toList", "toSet", "toMap", "toMutableList", "plus", "minus", "contains", "get", "getOrNull",
+    "getOrElse", "getOrDefault", "set", "put", "add", "addAll", "remove", "removeAll", "clear",
+    "isEmpty", "isNotEmpty", "orEmpty", "size", "let", "also", "apply", "run", "with", "takeIf",
+    "takeUnless", "use", "copy", "equals", "hashCode", "toString", "compareTo", "invoke",
+    "onSuccess", "onFailure", "getOrThrow", "collect", "emit", "launch", "async", "await",
+    "stream", "of", "length", "substring", "split", "trim", "format", "join", "append", "build"
+)
+
+/**
  * Pass 2 of indexing: resolves every [io.contextgraph.core.UnresolvedReference] pass 1 has
  * ever persisted -- not just the ones touched by this run's pass 1 -- against the current
  * declaration symbol table, and materialises the result as `Calls` edges.
@@ -129,13 +152,37 @@ class ReferenceResolver(private val storage: StorageAdapter) {
         // one silently overwriting the rest.
         val pending = LinkedHashMap<Pair<NodeId, NodeId>, CallEdge>()
 
+        // Properties by name, for the two receiver shapes that go through a property's declared
+        // type: a property read (`useCases.loadOrder.execute()`) and a property invoked
+        // (`useCases.loadOrder(id)`, a call to its type's `invoke`).
+        val propertiesByName = HashMap<String, Properties>()
+        fun propertiesFor(name: String) =
+            propertiesByName.getOrPut(name) { Properties.of(storage.findNodesByLabel(name)) }
+
         for (reference in references) {
             // A chained receiver has no declared type in the calling file, only the name of the
             // call that produced it. That name is resolvable here, where the whole symbol table
-            // exists, and the method it names carries its own declared return type.
+            // exists, and the method it names carries its own declared return type. A property
+            // read is the same idea one step over: the property's declaration carries its type.
             val receiverType = reference.receiverType
                 ?: reference.receiverCall?.let { candidatesFor(it).commonReturnType(hierarchy) }
-            val candidates = candidatesFor(reference.referenceName).forReceiver(receiverType)
+                ?: reference.receiverProperty?.let { propertiesFor(it).typeOn(reference.receiverPropertyOwner) }
+
+            var referenceName = reference.referenceName
+            var effectiveReceiver = receiverType
+            var nameCandidates = candidatesFor(referenceName)
+            // `useCases.loadOrder(id)` where `loadOrder` is a property, not a method, of the
+            // receiver's type: the call reaches the property type's `invoke` operator.
+            if (receiverType != null && !nameCandidates.declaredOn(receiverType)) {
+                propertiesFor(referenceName).typeOn(receiverType)?.let { propertyType ->
+                    referenceName = "invoke"
+                    effectiveReceiver = propertyType
+                    nameCandidates = candidatesFor(referenceName)
+                }
+            }
+            val hintMatched = effectiveReceiver != null &&
+                nameCandidates.reachableFrom(effectiveReceiver, hierarchy)
+            val candidates = nameCandidates.forReceiver(effectiveReceiver)
             val match = ResolutionLadder.resolve(reference, candidates, importedTokens)
 
             if (match == null || match.second.size > ConfidenceDefaults.CALL_RESOLUTION_CANDIDATE_CAP) {
@@ -144,7 +191,14 @@ class ReferenceResolver(private val storage: StorageAdapter) {
             }
 
             val (rung, rungCandidates) = match
-            val confidence = rung.confidenceFor(ambiguous = rungCandidates.size > 1)
+            // A repo-wide name match is a guess when nothing else supports it: the name is a
+            // standard-library member and the receiver could not be typed, or the receiver was
+            // typed and neither the type nor its supertypes declare the member -- `List` or
+            // Kotlin's `Result` receivers reaching a repo's own `fold`. Kept as an edge, below
+            // the floor.
+            val nameOnlyGuess = rung == ResolutionRung.REPO_UNIQUE_NAME && !hintMatched &&
+                (effectiveReceiver != null || referenceName in LIBRARY_MEMBER_NAMES)
+            val confidence = rung.confidenceFor(ambiguous = rungCandidates.size > 1 || nameOnlyGuess)
 
             for (target in rungCandidates) {
                 pending.getOrPut(reference.referringSymbolId to target.id) {
@@ -302,6 +356,17 @@ private class Candidates(
         return byDeclaringType[receiverType] ?: all
     }
 
+    /** Whether any candidate is declared on [type] itself. */
+    fun declaredOn(type: String): Boolean = byDeclaringType[type] != null
+
+    /**
+     * Whether any candidate is declared on [type] or on one of its supertypes -- whether a call
+     * on a [type] receiver can reach one of these at all. An inherited method counts: a
+     * `JpaUserSession` receiver reaches the `getId` its interface declares.
+     */
+    fun reachableFrom(type: String, hierarchy: TypeHierarchy): Boolean =
+        byDeclaringType.keys.any { declaring -> declaring != null && hierarchy.isSubtypeOf(type, declaring) }
+
     /**
      * The declared return type every declaration under this name agrees on, or null.
      *
@@ -334,25 +399,50 @@ private class Candidates(
             val callable = sameNameNodes.filter { it.type in CALLABLE_TYPES }
             return Candidates(callable, callable.groupBy { declaringTypeOf(it.id) })
         }
-
-        /**
-         * The simple name of the type a declaration sits in, read out of its id.
-         *
-         * Ids are declaration sites (`repoRelativePath#Outer.Inner.method(Params)`, see
-         * `io.contextgraph.treesitter.DeclarationSiteId`), so the declaring type is the scope
-         * segment before the member's own. Read from the id rather than followed through a
-         * `contains` edge because the id already carries the answer.
-         */
-        private fun declaringTypeOf(id: NodeId): String? {
-            val scope = id.value.substringAfter('#', "")
-            if (scope.isEmpty()) return null
-            // The parameter list goes first: a qualified parameter type (`save(java.util.List)`)
-            // puts dots inside the member's own segment, and splitting before removing them would
-            // mistake `util` for the declaring type.
-            val segments = scope.substringBefore('(').split('.')
-            return if (segments.size >= 2) segments[segments.size - 2].ifEmpty { null } else null
-        }
     }
+}
+
+/**
+ * Every property declaration sharing one name, with the declared type each carries, for typing
+ * a receiver that goes through a property.
+ */
+private class Properties(private val byDeclaringType: Map<String?, List<String>>) {
+    /**
+     * The declared type of the property on [owner], or -- when [owner] is null or declares no
+     * such property -- the type every same-named property agrees on. Null when there is no
+     * agreement: the receiver then stays untyped, which is where it was before.
+     */
+    fun typeOn(owner: String?): String? {
+        owner?.let { byDeclaringType[it]?.distinct()?.singleOrNull()?.let { type -> return type } }
+        return byDeclaringType.values.flatten().distinct().singleOrNull()
+    }
+
+    companion object {
+        fun of(sameNameNodes: List<GraphNode>): Properties = Properties(
+            sameNameNodes
+                .filter { it.type == NodeType.Custom("Property") }
+                .mapNotNull { node -> (node.properties["type"] as? JsonPrimitive)?.content?.let { declaringTypeOf(node.id) to it } }
+                .groupBy({ it.first }, { it.second })
+        )
+    }
+}
+
+/**
+ * The simple name of the type a declaration sits in, read out of its id.
+ *
+ * Ids are declaration sites (`repoRelativePath#Outer.Inner.method(Params)`, see
+ * `io.contextgraph.treesitter.DeclarationSiteId`), so the declaring type is the scope segment
+ * before the member's own. Read from the id rather than followed through a `contains` edge
+ * because the id already carries the answer.
+ */
+private fun declaringTypeOf(id: NodeId): String? {
+    val scope = id.value.substringAfter('#', "")
+    if (scope.isEmpty()) return null
+    // The parameter list goes first: a qualified parameter type (`save(java.util.List)`) puts
+    // dots inside the member's own segment, and splitting before removing them would mistake
+    // `util` for the declaring type.
+    val segments = scope.substringBefore('(').split('.')
+    return if (segments.size >= 2) segments[segments.size - 2].ifEmpty { null } else null
 }
 
 data class ResolutionStats(val resolved: Int, val unresolved: Int)

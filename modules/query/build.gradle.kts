@@ -4,6 +4,7 @@ dependencies {
     implementation(project(":modules:storage-sqlite"))
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.datetime)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.jgrapht.core)
     implementation(libs.kotlin.logging)
     runtimeOnly(libs.logback)
